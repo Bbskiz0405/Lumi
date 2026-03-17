@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm --version)",
+      "Bash(npx expo:*)",
+      "Bash(npx create-expo-app@latest . --template blank-typescript)",
+      "Read(//c/Users/soc/Desktop/Vs_pro/**)",
+      "Bash(npx create-expo-app@latest LumiApp --template blank-typescript)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(cd:*)"
+    ]
+  }
+}
