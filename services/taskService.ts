@@ -24,8 +24,19 @@ export async function getTasksForDate(dateStr: string): Promise<Task[]> {
 }
 
 export async function getTodayTasks(): Promise<Task[]> {
+  const db = await getDb();
   const today = new Date().toISOString().split('T')[0];
-  return getTasksForDate(today);
+  // 今天到期 + 逾期 + 沒設日期，依優先度和建立時間排序
+  return db.getAllAsync<Task>(
+    `SELECT * FROM tasks
+     WHERE completed = 0 AND (due_date IS NULL OR due_date <= ?)
+     ORDER BY
+       CASE WHEN due_date IS NULL THEN 1 ELSE 0 END ASC,
+       due_date ASC,
+       CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END ASC,
+       created_at DESC`,
+    [today]
+  );
 }
 
 export async function getTaskById(id: string): Promise<Task | null> {

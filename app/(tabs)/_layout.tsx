@@ -13,12 +13,12 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#1976D2',
-        tabBarInactiveTintColor: '#9E9E9E',
+        tabBarActiveTintColor: '#FFFFFF',
+        tabBarInactiveTintColor: '#444444',
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
-          borderTopColor: '#E0E0E0',
-          elevation: 8,
+          backgroundColor: '#0F0F0F',
+          borderTopColor: '#1A1A1A',
+          elevation: 0,
         },
         tabBarLabelStyle: {
           fontSize: 11,
@@ -28,9 +28,9 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: '今日',
+          title: '首頁',
           tabBarIcon: ({ color, size }) => (
-            <TabIcon name="checkbox-marked-outline" color={color} size={size} />
+            <TabIcon name="pencil-outline" color={color} size={size} />
           ),
         }}
       />
@@ -44,12 +44,18 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="tasks"
+        options={{
+          title: '任務',
+          tabBarIcon: ({ color, size }) => (
+            <TabIcon name="checkbox-marked-outline" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="dashboard"
         options={{
-          title: '總覽',
-          tabBarIcon: ({ color, size }) => (
-            <TabIcon name="view-dashboard-outline" color={color} size={size} />
-          ),
+          href: null, // 隱藏，Phase 3 再啟用
         }}
       />
       <Tabs.Screen

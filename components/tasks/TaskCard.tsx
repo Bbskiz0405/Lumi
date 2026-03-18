@@ -96,10 +96,10 @@ const styles = StyleSheet.create({
   card: {
     marginHorizontal: 16,
     marginVertical: 4,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#111111',
   },
   completedCard: {
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#0A0A0A',
   },
   content: {
     flexDirection: 'row',

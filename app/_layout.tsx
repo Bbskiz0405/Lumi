@@ -1,25 +1,28 @@
 import React from 'react';
 import { Stack } from 'expo-router';
-import { PaperProvider, MD3LightTheme } from 'react-native-paper';
+import { PaperProvider, MD3DarkTheme } from 'react-native-paper';
 import { StatusBar } from 'expo-status-bar';
 
 const theme = {
-  ...MD3LightTheme,
+  ...MD3DarkTheme,
   colors: {
-    ...MD3LightTheme.colors,
-    primary: '#1976D2',
-    primaryContainer: '#E3F2FD',
-    secondary: '#0288D1',
-    secondaryContainer: '#E1F5FE',
-    surface: '#FFFFFF',
-    background: '#F5F7FA',
+    ...MD3DarkTheme.colors,
+    primary: '#FFFFFF',
+    primaryContainer: '#1A1A1A',
+    secondary: '#888888',
+    surface: '#111111',
+    surfaceVariant: '#1A1A1A',
+    background: '#0F0F0F',
+    onBackground: '#FFFFFF',
+    onSurface: '#FFFFFF',
+    outline: '#2A2A2A',
   },
 };
 
 export default function RootLayout() {
   return (
     <PaperProvider theme={theme}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
@@ -27,6 +30,8 @@ export default function RootLayout() {
           options={{
             headerShown: true,
             headerTitle: '任務詳情',
+            headerStyle: { backgroundColor: '#0F0F0F' },
+            headerTintColor: '#FFFFFF',
             presentation: 'card',
           }}
         />

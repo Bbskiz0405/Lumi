@@ -93,13 +93,17 @@ export default function CalendarScreen() {
         onDayPress={handleDayPress}
         markedDates={markedDates}
         theme={{
-          todayTextColor: '#1976D2',
-          selectedDayBackgroundColor: '#1976D2',
-          arrowColor: '#1976D2',
-          dotColor: '#1976D2',
-          textMonthFontWeight: '600',
+          todayTextColor: '#FFFFFF',
+          selectedDayBackgroundColor: '#FFFFFF',
+          selectedDayTextColor: '#0F0F0F',
+          arrowColor: '#FFFFFF',
+          dotColor: '#FF4444',
+          textMonthFontWeight: '300',
           textDayFontSize: 14,
-          calendarBackground: '#FFFFFF',
+          calendarBackground: '#0F0F0F',
+          dayTextColor: '#AAAAAA',
+          textDisabledColor: '#333333',
+          monthTextColor: '#FFFFFF',
         }}
         style={styles.calendar}
       />
@@ -144,10 +148,10 @@ export default function CalendarScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#F5F7FA',
+    backgroundColor: '#0F0F0F',
   },
   header: {
-    backgroundColor: '#F5F7FA',
+    backgroundColor: '#0F0F0F',
   },
   headerTitle: {
     fontWeight: '700',

@@ -11,7 +11,7 @@ export default function GoalsScreen() {
         <Appbar.Content title="目標" titleStyle={styles.headerTitle} />
       </Appbar.Header>
       <View style={styles.center}>
-        <MaterialCommunityIcons name="target" size={64} color="#BDBDBD" />
+        <MaterialCommunityIcons name="target" size={64} color="#333333" />
         <Text variant="titleMedium" style={styles.label}>Phase 5 開發中</Text>
         <Text variant="bodySmall" style={styles.sub}>完成 Phase 4 後啟用</Text>
       </View>
@@ -20,10 +20,10 @@ export default function GoalsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F5F7FA' },
-  header: { backgroundColor: '#F5F7FA' },
-  headerTitle: { fontWeight: '700', color: '#212121' },
+  safe: { flex: 1, backgroundColor: '#0F0F0F' },
+  header: { backgroundColor: '#0F0F0F' },
+  headerTitle: { fontWeight: '700', color: '#FFFFFF' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
-  label: { color: '#9E9E9E', marginTop: 8 },
-  sub: { color: '#BDBDBD' },
+  label: { color: '#555555', marginTop: 8 },
+  sub: { color: '#333333' },
 });
