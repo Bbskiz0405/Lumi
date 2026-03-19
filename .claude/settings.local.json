@@ -8,7 +8,18 @@
       "Bash(npx create-expo-app@latest LumiApp --template blank-typescript)",
       "Bash(npm install:*)",
       "Bash(npx tsc:*)",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(npx ngrok:*)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "Bash(powershell -Command \"Invoke-WebRequest -Uri 'https://github.com/expo/expo-go-releases/releases/download/Expo-Go-55.0.5/Expo-Go-55.0.5.apk' -OutFile 'C:\\\\Users\\\\soc\\\\Downloads\\\\ExpoGo.apk'\" 2>&1)",
+      "Bash(powershell -ExecutionPolicy Bypass -Command \"Invoke-WebRequest -Uri 'https://github.com/expo/expo-go-releases/releases/download/Expo-Go-55.0.5/Expo-Go-55.0.5.apk' -OutFile 'C:\\\\Users\\\\soc\\\\Downloads\\\\ExpoGo.apk'\" 2>&1)",
+      "Bash(\"/c/Users/soc/AppData/Local/Android/Sdk/platform-tools/adb\" install:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(powershell -ExecutionPolicy Bypass -Command \"Invoke-WebRequest -Uri 'https://github.com/expo/expo-go-releases/releases/download/Expo-Go-55.0.9/Expo-Go-55.0.9.apk' -OutFile 'C:\\\\Users\\\\soc\\\\Downloads\\\\ExpoGo-latest.apk'\" 2>&1)",
+      "WebFetch(domain:expo.dev)",
+      "Read(//c/Program Files/Android/Android Studio/jbr/bin/**)",
+      "Read(//c/Program Files/Android/Android Studio//**)"
     ]
   }
 }
