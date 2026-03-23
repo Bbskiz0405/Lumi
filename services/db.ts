@@ -1,12 +1,15 @@
 import * as SQLite from 'expo-sqlite';
 
-let db: SQLite.SQLiteDatabase | null = null;
+let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
-export async function getDb(): Promise<SQLite.SQLiteDatabase> {
-  if (db) return db;
-  db = await SQLite.openDatabaseAsync('lumi.db');
-  await initDb(db);
-  return db;
+export function getDb(): Promise<SQLite.SQLiteDatabase> {
+  if (!dbPromise) {
+    dbPromise = SQLite.openDatabaseAsync('lumi.db').then(async (database) => {
+      await initDb(database);
+      return database;
+    });
+  }
+  return dbPromise;
 }
 
 async function initDb(database: SQLite.SQLiteDatabase): Promise<void> {

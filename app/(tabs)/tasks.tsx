@@ -1,17 +1,15 @@
 import React, { useState, useCallback } from 'react';
-import { View, FlatList, StyleSheet, TouchableOpacity, Text } from 'react-native';
-import { Portal, Modal, Divider, ActivityIndicator } from 'react-native-paper';
+import {
+  View, FlatList, StyleSheet, TouchableOpacity, Text,
+  Modal, ActivityIndicator,
+} from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import TaskCard from '../../components/tasks/TaskCard';
 import TaskForm from '../../components/tasks/TaskForm';
-import {
-  getAllTasks,
-  createTask,
-  toggleTaskComplete,
-} from '../../services/taskService';
+import { getAllTasks, createTask, toggleTaskComplete } from '../../services/taskService';
 import { Task, CreateTaskInput } from '../../types/task';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 export default function TasksScreen() {
   const router = useRouter();
@@ -24,6 +22,7 @@ export default function TasksScreen() {
       setLoading(true);
       getAllTasks()
         .then(data => setTasks(data.filter(t => t.completed === 0)))
+        .catch(err => console.error('[TasksScreen] getAllTasks failed:', err))
         .finally(() => setLoading(false));
     }, [])
   );
@@ -74,20 +73,23 @@ export default function TasksScreen() {
         />
       )}
 
-      <Portal>
-        <Modal
-          visible={modalVisible}
-          onDismiss={() => setModalVisible(false)}
-          contentContainerStyle={styles.modal}
-        >
-          <Text style={styles.modalTitle}>新增任務</Text>
-          <Divider style={{ backgroundColor: '#2A2A2A' }} />
-          <TaskForm
-            onSubmit={handleCreate}
-            onCancel={() => setModalVisible(false)}
-          />
-        </Modal>
-      </Portal>
+      <Modal
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+        animationType="slide"
+        transparent
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modal}>
+            <Text style={styles.modalTitle}>新增任務</Text>
+            <View style={styles.modalDivider} />
+            <TaskForm
+              onSubmit={handleCreate}
+              onCancel={() => setModalVisible(false)}
+            />
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -101,30 +103,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 16,
   },
-  headerTitle: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: '300',
-    letterSpacing: 2,
-  },
+  headerTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '300', letterSpacing: 2 },
   addBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#2A2A2A',
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 36, height: 36, borderRadius: 18,
+    borderWidth: 1, borderColor: '#2A2A2A',
+    alignItems: 'center', justifyContent: 'center',
   },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   list: { paddingBottom: 40, paddingTop: 4 },
   empty: { alignItems: 'center', marginTop: 80 },
   emptyText: { color: '#333333', fontSize: 13, letterSpacing: 1 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'flex-end',
+  },
   modal: {
     backgroundColor: '#111111',
-    margin: 20,
-    borderRadius: 12,
-    maxHeight: '85%',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    maxHeight: 600,
     borderWidth: 1,
     borderColor: '#2A2A2A',
   },
@@ -136,4 +134,5 @@ const styles = StyleSheet.create({
     fontWeight: '300',
     letterSpacing: 1,
   },
+  modalDivider: { height: 1, backgroundColor: '#2A2A2A' },
 });

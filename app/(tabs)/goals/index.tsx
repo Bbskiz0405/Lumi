@@ -1,19 +1,18 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
-import { Text, Appbar } from 'react-native-paper';
+import { View, StyleSheet, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 export default function GoalsScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <Appbar.Header style={styles.header} elevated={false}>
-        <Appbar.Content title="目標" titleStyle={styles.headerTitle} />
-      </Appbar.Header>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>目標</Text>
+      </View>
       <View style={styles.center}>
         <MaterialCommunityIcons name="target" size={64} color="#333333" />
-        <Text variant="titleMedium" style={styles.label}>Phase 5 開發中</Text>
-        <Text variant="bodySmall" style={styles.sub}>完成 Phase 4 後啟用</Text>
+        <Text style={styles.label}>Phase 5 開發中</Text>
+        <Text style={styles.sub}>完成 Phase 4 後啟用</Text>
       </View>
     </SafeAreaView>
   );
@@ -21,9 +20,9 @@ export default function GoalsScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#0F0F0F' },
-  header: { backgroundColor: '#0F0F0F' },
-  headerTitle: { fontWeight: '700', color: '#FFFFFF' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
-  label: { color: '#555555', marginTop: 8 },
-  sub: { color: '#333333' },
+  header: { paddingHorizontal: 24, paddingVertical: 16 },
+  headerTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '300', letterSpacing: 2 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  label: { color: '#555555', marginTop: 8, fontSize: 16 },
+  sub: { color: '#333333', fontSize: 13, marginTop: 4 },
 });

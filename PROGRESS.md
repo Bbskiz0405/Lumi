@@ -33,6 +33,21 @@
 
 ---
 
+---
+
+## Bug 修復紀錄
+
+### ✅ 任務頁顯示空白（沒有待辦任務）
+**症狀：** 首頁 `TasksModule` 顯示 2 件待辦，點進任務 tab 卻顯示「沒有待辦任務」
+
+**根因：** `services/db.ts` 使用 `let db` 變數作為 singleton，但多個 tab 畫面同時 mount 時，兩個並發的 `getDb()` 呼叫都看到 `db === null`，各自開了一個 DB 連線，後者覆蓋 `db` 變數，導致先前的呼叫者持有孤立連線，查詢靜默失敗回傳空陣列。
+
+**修法：**
+- `services/db.ts`：改用 Promise singleton（`let dbPromise`），確保所有並發呼叫共用同一個 Promise，DB 只開一次
+- `app/(tabs)/tasks.tsx`：加上 `.catch()` 避免靜默吞錯
+
+---
+
 ## 待開發
 
 ### Phase 2｜快速筆記 + Gemini 分流
@@ -64,4 +79,20 @@
 - `react-native-reanimated` 已移除（SDK 55 相容性問題，Phase 1 不需要）
 - Gradle 固定在 8.13（Gradle 9.0 與 React Native 不相容）
 - `JAVA_HOME` 需指向 Android Studio JBR：`C:\Program Files\Android\Android Studio\jbr`
-- 開發指令：`set JAVA_HOME=C:\Program Files\Android\Android Studio\jbr && npx expo run:android`
+- 開發指令：`set JAVA_HOME=C:\Program Files\Android\Android Studio\jbr && npx expo run:android --no-bundler`
+
+### Android build 關鍵設定（解決白畫面問題）
+
+**問題根因：** Hermes JIT 無法編譯超大 glyph map（MaterialCommunityIcons 7000+ 筆），且 dev bundle OkHttp multipart chunked 解析失敗。
+
+**解法組合：**
+1. `android/app/build.gradle` → `debuggableVariants = []`：讓 Gradle 在 build 時用 hermesc AOT 編譯並嵌入 bundle（不依賴 Metro）
+2. `npx expo run:android --no-bundler`：不啟動 Metro server，app 才會讀 embedded bundle
+3. `metro.config.js` resolver mocks：把 MaterialCommunityIcons 換成 `assets/mci-minimal.json`（9 筆），其餘 glyph maps 換成 empty module，讓 hermesc 可以編譯
+4. `assets/expo-symbols-mock.js`：防止 expo-symbols 在 Android 上出錯
+
+**重要：** 每次改完 JS/UI 後，需重新 build：
+```bash
+set JAVA_HOME=C:\Program Files\Android\Android Studio\jbr
+npx expo run:android --no-bundler
+```

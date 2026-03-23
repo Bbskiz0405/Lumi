@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Alert, ScrollView } from 'react-native';
-import { Text, Button, Divider, ActivityIndicator, Appbar } from 'react-native-paper';
+import {
+  View, StyleSheet, Alert, ScrollView,
+  Text, TouchableOpacity, ActivityIndicator,
+} from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import TaskForm from '../../components/tasks/TaskForm';
@@ -61,7 +63,7 @@ export default function TaskDetailScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color="#1976D2" />
+        <ActivityIndicator color="#FFFFFF" />
       </View>
     );
   }
@@ -69,7 +71,7 @@ export default function TaskDetailScreen() {
   if (!task) {
     return (
       <View style={styles.center}>
-        <Text>找不到任務</Text>
+        <Text style={styles.notFound}>找不到任務</Text>
       </View>
     );
   }
@@ -91,11 +93,9 @@ export default function TaskDetailScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.container}>
-        <Text variant="headlineSmall" style={styles.title}>
-          {task.title}
-        </Text>
+        <Text style={styles.title}>{task.title}</Text>
 
-        <Divider style={styles.divider} />
+        <View style={styles.divider} />
 
         <View style={styles.row}>
           <Text style={styles.rowLabel}>優先度</Text>
@@ -118,7 +118,7 @@ export default function TaskDetailScreen() {
 
         <View style={styles.row}>
           <Text style={styles.rowLabel}>狀態</Text>
-          <Text style={[styles.rowValue, { color: task.completed ? '#2E7D32' : '#1565C0' }]}>
+          <Text style={[styles.rowValue, { color: task.completed ? '#66BB66' : '#4488FF' }]}>
             {task.completed ? '已完成' : '進行中'}
           </Text>
         </View>
@@ -130,26 +130,15 @@ export default function TaskDetailScreen() {
           </Text>
         </View>
 
-        <Divider style={styles.divider} />
+        <View style={styles.divider} />
 
         <View style={styles.actions}>
-          <Button
-            mode="outlined"
-            icon="pencil"
-            onPress={() => setEditing(true)}
-            style={styles.actionButton}
-          >
-            編輯
-          </Button>
-          <Button
-            mode="outlined"
-            icon="delete"
-            onPress={handleDelete}
-            textColor="#C62828"
-            style={[styles.actionButton, styles.deleteButton]}
-          >
-            刪除
-          </Button>
+          <TouchableOpacity style={styles.editBtn} onPress={() => setEditing(true)}>
+            <Text style={styles.editBtnText}>編輯</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
+            <Text style={styles.deleteBtnText}>刪除</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -157,50 +146,37 @@ export default function TaskDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: '#F5F7FA',
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  container: {
-    padding: 20,
-  },
-  title: {
-    fontWeight: '700',
-    color: '#212121',
-    marginBottom: 4,
-  },
-  divider: {
-    marginVertical: 16,
-  },
+  safe: { flex: 1, backgroundColor: '#0F0F0F' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0F0F0F' },
+  notFound: { color: '#555', fontSize: 14 },
+  container: { padding: 20 },
+  title: { color: '#FFFFFF', fontSize: 20, fontWeight: '300', marginBottom: 4, lineHeight: 28 },
+  divider: { height: 1, backgroundColor: '#1A1A1A', marginVertical: 16 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 14,
-    gap: 12,
   },
-  rowLabel: {
-    width: 72,
-    color: '#757575',
-    fontSize: 14,
-  },
-  rowValue: {
-    fontSize: 14,
-    color: '#212121',
-    fontWeight: '500',
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  actionButton: {
+  rowLabel: { width: 72, color: '#555555', fontSize: 14 },
+  rowValue: { fontSize: 14, color: '#CCCCCC', fontWeight: '300', flex: 1 },
+  actions: { flexDirection: 'row', marginTop: 8 },
+  editBtn: {
     flex: 1,
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginRight: 12,
   },
-  deleteButton: {
-    borderColor: '#EF9A9A',
+  editBtnText: { color: '#FFFFFF', fontSize: 14 },
+  deleteBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#3A1010',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
   },
+  deleteBtnText: { color: '#FF6666', fontSize: 14 },
 });

@@ -1,6 +1,5 @@
 import React from 'react';
-import { StyleSheet } from 'react-native';
-import { Chip } from 'react-native-paper';
+import { View, Text, StyleSheet } from 'react-native';
 import { Priority } from '../../types/task';
 
 interface Props {
@@ -8,28 +7,31 @@ interface Props {
   compact?: boolean;
 }
 
-const PRIORITY_CONFIG: Record<Priority, { label: string; color: string; textColor: string }> = {
-  high: { label: '高', color: '#FDECEA', textColor: '#C62828' },
-  medium: { label: '中', color: '#FFF8E1', textColor: '#E65100' },
-  low: { label: '低', color: '#E8F5E9', textColor: '#2E7D32' },
+const PRIORITY_CONFIG: Record<Priority, { label: string; bg: string; color: string }> = {
+  high:   { label: '高', bg: '#2A1010', color: '#FF6666' },
+  medium: { label: '中', bg: '#1A1500', color: '#FFAA44' },
+  low:    { label: '低', bg: '#0A1A0A', color: '#66BB66' },
 };
 
 export default function PriorityBadge({ priority, compact = false }: Props) {
-  const config = PRIORITY_CONFIG[priority];
+  const cfg = PRIORITY_CONFIG[priority];
   return (
-    <Chip
-      compact={compact}
-      style={[styles.chip, { backgroundColor: config.color }]}
-      textStyle={{ color: config.textColor, fontSize: compact ? 10 : 12 }}
-    >
-      {config.label}
-    </Chip>
+    <View style={[styles.badge, { backgroundColor: cfg.bg }]}>
+      <Text style={[styles.text, { color: cfg.color, fontSize: compact ? 10 : 12 }]}>
+        {cfg.label}
+      </Text>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  chip: {
+  badge: {
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
     alignSelf: 'flex-start',
-    height: 24,
+  },
+  text: {
+    fontWeight: '500',
   },
 });

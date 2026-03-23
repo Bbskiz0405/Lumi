@@ -5,12 +5,16 @@ import {
   TextInput,
   TouchableOpacity,
   Text,
-  KeyboardAvoidingView,
-  Platform,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { useRouter } from 'expo-router';
 import { createTask } from '../../services/taskService';
+import TasksModule from '../../components/modules/TasksModule';
+import CalendarModule from '../../components/modules/CalendarModule';
+import FinanceModule from '../../components/modules/FinanceModule';
+import GoalsModule from '../../components/modules/GoalsModule';
 
 function formatDate(): string {
   const now = new Date();
@@ -19,8 +23,8 @@ function formatDate(): string {
 }
 
 export default function HomeScreen() {
+  const router = useRouter();
   const [text, setText] = useState('');
-  const [submitted, setSubmitted] = useState(false);
 
   async function handleSubmit() {
     const trimmed = text.trim();
@@ -34,43 +38,49 @@ export default function HomeScreen() {
       entry_id: null,
     });
     setText('');
-    setSubmitted(true);
-    setTimeout(() => setSubmitted(false), 1500);
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+
         {/* 日期 */}
-        <View style={styles.dateArea}>
-          <Text style={styles.dateText}>{formatDate()}</Text>
+        <Text style={styles.dateText}>{formatDate()}</Text>
+
+        {/* 輸入框 */}
+        <View style={styles.inputCard}>
+          <TextInput
+            style={styles.input}
+            value={text}
+            onChangeText={setText}
+            placeholder="想到什麼就寫..."
+            placeholderTextColor="#2A2A2A"
+            multiline
+            blurOnSubmit
+            onSubmitEditing={handleSubmit}
+          />
+          {text.trim().length > 0 && (
+            <TouchableOpacity onPress={handleSubmit} style={styles.submitBtn}>
+              <MaterialCommunityIcons name="arrow-up" size={16} color="#0F0F0F" />
+            </TouchableOpacity>
+          )}
         </View>
 
-        {/* 中央輸入框 */}
-        <View style={styles.center}>
-          <View style={styles.inputCard}>
-            <TextInput
-              style={styles.input}
-              value={text}
-              onChangeText={setText}
-              placeholder={submitted ? '已記錄' : '想到什麼就寫...'}
-              placeholderTextColor={submitted ? '#555555' : '#2A2A2A'}
-              multiline
-              autoFocus={false}
-            />
-            {text.trim().length > 0 && (
-              <TouchableOpacity onPress={handleSubmit} style={styles.submitBtn}>
-                <MaterialCommunityIcons name="arrow-up" size={16} color="#0F0F0F" />
-              </TouchableOpacity>
-            )}
+        {/* 模組格 */}
+        <View style={styles.grid}>
+          <View style={[styles.row, { marginBottom: 12 }]}>
+            <TasksModule onPress={() => router.push('/(tabs)/tasks')} />
+            <View style={styles.gap} />
+            <CalendarModule onPress={() => router.push('/(tabs)/calendar')} />
           </View>
+          <View style={styles.row}>
+            <FinanceModule onPress={() => router.push('/(tabs)/finance/')} />
+            <View style={styles.gap} />
+            <GoalsModule onPress={() => router.push('/(tabs)/goals/')} />
           </View>
+        </View>
 
-        <View style={styles.bottom} />
-      </KeyboardAvoidingView>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -80,59 +90,53 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0F0F0F',
   },
-  flex: {
-    flex: 1,
-  },
-  dateArea: {
-    paddingHorizontal: 28,
+  scroll: {
+    paddingHorizontal: 20,
     paddingTop: 24,
+    paddingBottom: 40,
   },
   dateText: {
     color: '#333333',
     fontSize: 12,
     letterSpacing: 2,
     fontWeight: '300',
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 28,
-    marginBottom: 60,
+    marginBottom: 16,
   },
   inputCard: {
     borderWidth: 1,
     borderColor: '#3A3A3A',
     borderRadius: 16,
-    padding: 20,
+    padding: 16,
     backgroundColor: '#161616',
-    minHeight: 120,
+    marginBottom: 24,
+    minHeight: 80,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
   },
   input: {
+    flex: 1,
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '300',
-    lineHeight: 26,
-    minHeight: 80,
+    lineHeight: 24,
     textAlignVertical: 'top',
+    minHeight: 48,
   },
   submitBtn: {
-    alignSelf: 'flex-end',
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
     width: 28,
     height: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
+    marginLeft: 8,
   },
-  hint: {
-    color: '#222222',
-    fontSize: 11,
-    letterSpacing: 1,
-    textAlign: 'center',
-    marginTop: 12,
+  grid: {
   },
-  bottom: {
-    height: 20,
+  row: {
+    flexDirection: 'row',
+  },
+  gap: {
+    width: 12,
   },
 });
