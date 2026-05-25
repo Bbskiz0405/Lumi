@@ -3,9 +3,9 @@
 Expo 55 + React Native 0.83 + TypeScript + SQLite + Expo Router。Android 為主。
 
 PRD 完整規格：`Lumi_PRD.md`
-開發進度：`~/.claude/projects/C--Users-Brayden-Desktop-VS-pro-Lumi/memory/`
+開發進度：`memory/`
 
-每次對話開始先讀 `project_shortterm.md` 取得當前狀態，需要歷史細節再讀 `project_longterm.md`。
+每次對話開始先讀 `memory/daily_log.md` 取得當前狀態，需要歷史細節再讀 `memory/project_status.md`。
 
 ## 固定規則
 - 不用 react-native-calendars，月曆自製 grid
