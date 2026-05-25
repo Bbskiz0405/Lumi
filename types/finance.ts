@@ -18,3 +18,11 @@ export interface Budget {
   month: string; // 'YYYY-MM'
   is_ai_generated: number; // 0 | 1
 }
+
+export interface CreateTransactionInput {
+  type: TransactionType;
+  item: string;
+  amount: number;
+  category: ExpenseCategory | null;
+  entry_id?: string | null;
+}

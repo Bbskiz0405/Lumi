@@ -1,30 +1,47 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Text, StyleSheet } from 'react-native';
 import ModuleCard from './ModuleCard';
+import { getMonthSummary } from '../../services/financeService';
 
 interface Props {
   onPress: () => void;
 }
 
 export default function FinanceModule({ onPress }: Props) {
+  const [income, setIncome] = useState(0);
+  const [expense, setExpense] = useState(0);
+
+  useEffect(() => {
+    const now = new Date();
+    const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    getMonthSummary(month).then(s => {
+      setIncome(s.income);
+      setExpense(s.expense);
+    });
+  }, []);
+
+  const balance = income - expense;
+
   return (
     <ModuleCard title="財務" icon="wallet-outline" onPress={onPress} accent="#55DDAA">
-      <Text style={styles.soon}>Phase 4</Text>
-      <Text style={styles.sub}>即將開放</Text>
+      <Text style={[styles.balance, { color: balance >= 0 ? '#FFFFFF' : '#FF4444' }]}>
+        {balance >= 0 ? '+' : ''}{balance.toLocaleString()}
+      </Text>
+      <Text style={styles.label}>本月結餘</Text>
     </ModuleCard>
   );
 }
 
 const styles = StyleSheet.create({
-  soon: {
-    color: '#333333',
-    fontSize: 13,
-    fontWeight: '300',
-    marginTop: 4,
+  balance: {
+    fontSize: 28,
+    fontWeight: '200',
+    lineHeight: 32,
   },
-  sub: {
-    color: '#2A2A2A',
-    fontSize: 11,
+  label: {
+    color: '#444444',
+    fontSize: 12,
+    fontWeight: '300',
     marginTop: 4,
   },
 });
