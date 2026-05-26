@@ -59,24 +59,27 @@ export default function CalendarScreen() {
 
   // Swipe animation
   const slideAnim = useRef(new Animated.Value(0)).current;
+  const modeRef = useRef<CalendarMode>('tasks');
+  modeRef.current = mode;
+
   const panResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dx) > 15 && Math.abs(gs.dx) > Math.abs(gs.dy),
       onPanResponderMove: (_, gs) => {
-        const currentOffset = mode === 'tasks' ? 0 : -SCREEN_WIDTH;
+        const currentOffset = modeRef.current === 'tasks' ? 0 : -SCREEN_WIDTH;
         const newVal = currentOffset + gs.dx;
         const clamped = Math.max(-SCREEN_WIDTH, Math.min(0, newVal));
         slideAnim.setValue(clamped);
       },
       onPanResponderRelease: (_, gs) => {
         const threshold = SCREEN_WIDTH * 0.25;
-        if (mode === 'tasks' && gs.dx < -threshold) {
+        if (modeRef.current === 'tasks' && gs.dx < -threshold) {
           switchMode('finance');
-        } else if (mode === 'finance' && gs.dx > threshold) {
+        } else if (modeRef.current === 'finance' && gs.dx > threshold) {
           switchMode('tasks');
         } else {
           Animated.spring(slideAnim, {
-            toValue: mode === 'tasks' ? 0 : -SCREEN_WIDTH,
+            toValue: modeRef.current === 'tasks' ? 0 : -SCREEN_WIDTH,
             useNativeDriver: true,
             friction: 8,
           }).start();
