@@ -21,6 +21,7 @@ import {
   ClassificationResult,
 } from '../../services/classificationService';
 import { ClassifiedType } from '../../types/entry';
+import { getRecentActivity, getUsagePatterns, RecentItem } from '../../services/recentService';
 import TasksModule from '../../components/modules/TasksModule';
 import CalendarModule from '../../components/modules/CalendarModule';
 import FinanceModule from '../../components/modules/FinanceModule';
@@ -41,7 +42,31 @@ const TYPE_CONFIG: Record<string, { label: string; icon: string; color: string }
   UNCERTAIN: { label: '未分類', icon: 'help-circle-outline', color: '#666666' },
 };
 
+const RECENT_TYPE_CONFIG: Record<string, { icon: string; color: string }> = {
+  task: { icon: 'checkbox-marked-outline', color: '#FF9944' },
+  finance: { icon: 'wallet-outline', color: '#55DDAA' },
+  note: { icon: 'lightbulb-outline', color: '#88AAFF' },
+};
+
+const QUICK_ACTIONS: Record<string, { label: string; icon: string; color: string; action: string }> = {
+  TASK: { label: '新增任務', icon: 'plus-circle-outline', color: '#FF9944', action: 'task' },
+  FINANCE: { label: '快速記帳', icon: 'cash-plus', color: '#55DDAA', action: 'finance' },
+  IDEA: { label: '寫筆記', icon: 'note-plus-outline', color: '#88AAFF', action: 'note' },
+};
+
 const SELECTABLE_TYPES: ClassifiedType[] = ['TASK', 'FINANCE', 'IDEA'];
+
+function timeAgo(isoStr: string): string {
+  const diff = Date.now() - new Date(isoStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return '剛剛';
+  if (mins < 60) return `${mins} 分鐘前`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs} 小時前`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days} 天前`;
+  return `${Math.floor(days / 7)} 週前`;
+}
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -52,10 +77,17 @@ export default function HomeScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [feedbackText, setFeedbackText] = useState('');
   const [feedbackOpacity] = useState(new Animated.Value(0));
+  const [recentItems, setRecentItems] = useState<RecentItem[]>([]);
+  const [quickActions, setQuickActions] = useState<string[]>([]);
 
   useFocusEffect(
     useCallback(() => {
       setRefreshKey(k => k + 1);
+      getRecentActivity(5).then(setRecentItems);
+      getUsagePatterns().then(patterns => {
+        const top = patterns.slice(0, 3).map(p => p.type);
+        setQuickActions(top.length > 0 ? top : ['TASK', 'FINANCE', 'IDEA']);
+      });
     }, [])
   );
 
@@ -72,6 +104,20 @@ export default function HomeScreen() {
     if (!classification || !pendingEntryId) return;
     setClassification({ ...classification, type: newType, confidence: 'high' });
     updateEntryType(pendingEntryId, newType);
+  }
+
+  function handleQuickAction(action: string) {
+    switch (action) {
+      case 'task':
+        router.push('/(tabs)/tasks');
+        break;
+      case 'finance':
+        router.push('/(tabs)/finance/');
+        break;
+      case 'note':
+        router.push('/notes');
+        break;
+    }
   }
 
   async function handleConfirm() {
@@ -213,7 +259,6 @@ export default function HomeScreen() {
               </View>
             </View>
 
-            {/* 財務解析預覽 */}
             {classification.type === 'FINANCE' && classification.parsed && (
               <View style={styles.parsePreview}>
                 <Text style={styles.parseText}>
@@ -246,6 +291,26 @@ export default function HomeScreen() {
           <Text style={styles.feedbackText}>{feedbackText}</Text>
         </Animated.View>
 
+        {/* 常用快捷 */}
+        {quickActions.length > 0 && (
+          <View style={styles.quickRow}>
+            {quickActions.map(type => {
+              const qa = QUICK_ACTIONS[type];
+              if (!qa) return null;
+              return (
+                <TouchableOpacity
+                  key={type}
+                  style={styles.quickBtn}
+                  onPress={() => handleQuickAction(qa.action)}
+                >
+                  <MaterialCommunityIcons name={qa.icon as any} size={16} color={qa.color} />
+                  <Text style={[styles.quickBtnText, { color: qa.color }]}>{qa.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
+
         {/* 模組格 */}
         <View style={styles.grid}>
           <View style={[styles.row, { marginBottom: 12 }]}>
@@ -260,6 +325,31 @@ export default function HomeScreen() {
           </View>
           <GoalsModule onPress={() => router.push('/(tabs)/goals/')} />
         </View>
+
+        {/* 最近動態 */}
+        {recentItems.length > 0 && (
+          <View style={styles.recentSection}>
+            <Text style={styles.recentTitle}>最近動態</Text>
+            {recentItems.map(item => {
+              const cfg = RECENT_TYPE_CONFIG[item.type];
+              return (
+                <View key={item.id} style={styles.recentItem}>
+                  <MaterialCommunityIcons
+                    name={cfg.icon as any}
+                    size={14}
+                    color={cfg.color}
+                    style={styles.recentIcon}
+                  />
+                  <Text style={styles.recentText} numberOfLines={1}>{item.title}</Text>
+                  {item.subtitle && (
+                    <Text style={[styles.recentSub, { color: cfg.color }]}>{item.subtitle}</Text>
+                  )}
+                  <Text style={styles.recentTime}>{timeAgo(item.created_at)}</Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
 
       </ScrollView>
     </SafeAreaView>
@@ -394,11 +484,66 @@ const styles = StyleSheet.create({
     fontWeight: '300',
     letterSpacing: 1,
   },
+  quickRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+  },
+  quickBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#1A1A1A',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    backgroundColor: '#111111',
+    gap: 5,
+  },
+  quickBtnText: {
+    fontSize: 12,
+    fontWeight: '300',
+  },
   grid: {},
   row: {
     flexDirection: 'row',
   },
   gap: {
     width: 12,
+  },
+  recentSection: {
+    marginTop: 20,
+  },
+  recentTitle: {
+    color: '#333',
+    fontSize: 11,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    marginBottom: 10,
+  },
+  recentItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#111111',
+  },
+  recentIcon: {
+    marginRight: 10,
+  },
+  recentText: {
+    flex: 1,
+    color: '#999',
+    fontSize: 13,
+    fontWeight: '300',
+  },
+  recentSub: {
+    fontSize: 12,
+    fontWeight: '400',
+    marginRight: 8,
+  },
+  recentTime: {
+    color: '#333',
+    fontSize: 10,
   },
 });
