@@ -6,6 +6,7 @@ import { Transaction } from '../../types/finance';
 interface Props {
   transaction: Transaction;
   onDelete?: (id: string) => void;
+  onEdit?: (tx: Transaction) => void;
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -20,11 +21,11 @@ function formatDate(isoStr: string): string {
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
-export default function TransactionCard({ transaction: tx, onDelete }: Props) {
+export default function TransactionCard({ transaction: tx, onDelete, onEdit }: Props) {
   const isIncome = tx.type === 'income';
 
   return (
-    <View style={styles.card}>
+    <TouchableOpacity style={styles.card} onPress={() => onEdit?.(tx)} activeOpacity={0.7}>
       <View style={[styles.indicator, { backgroundColor: isIncome ? '#55DDAA' : '#FF6655' }]} />
       <View style={styles.body}>
         <View style={styles.top}>
@@ -51,7 +52,7 @@ export default function TransactionCard({ transaction: tx, onDelete }: Props) {
           <MaterialCommunityIcons name="close" size={14} color="#444" />
         </TouchableOpacity>
       )}
-    </View>
+    </TouchableOpacity>
   );
 }
 

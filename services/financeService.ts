@@ -34,6 +34,18 @@ export async function createTransaction(input: CreateTransactionInput): Promise<
   return tx;
 }
 
+export async function updateTransaction(
+  id: string,
+  updates: Partial<Pick<Transaction, 'type' | 'item' | 'amount' | 'category'>>
+): Promise<void> {
+  const db = await getDb();
+  const fields = Object.keys(updates) as (keyof typeof updates)[];
+  if (fields.length === 0) return;
+  const setClause = fields.map(f => `${f} = ?`).join(', ');
+  const values = fields.map(f => updates[f] as string | number | null);
+  await db.runAsync(`UPDATE transactions SET ${setClause} WHERE id = ?`, [...values, id]);
+}
+
 export async function deleteTransaction(id: string): Promise<void> {
   const db = await getDb();
   await db.runAsync('DELETE FROM transactions WHERE id = ?', [id]);

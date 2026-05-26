@@ -217,8 +217,8 @@ export default function HomeScreen() {
             placeholder="想到什麼就寫..."
             placeholderTextColor="#2A2A2A"
             multiline
-            blurOnSubmit
-            onSubmitEditing={showClassification ? handleConfirm : handleClassify}
+            blurOnSubmit={false}
+            returnKeyType="default"
             editable={!submitting}
           />
           {hasText && !showClassification && (

@@ -1,12 +1,12 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, FlatList, StyleSheet, Text, TouchableOpacity, Alert,
-  ActivityIndicator,
+  ActivityIndicator, Modal, TextInput, ScrollView,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { getAllNotes, deleteNote } from '../../services/noteService';
+import { getAllNotes, deleteNote, updateNote } from '../../services/noteService';
 import { Note, NoteCategory } from '../../types/note';
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -34,6 +34,27 @@ export default function NotesScreen() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string | null>(null);
+  const [editNote, setEditNote] = useState<Note | null>(null);
+  const [editContent, setEditContent] = useState('');
+  const [editCategory, setEditCategory] = useState<string | null>(null);
+
+  function openEdit(note: Note) {
+    setEditNote(note);
+    setEditContent(note.content);
+    setEditCategory(note.category);
+  }
+
+  async function handleSaveEdit() {
+    if (!editNote) return;
+    await updateNote(editNote.id, {
+      content: editContent.trim(),
+      category: editCategory as NoteCategory | null,
+    });
+    setNotes(prev => prev.map(n =>
+      n.id === editNote.id ? { ...n, content: editContent.trim(), category: editCategory as NoteCategory | null } : n
+    ));
+    setEditNote(null);
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -104,7 +125,7 @@ export default function NotesScreen() {
           contentContainerStyle={styles.list}
           ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
           renderItem={({ item }) => (
-            <View style={styles.noteCard}>
+            <TouchableOpacity style={styles.noteCard} onPress={() => openEdit(item)} activeOpacity={0.7}>
               <View style={styles.noteBody}>
                 <Text style={styles.noteContent} numberOfLines={4}>{item.content}</Text>
                 <View style={styles.noteMeta}>
@@ -125,7 +146,7 @@ export default function NotesScreen() {
               >
                 <MaterialCommunityIcons name="close" size={14} color="#444" />
               </TouchableOpacity>
-            </View>
+            </TouchableOpacity>
           )}
           ListEmptyComponent={
             <View style={styles.empty}>
@@ -136,6 +157,55 @@ export default function NotesScreen() {
           }
         />
       )}
+
+      {/* Edit modal */}
+      <Modal
+        visible={editNote !== null}
+        onRequestClose={() => setEditNote(null)}
+        animationType="fade"
+        transparent
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modal}>
+            <Text style={styles.modalTitle}>編輯筆記</Text>
+            <View style={styles.modalDivider} />
+            <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
+              <TextInput
+                style={styles.editInput}
+                value={editContent}
+                onChangeText={setEditContent}
+                multiline
+                autoFocus
+              />
+              <Text style={styles.fieldLabel}>分類</Text>
+              <View style={styles.catRow}>
+                {Object.keys(CATEGORY_LABELS).map(cat => (
+                  <TouchableOpacity
+                    key={cat}
+                    style={[
+                      styles.catPill,
+                      editCategory === cat && { borderColor: CATEGORY_COLORS[cat], backgroundColor: CATEGORY_COLORS[cat] + '15' },
+                    ]}
+                    onPress={() => setEditCategory(editCategory === cat ? null : cat)}
+                  >
+                    <Text style={[styles.catPillText, editCategory === cat && { color: CATEGORY_COLORS[cat] }]}>
+                      {CATEGORY_LABELS[cat]}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <View style={styles.modalActions}>
+                <TouchableOpacity onPress={() => setEditNote(null)} style={styles.cancelBtn}>
+                  <Text style={styles.cancelText}>取消</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleSaveEdit} style={styles.saveBtn}>
+                  <Text style={styles.saveText}>儲存</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -209,4 +279,20 @@ const styles = StyleSheet.create({
   empty: { alignItems: 'center', paddingTop: 80 },
   emptyText: { color: '#333', fontSize: 14, fontWeight: '300', marginTop: 12 },
   emptyHint: { color: '#222', fontSize: 12, marginTop: 6 },
+
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-start', paddingTop: 48 },
+  modal: { backgroundColor: '#111111', borderRadius: 16, borderWidth: 1, borderColor: '#2A2A2A', marginHorizontal: 12, maxHeight: 500 },
+  modalTitle: { padding: 20, paddingBottom: 12, color: '#FFFFFF', fontSize: 16, fontWeight: '300', letterSpacing: 1 },
+  modalDivider: { height: 1, backgroundColor: '#2A2A2A' },
+  modalBody: { padding: 16 },
+  editInput: { borderWidth: 1, borderColor: '#2A2A2A', borderRadius: 8, padding: 12, color: '#FFFFFF', fontSize: 15, fontWeight: '300', backgroundColor: '#161616', minHeight: 100, textAlignVertical: 'top', marginBottom: 12 },
+  fieldLabel: { color: '#555', fontSize: 12, letterSpacing: 1, marginBottom: 8 },
+  catRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
+  catPill: { borderWidth: 1, borderColor: '#2A2A2A', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 5 },
+  catPillText: { color: '#444', fontSize: 12 },
+  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginBottom: 16 },
+  cancelBtn: { borderWidth: 1, borderColor: '#2A2A2A', borderRadius: 8, paddingHorizontal: 16, paddingVertical: 8 },
+  cancelText: { color: '#666', fontSize: 13 },
+  saveBtn: { backgroundColor: '#FFFFFF', borderRadius: 8, paddingHorizontal: 20, paddingVertical: 8 },
+  saveText: { color: '#0F0F0F', fontSize: 13, fontWeight: '500' },
 });

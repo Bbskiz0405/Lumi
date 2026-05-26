@@ -22,6 +22,7 @@ import {
   getExpenseByCategoryForYear,
   getExpenseByCategoryAllTime,
   createTransaction,
+  updateTransaction,
   deleteTransaction,
   upsertBudget,
   resetAllFinance,
@@ -56,6 +57,35 @@ export default function FinanceScreen() {
   const [viewMode, setViewMode] = useState<ViewMode>('month');
 
   const [advisorVisible, setAdvisorVisible] = useState(false);
+
+  // Edit modal
+  const [editTx, setEditTx] = useState<Transaction | null>(null);
+  const [editItem, setEditItem] = useState('');
+  const [editAmount, setEditAmount] = useState('');
+  const [editType, setEditType] = useState<'income' | 'expense'>('expense');
+  const [editCategory, setEditCategory] = useState<ExpenseCategory>('food');
+
+  function openEditTx(tx: Transaction) {
+    setEditTx(tx);
+    setEditItem(tx.item);
+    setEditAmount(String(tx.amount));
+    setEditType(tx.type);
+    setEditCategory((tx.category as ExpenseCategory) ?? 'other');
+  }
+
+  async function handleSaveEdit() {
+    if (!editTx) return;
+    const amt = parseFloat(editAmount);
+    if (isNaN(amt) || amt <= 0) return;
+    await updateTransaction(editTx.id, {
+      item: editItem.trim(),
+      amount: amt,
+      type: editType,
+      category: editType === 'expense' ? editCategory : null,
+    });
+    setEditTx(null);
+    loadAll(viewMode);
+  }
 
   // Add modal
   const [modalVisible, setModalVisible] = useState(false);
@@ -308,11 +338,80 @@ export default function FinanceScreen() {
             </View>
           ) : (
             transactions.map(tx => (
-              <TransactionCard key={tx.id} transaction={tx} onDelete={handleDelete} />
+              <TransactionCard key={tx.id} transaction={tx} onDelete={handleDelete} onEdit={openEditTx} />
             ))
           )}
         </ScrollView>
       )}
+
+      {/* Edit modal */}
+      <Modal
+        visible={editTx !== null}
+        onRequestClose={() => setEditTx(null)}
+        animationType="fade"
+        transparent
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modal}>
+            <Text style={styles.modalTitle}>編輯記錄</Text>
+            <View style={styles.modalDivider} />
+            <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
+              <View style={styles.typeRow}>
+                <TouchableOpacity
+                  style={[styles.typeBtn, editType === 'expense' && styles.typeBtnExpense]}
+                  onPress={() => setEditType('expense')}
+                >
+                  <Text style={[styles.typeBtnText, editType === 'expense' && styles.typeBtnTextActive]}>支出</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.typeBtn, editType === 'income' && styles.typeBtnIncome]}
+                  onPress={() => setEditType('income')}
+                >
+                  <Text style={[styles.typeBtnText, editType === 'income' && styles.typeBtnTextActive]}>收入</Text>
+                </TouchableOpacity>
+              </View>
+              <TextInput
+                style={styles.input}
+                value={editItem}
+                onChangeText={setEditItem}
+                placeholder="項目名稱"
+                placeholderTextColor="#444"
+              />
+              <TextInput
+                style={styles.input}
+                value={editAmount}
+                onChangeText={setEditAmount}
+                placeholder="金額"
+                placeholderTextColor="#444"
+                keyboardType="numeric"
+              />
+              {editType === 'expense' && (
+                <View style={styles.catRow}>
+                  {EXPENSE_CATEGORIES.map(cat => (
+                    <TouchableOpacity
+                      key={cat.value}
+                      style={[styles.catBtn, editCategory === cat.value && styles.catBtnActive]}
+                      onPress={() => setEditCategory(cat.value)}
+                    >
+                      <Text style={[styles.catBtnText, editCategory === cat.value && styles.catBtnTextActive]}>
+                        {cat.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+              <View style={styles.modalActions}>
+                <TouchableOpacity style={styles.cancelBtn} onPress={() => setEditTx(null)}>
+                  <Text style={styles.cancelText}>取消</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.submitBtn} onPress={handleSaveEdit}>
+                  <Text style={styles.submitText}>儲存</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       {/* AI Advisor */}
       <Modal
