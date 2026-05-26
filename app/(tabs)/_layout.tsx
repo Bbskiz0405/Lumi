@@ -37,9 +37,18 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="calendar"
         options={{
-          title: '月曆',
+          title: '行事曆',
           tabBarIcon: ({ color, size }) => (
             <TabIcon name="calendar-month-outline" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="finance/index"
+        options={{
+          title: '財務',
+          tabBarIcon: ({ color, size }) => (
+            <TabIcon name="wallet-outline" color={color} size={size} />
           ),
         }}
       />
@@ -53,21 +62,6 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="dashboard"
-        options={{
-          href: null, // 隱藏，Phase 3 再啟用
-        }}
-      />
-      <Tabs.Screen
-        name="finance/index"
-        options={{
-          title: '財務',
-          tabBarIcon: ({ color, size }) => (
-            <TabIcon name="wallet-outline" color={color} size={size} />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="notes"
         options={{
           title: '筆記',
@@ -77,10 +71,12 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="dashboard"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
         name="goals/index"
-        options={{
-          href: null,
-        }}
+        options={{ href: null }}
       />
     </Tabs>
   );
