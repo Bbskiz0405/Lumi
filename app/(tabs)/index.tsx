@@ -19,6 +19,7 @@ import {
   saveEntry,
   updateEntryType,
   ClassificationResult,
+  parseMultipleTransactions,
 } from '../../services/classificationService';
 import { ClassifiedType } from '../../types/entry';
 import { getRecentActivity, getUsagePatterns, RecentItem } from '../../services/recentService';
@@ -143,15 +144,29 @@ export default function HomeScreen() {
           break;
 
         case 'FINANCE': {
-          const p = result.parsed;
-          await createTransaction({
-            type: p?.transactionType ?? 'expense',
-            item: trimmed.replace(/\d+(?:\.\d+)?\s*(?:元|塊|NT\$?|\$)?/g, '').trim() || trimmed,
-            amount: p?.amount ?? 0,
-            category: p?.transactionType === 'income' ? null : (p?.category as any) ?? 'other',
-            entry_id: entryId,
-          });
-          showFeedback('已記帳');
+          const multi = parseMultipleTransactions(trimmed);
+          if (multi.length >= 2) {
+            for (const tx of multi) {
+              await createTransaction({
+                type: tx.transactionType,
+                item: tx.item,
+                amount: tx.amount,
+                category: tx.transactionType === 'income' ? null : tx.category || 'other',
+                entry_id: entryId,
+              });
+            }
+            showFeedback(`已記 ${multi.length} 筆`);
+          } else {
+            const p = result.parsed;
+            await createTransaction({
+              type: p?.transactionType ?? 'expense',
+              item: trimmed.replace(/\d+(?:\.\d+)?\s*(?:元|塊|NT\$?|\$)?/g, '').trim() || trimmed,
+              amount: p?.amount ?? 0,
+              category: p?.transactionType === 'income' ? null : (p?.category as any) ?? 'other',
+              entry_id: entryId,
+            });
+            showFeedback('已記帳');
+          }
           break;
         }
 

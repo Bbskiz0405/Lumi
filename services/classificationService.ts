@@ -50,6 +50,40 @@ function extractAmount(text: string): number | null {
   return null;
 }
 
+export interface ParsedTransaction {
+  item: string;
+  amount: number;
+  category: string;
+  transactionType: 'income' | 'expense';
+}
+
+const MULTI_ITEM_PATTERN = /([^\d\s\$＄元塊]+)\s*[＄$]?\s*(\d+(?:\.\d+)?)\s*(?:元|塊)?/g;
+
+export function parseMultipleTransactions(text: string): ParsedTransaction[] {
+  if (TIME_CONTEXT.test(text)) return [];
+  const lower = text.toLowerCase();
+  const isIncome = INCOME_KEYWORDS.some(kw => lower.includes(kw));
+
+  const results: ParsedTransaction[] = [];
+  let match;
+  MULTI_ITEM_PATTERN.lastIndex = 0;
+
+  while ((match = MULTI_ITEM_PATTERN.exec(text)) !== null) {
+    const item = match[1].trim();
+    const amount = parseFloat(match[2]);
+    if (item && amount > 0 && amount < 10_000_000) {
+      results.push({
+        item,
+        amount,
+        category: isIncome ? '' : guessExpenseCategory(item.toLowerCase()),
+        transactionType: isIncome ? 'income' : 'expense',
+      });
+    }
+  }
+
+  return results;
+}
+
 function guessExpenseCategory(text: string): string {
   const foodWords = ['餐', '吃', '飯', '麵', '早餐', '午餐', '晚餐', '宵夜', '飲料', '咖啡', '便當', '外送', '火鍋', '壽司', '拉麵', '牛排', '茶'];
   const transportWords = ['車', '油', '停車', '捷運', '公車', '高鐵', '計程', 'uber', '加油', '票'];

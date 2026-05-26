@@ -10,6 +10,7 @@ import TransactionCard from '../../../components/finance/TransactionCard';
 import BudgetMeter from '../../../components/finance/BudgetMeter';
 import ExpensePieChart from '../../../components/finance/ExpensePieChart';
 import FinanceAdvisor from '../../../components/finance/FinanceAdvisor';
+import Calculator from '../../../components/finance/Calculator';
 import {
   getTransactionsForMonth,
   getTransactionsForYear,
@@ -94,6 +95,8 @@ export default function FinanceScreen() {
   const [formItemError, setFormItemError] = useState('');
   const [formAmountError, setFormAmountError] = useState('');
   const [formSubmitting, setFormSubmitting] = useState(false);
+  const [showCalc, setShowCalc] = useState(false);
+  const [calcTarget, setCalcTarget] = useState<'add' | 'edit'>('add');
 
   const currentMonth = toMonthStr(year, month);
 
@@ -388,14 +391,22 @@ export default function FinanceScreen() {
                 placeholder="項目名稱"
                 placeholderTextColor="#444"
               />
-              <TextInput
-                style={styles.input}
-                value={editAmount}
-                onChangeText={setEditAmount}
-                placeholder="金額"
-                placeholderTextColor="#444"
-                keyboardType="numeric"
-              />
+              <View style={styles.amountRow}>
+                <TextInput
+                  style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                  value={editAmount}
+                  onChangeText={setEditAmount}
+                  placeholder="金額"
+                  placeholderTextColor="#666"
+                  keyboardType="numeric"
+                />
+                <TouchableOpacity
+                  style={styles.calcBtn}
+                  onPress={() => { setCalcTarget('edit'); setShowCalc(true); }}
+                >
+                  <MaterialCommunityIcons name="calculator" size={20} color="#55DDAA" />
+                </TouchableOpacity>
+              </View>
               {editType === 'expense' && (
                 <View style={styles.catRow}>
                   {expenseCategories.map(cat => (
@@ -476,14 +487,22 @@ export default function FinanceScreen() {
               />
               {!!formItemError && <Text style={styles.errorText}>{formItemError}</Text>}
 
-              <TextInput
-                style={[styles.input, !!formAmountError && styles.inputError]}
-                value={formAmount}
-                onChangeText={setFormAmount}
-                placeholder="金額"
-                placeholderTextColor="#444"
-                keyboardType="numeric"
-              />
+              <View style={styles.amountRow}>
+                <TextInput
+                  style={[styles.input, { flex: 1, marginBottom: 0 }, !!formAmountError && styles.inputError]}
+                  value={formAmount}
+                  onChangeText={setFormAmount}
+                  placeholder="金額"
+                  placeholderTextColor="#666"
+                  keyboardType="numeric"
+                />
+                <TouchableOpacity
+                  style={styles.calcBtn}
+                  onPress={() => { setCalcTarget('add'); setShowCalc(true); }}
+                >
+                  <MaterialCommunityIcons name="calculator" size={20} color="#55DDAA" />
+                </TouchableOpacity>
+              </View>
               {!!formAmountError && <Text style={styles.errorText}>{formAmountError}</Text>}
 
               {formType === 'expense' && (
@@ -515,6 +534,27 @@ export default function FinanceScreen() {
               </View>
             </ScrollView>
           </View>
+        </View>
+      </Modal>
+
+      {/* Calculator */}
+      <Modal
+        visible={showCalc}
+        onRequestClose={() => setShowCalc(false)}
+        animationType="slide"
+        transparent
+      >
+        <View style={styles.calcOverlay}>
+          <TouchableOpacity style={styles.calcDismiss} onPress={() => setShowCalc(false)} />
+          <Calculator
+            initialValue={calcTarget === 'add' ? formAmount : editAmount}
+            onConfirm={(val) => {
+              if (calcTarget === 'add') setFormAmount(String(val));
+              else setEditAmount(String(val));
+              setShowCalc(false);
+            }}
+            onCancel={() => setShowCalc(false)}
+          />
         </View>
       </Modal>
     </SafeAreaView>
@@ -677,4 +717,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, paddingVertical: 10,
   },
   submitText: { color: '#0F0F0F', fontSize: 14, fontWeight: '500' },
+
+  amountRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  calcBtn: {
+    width: 44, height: 44, borderRadius: 10, borderWidth: 1, borderColor: '#3A3A3A',
+    backgroundColor: '#1A1A1A', alignItems: 'center', justifyContent: 'center',
+  },
+  calcOverlay: { flex: 1, justifyContent: 'flex-end' },
+  calcDismiss: { flex: 1 },
 });
