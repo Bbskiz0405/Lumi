@@ -8,18 +8,27 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import TransactionCard from '../../../components/finance/TransactionCard';
 import BudgetMeter from '../../../components/finance/BudgetMeter';
+import ExpensePieChart from '../../../components/finance/ExpensePieChart';
 import FinanceAdvisor from '../../../components/finance/FinanceAdvisor';
 import {
   getTransactionsForMonth,
+  getTransactionsForYear,
+  getAllTransactions,
   getMonthSummary,
+  getYearSummary,
+  getAllTimeSummary,
   getBudgetsForMonth,
   getExpenseByCategory,
+  getExpenseByCategoryForYear,
+  getExpenseByCategoryAllTime,
   createTransaction,
   deleteTransaction,
   upsertBudget,
   resetAllFinance,
 } from '../../../services/financeService';
 import { Transaction, ExpenseCategory } from '../../../types/finance';
+
+type ViewMode = 'month' | 'year' | 'all';
 
 const EXPENSE_CATEGORIES: { value: ExpenseCategory; label: string }[] = [
   { value: 'food', label: '餐飲' },
@@ -44,6 +53,7 @@ export default function FinanceScreen() {
   const [budgetLimits, setBudgetLimits] = useState<Record<string, number>>({});
   const [categoryExpense, setCategoryExpense] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<ViewMode>('month');
 
   const [advisorVisible, setAdvisorVisible] = useState(false);
 
@@ -59,37 +69,67 @@ export default function FinanceScreen() {
 
   const currentMonth = toMonthStr(year, month);
 
-  async function loadAll(m: string) {
+  async function loadAll(mode: ViewMode) {
     setLoading(true);
-    const [txs, sum, budgets, catExp] = await Promise.all([
-      getTransactionsForMonth(m),
-      getMonthSummary(m),
-      getBudgetsForMonth(m),
-      getExpenseByCategory(m),
-    ]);
+    let txs: Transaction[];
+    let sum: { income: number; expense: number };
+    let catExp: Record<string, number>;
+
+    if (mode === 'year') {
+      [txs, sum, catExp] = await Promise.all([
+        getTransactionsForYear(String(year)),
+        getYearSummary(String(year)),
+        getExpenseByCategoryForYear(String(year)),
+      ]);
+      setBudgetLimits({});
+    } else if (mode === 'all') {
+      [txs, sum, catExp] = await Promise.all([
+        getAllTransactions(),
+        getAllTimeSummary(),
+        getExpenseByCategoryAllTime(),
+      ]);
+      setBudgetLimits({});
+    } else {
+      const [t, s, budgets, c] = await Promise.all([
+        getTransactionsForMonth(currentMonth),
+        getMonthSummary(currentMonth),
+        getBudgetsForMonth(currentMonth),
+        getExpenseByCategory(currentMonth),
+      ]);
+      txs = t; sum = s; catExp = c;
+      const limits: Record<string, number> = {};
+      for (const b of budgets) limits[b.category] = b.limit_amount;
+      setBudgetLimits(limits);
+    }
+
     setTransactions(txs);
     setSummary(sum);
-    const limits: Record<string, number> = {};
-    for (const b of budgets) limits[b.category] = b.limit_amount;
-    setBudgetLimits(limits);
     setCategoryExpense(catExp);
     setLoading(false);
   }
 
   useFocusEffect(
     useCallback(() => {
-      loadAll(currentMonth);
-    }, [currentMonth])
+      loadAll(viewMode);
+    }, [currentMonth, viewMode])
   );
 
   function prevMonth() {
-    if (month === 0) { setYear(y => y - 1); setMonth(11); }
-    else setMonth(m => m - 1);
+    if (viewMode === 'year') {
+      setYear(y => y - 1);
+    } else {
+      if (month === 0) { setYear(y => y - 1); setMonth(11); }
+      else setMonth(m => m - 1);
+    }
   }
 
   function nextMonth() {
-    if (month === 11) { setYear(y => y + 1); setMonth(0); }
-    else setMonth(m => m + 1);
+    if (viewMode === 'year') {
+      setYear(y => y + 1);
+    } else {
+      if (month === 11) { setYear(y => y + 1); setMonth(0); }
+      else setMonth(m => m + 1);
+    }
   }
 
   function openModal() {
@@ -119,12 +159,12 @@ export default function FinanceScreen() {
     });
     setFormSubmitting(false);
     setModalVisible(false);
-    loadAll(currentMonth);
+    loadAll(viewMode);
   }
 
   async function handleDelete(id: string) {
     await deleteTransaction(id);
-    loadAll(currentMonth);
+    loadAll(viewMode);
   }
 
   async function handleUpdateBudget(category: ExpenseCategory, newLimit: number) {
@@ -143,7 +183,7 @@ export default function FinanceScreen() {
           style: 'destructive',
           onPress: async () => {
             await resetAllFinance();
-            loadAll(currentMonth);
+            loadAll(viewMode);
           },
         },
       ]
@@ -174,16 +214,35 @@ export default function FinanceScreen() {
         <View style={styles.center}><ActivityIndicator color="#FFFFFF" /></View>
       ) : (
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          {/* Month nav */}
+          {/* View mode toggle */}
+          <View style={styles.modeRow}>
+            {(['month', 'year', 'all'] as ViewMode[]).map(m => (
+              <TouchableOpacity
+                key={m}
+                style={[styles.modePill, viewMode === m && styles.modePillActive]}
+                onPress={() => setViewMode(m)}
+              >
+                <Text style={[styles.modePillText, viewMode === m && styles.modePillTextActive]}>
+                  {m === 'month' ? '月' : m === 'year' ? '年' : '全部'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Period nav */}
+          {viewMode !== 'all' && (
           <View style={styles.monthNav}>
             <TouchableOpacity onPress={prevMonth} style={styles.navBtn}>
               <Text style={styles.navText}>‹</Text>
             </TouchableOpacity>
-            <Text style={styles.monthTitle}>{year}年 {MONTHS[month]}</Text>
+            <Text style={styles.monthTitle}>
+              {viewMode === 'month' ? `${year}年 ${MONTHS[month]}` : `${year}年`}
+            </Text>
             <TouchableOpacity onPress={nextMonth} style={styles.navBtn}>
               <Text style={styles.navText}>›</Text>
             </TouchableOpacity>
           </View>
+          )}
 
           {/* Summary */}
           <View style={styles.summaryRow}>
@@ -209,31 +268,43 @@ export default function FinanceScreen() {
             </View>
           </View>
 
-          {/* Budget */}
+          {/* Pie Chart */}
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>預算</Text>
-            <Text style={styles.sectionHint}>點擊設定上限</Text>
+            <Text style={styles.sectionTitle}>支出分佈</Text>
           </View>
-          <View style={styles.budgetContainer}>
-            {EXPENSE_CATEGORIES.map(cat => (
-              <BudgetMeter
-                key={cat.value}
-                category={cat.value}
-                spent={categoryExpense[cat.value] ?? 0}
-                limit={budgetLimits[cat.value] ?? 0}
-                onUpdateLimit={handleUpdateBudget}
-              />
-            ))}
-          </View>
+          <ExpensePieChart data={categoryExpense} />
+
+          {/* Budget — only in month mode */}
+          {viewMode === 'month' && (
+            <>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>預算</Text>
+                <Text style={styles.sectionHint}>點擊設定上限</Text>
+              </View>
+              <View style={styles.budgetContainer}>
+                {EXPENSE_CATEGORIES.map(cat => (
+                  <BudgetMeter
+                    key={cat.value}
+                    category={cat.value}
+                    spent={categoryExpense[cat.value] ?? 0}
+                    limit={budgetLimits[cat.value] ?? 0}
+                    onUpdateLimit={handleUpdateBudget}
+                  />
+                ))}
+              </View>
+            </>
+          )}
 
           {/* Transactions */}
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>本月記錄</Text>
+            <Text style={styles.sectionTitle}>
+              {viewMode === 'month' ? '本月記錄' : viewMode === 'year' ? '本年記錄' : '所有記錄'}
+            </Text>
           </View>
 
           {transactions.length === 0 ? (
             <View style={styles.empty}>
-              <Text style={styles.emptyText}>這個月還沒有記錄</Text>
+              <Text style={styles.emptyText}>還沒有記錄</Text>
             </View>
           ) : (
             transactions.map(tx => (
@@ -358,6 +429,26 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
   scroll: { paddingBottom: 48 },
+
+  modeRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    gap: 8,
+  },
+  modePill: {
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 5,
+  },
+  modePillActive: {
+    borderColor: '#FFFFFF',
+    backgroundColor: '#FFFFFF15',
+  },
+  modePillText: { color: '#444', fontSize: 12 },
+  modePillTextActive: { color: '#FFFFFF' },
 
   monthNav: {
     flexDirection: 'row',

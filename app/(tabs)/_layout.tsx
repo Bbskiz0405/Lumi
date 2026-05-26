@@ -68,12 +68,18 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="notes"
+        options={{
+          title: '筆記',
+          tabBarIcon: ({ color, size }) => (
+            <TabIcon name="lightbulb-outline" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="goals/index"
         options={{
-          title: '目標',
-          tabBarIcon: ({ color, size }) => (
-            <TabIcon name="target" color={color} size={size} />
-          ),
+          href: null,
         }}
       />
     </Tabs>

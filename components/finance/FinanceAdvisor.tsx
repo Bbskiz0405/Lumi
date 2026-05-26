@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
   ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {
   chatWithFinanceAdvisor,
@@ -107,7 +108,7 @@ export default function FinanceAdvisor({ month, onClose }: Props) {
 
   if (checkingKey) {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>AI 財務顧問</Text>
           <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
@@ -117,13 +118,13 @@ export default function FinanceAdvisor({ month, onClose }: Props) {
         <View style={styles.keySetup}>
           <ActivityIndicator color="#55DDAA" />
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
   if (needsKey) {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>AI 財務顧問</Text>
           <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
@@ -147,13 +148,14 @@ export default function FinanceAdvisor({ month, onClose }: Props) {
             <Text style={styles.keyBtnText}>確認</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
+    <SafeAreaView style={styles.container} edges={['top']}>
     <KeyboardAvoidingView
-      style={styles.container}
+      style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.header}>
@@ -230,6 +232,7 @@ export default function FinanceAdvisor({ month, onClose }: Props) {
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 

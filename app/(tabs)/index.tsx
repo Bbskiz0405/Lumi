@@ -25,7 +25,6 @@ import { getRecentActivity, getUsagePatterns, RecentItem } from '../../services/
 import TasksModule from '../../components/modules/TasksModule';
 import CalendarModule from '../../components/modules/CalendarModule';
 import FinanceModule from '../../components/modules/FinanceModule';
-import GoalsModule from '../../components/modules/GoalsModule';
 import NotesModule from '../../components/modules/NotesModule';
 
 function formatDate(): string {
@@ -318,12 +317,11 @@ export default function HomeScreen() {
             <View style={styles.gap} />
             <CalendarModule onPress={() => router.push('/(tabs)/calendar')} refreshKey={refreshKey} />
           </View>
-          <View style={[styles.row, { marginBottom: 12 }]}>
+          <View style={styles.row}>
             <FinanceModule onPress={() => router.push('/(tabs)/finance/')} refreshKey={refreshKey} />
             <View style={styles.gap} />
-            <NotesModule onPress={() => router.push('/notes')} refreshKey={refreshKey} />
+            <NotesModule onPress={() => router.push('/(tabs)/notes')} refreshKey={refreshKey} />
           </View>
-          <GoalsModule onPress={() => router.push('/(tabs)/goals/')} />
         </View>
 
         {/* 最近動態 */}

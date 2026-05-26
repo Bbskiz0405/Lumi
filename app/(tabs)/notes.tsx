@@ -3,17 +3,18 @@ import {
   View, FlatList, StyleSheet, Text, TouchableOpacity, Alert,
   ActivityIndicator,
 } from 'react-native';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { getAllNotes, deleteNote } from '../services/noteService';
-import { Note, NoteCategory } from '../types/note';
+import { getAllNotes, deleteNote } from '../../services/noteService';
+import { Note, NoteCategory } from '../../types/note';
 
 const CATEGORY_LABELS: Record<string, string> = {
   vtuber: 'VTuber',
   cardgame: '卡牌',
   tech: '科技',
   life: '生活',
+  goal: '目標',
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -21,6 +22,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   cardgame: '#FF9944',
   tech: '#88AAFF',
   life: '#55DDAA',
+  goal: '#FF88BB',
 };
 
 function formatDate(isoStr: string): string {
@@ -29,10 +31,9 @@ function formatDate(isoStr: string): string {
 }
 
 export default function NotesScreen() {
-  const router = useRouter();
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<NoteCategory | null>(null);
+  const [filter, setFilter] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -66,14 +67,9 @@ export default function NotesScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <MaterialCommunityIcons name="arrow-left" size={22} color="#FFFFFF" />
-        </TouchableOpacity>
         <Text style={styles.headerTitle}>筆記</Text>
-        <View style={{ width: 36 }} />
       </View>
 
-      {/* Category filter */}
       <View style={styles.filterRow}>
         <TouchableOpacity
           style={[styles.filterPill, !filter && styles.filterPillActive]}
@@ -81,7 +77,7 @@ export default function NotesScreen() {
         >
           <Text style={[styles.filterText, !filter && styles.filterTextActive]}>全部</Text>
         </TouchableOpacity>
-        {(Object.keys(CATEGORY_LABELS) as NoteCategory[]).map(cat => (
+        {Object.keys(CATEGORY_LABELS).map(cat => (
           <TouchableOpacity
             key={cat}
             style={[
@@ -147,20 +143,17 @@ export default function NotesScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#0F0F0F' },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
   },
-  backBtn: { padding: 4 },
-  headerTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: '300', letterSpacing: 2 },
+  headerTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '300', letterSpacing: 2 },
 
   filterRow: {
     flexDirection: 'row',
     paddingHorizontal: 16,
     paddingBottom: 12,
     gap: 8,
+    flexWrap: 'wrap',
   },
   filterPill: {
     borderWidth: 1,

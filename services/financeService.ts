@@ -88,6 +88,70 @@ export async function resetAllFinance(): Promise<void> {
   await db.runAsync('DELETE FROM budgets');
 }
 
+export async function getTransactionsForYear(year: string): Promise<Transaction[]> {
+  const db = await getDb();
+  return db.getAllAsync<Transaction>(
+    `SELECT * FROM transactions WHERE strftime('%Y', created_at) = ? ORDER BY created_at DESC`,
+    [year]
+  );
+}
+
+export async function getAllTransactions(): Promise<Transaction[]> {
+  const db = await getDb();
+  return db.getAllAsync<Transaction>('SELECT * FROM transactions ORDER BY created_at DESC');
+}
+
+export async function getYearSummary(year: string): Promise<{ income: number; expense: number }> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<{ type: string; total: number }>(
+    `SELECT type, SUM(amount) as total FROM transactions WHERE strftime('%Y', created_at) = ? GROUP BY type`,
+    [year]
+  );
+  let income = 0, expense = 0;
+  for (const r of rows) {
+    if (r.type === 'income') income = r.total;
+    else expense = r.total;
+  }
+  return { income, expense };
+}
+
+export async function getAllTimeSummary(): Promise<{ income: number; expense: number }> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<{ type: string; total: number }>(
+    'SELECT type, SUM(amount) as total FROM transactions GROUP BY type'
+  );
+  let income = 0, expense = 0;
+  for (const r of rows) {
+    if (r.type === 'income') income = r.total;
+    else expense = r.total;
+  }
+  return { income, expense };
+}
+
+export async function getExpenseByCategoryForYear(year: string): Promise<Record<string, number>> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<{ category: string; total: number }>(
+    `SELECT category, SUM(amount) as total FROM transactions
+     WHERE type = 'expense' AND strftime('%Y', created_at) = ?
+     GROUP BY category`,
+    [year]
+  );
+  const result: Record<string, number> = {};
+  for (const r of rows) result[r.category] = r.total;
+  return result;
+}
+
+export async function getExpenseByCategoryAllTime(): Promise<Record<string, number>> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<{ category: string; total: number }>(
+    `SELECT category, SUM(amount) as total FROM transactions
+     WHERE type = 'expense' GROUP BY category`
+  );
+  const result: Record<string, number> = {};
+  for (const r of rows) result[r.category] = r.total;
+  return result;
+}
+
 export async function getExpenseByCategory(month: string): Promise<Record<string, number>> {
   const db = await getDb();
   const rows = await db.getAllAsync<{ category: string; total: number }>(
