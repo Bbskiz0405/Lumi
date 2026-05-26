@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { createTask } from '../../services/taskService';
 import { createNote } from '../../services/noteService';
 import { createTransaction } from '../../services/financeService';
@@ -25,6 +25,7 @@ import TasksModule from '../../components/modules/TasksModule';
 import CalendarModule from '../../components/modules/CalendarModule';
 import FinanceModule from '../../components/modules/FinanceModule';
 import GoalsModule from '../../components/modules/GoalsModule';
+import NotesModule from '../../components/modules/NotesModule';
 
 function formatDate(): string {
   const now = new Date();
@@ -51,6 +52,12 @@ export default function HomeScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [feedbackText, setFeedbackText] = useState('');
   const [feedbackOpacity] = useState(new Animated.Value(0));
+
+  useFocusEffect(
+    useCallback(() => {
+      setRefreshKey(k => k + 1);
+    }, [])
+  );
 
   async function handleClassify() {
     const trimmed = text.trim();
@@ -246,11 +253,12 @@ export default function HomeScreen() {
             <View style={styles.gap} />
             <CalendarModule onPress={() => router.push('/(tabs)/calendar')} refreshKey={refreshKey} />
           </View>
-          <View style={styles.row}>
+          <View style={[styles.row, { marginBottom: 12 }]}>
             <FinanceModule onPress={() => router.push('/(tabs)/finance/')} refreshKey={refreshKey} />
             <View style={styles.gap} />
-            <GoalsModule onPress={() => router.push('/(tabs)/goals/')} />
+            <NotesModule onPress={() => router.push('/notes')} refreshKey={refreshKey} />
           </View>
+          <GoalsModule onPress={() => router.push('/(tabs)/goals/')} />
         </View>
 
       </ScrollView>

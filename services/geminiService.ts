@@ -139,8 +139,11 @@ export async function chatWithFinanceAdvisor(
   });
 
   if (!response.ok) {
+    if (response.status === 429) {
+      throw new Error('Gemini 請求過於頻繁，請稍後再試（免費額度每分鐘 15 次）');
+    }
     const error = await response.text();
-    throw new Error(`Gemini API 錯誤: ${response.status} ${error}`);
+    throw new Error(`Gemini API 錯誤: ${response.status}`);
   }
 
   const data = await response.json();
@@ -174,7 +177,12 @@ ${financeContext}
     }),
   });
 
-  if (!response.ok) throw new Error(`Gemini API 錯誤: ${response.status}`);
+  if (!response.ok) {
+    if (response.status === 429) {
+      throw new Error('請求過於頻繁，請稍後再試');
+    }
+    throw new Error(`Gemini API 錯誤: ${response.status}`);
+  }
 
   const data = await response.json();
   return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '無法取得分析結果';
