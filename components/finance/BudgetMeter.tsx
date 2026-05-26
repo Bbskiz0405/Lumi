@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
   },
   track: {
     height: 3,
-    backgroundColor: '#1A1A1A',
+    backgroundColor: '#252525',
     borderRadius: 2,
     overflow: 'hidden',
   },
@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
     padding: 20,
     width: 260,
     borderWidth: 1,
-    borderColor: '#2A2A2A',
+    borderColor: '#3A3A3A',
   },
   dialogTitle: {
     color: '#FFFFFF',
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
   },
   dialogInput: {
     borderWidth: 1,
-    borderColor: '#2A2A2A',
+    borderColor: '#3A3A3A',
     borderRadius: 8,
     padding: 10,
     color: '#FFFFFF',

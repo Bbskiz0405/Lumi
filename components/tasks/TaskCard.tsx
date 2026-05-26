@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#1A1A1A',
+    borderColor: '#252525',
   },
   completedCard: { backgroundColor: '#0A0A0A' },
   checkbox: { marginRight: 12 },

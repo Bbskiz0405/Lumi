@@ -32,7 +32,7 @@ export default function ExpensePieChart({ data, size = 120 }: Props) {
     return (
       <View style={styles.container}>
         <Svg width={size} height={size}>
-          <Circle cx={size / 2} cy={size / 2} r={size / 2 - 2} fill="#1A1A1A" />
+          <Circle cx={size / 2} cy={size / 2} r={size / 2 - 2} fill="#252525" />
         </Svg>
         <Text style={styles.noData}>無支出</Text>
       </View>
@@ -105,7 +105,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#111111',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#1A1A1A',
+    borderColor: '#252525',
     padding: 16,
     marginHorizontal: 16,
     marginBottom: 20,

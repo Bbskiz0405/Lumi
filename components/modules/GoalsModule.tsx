@@ -17,13 +17,13 @@ export default function GoalsModule({ onPress }: Props) {
 
 const styles = StyleSheet.create({
   soon: {
-    color: '#333333',
+    color: '#555555',
     fontSize: 13,
     fontWeight: '300',
     marginTop: 4,
   },
   sub: {
-    color: '#2A2A2A',
+    color: '#3A3A3A',
     fontSize: 11,
     marginTop: 4,
   },

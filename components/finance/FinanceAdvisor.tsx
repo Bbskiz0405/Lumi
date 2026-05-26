@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#1A1A1A',
+    borderBottomColor: '#252525',
   },
   headerTitle: {
     color: '#FFFFFF',
@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
   keyInput: {
     width: '100%',
     borderWidth: 1,
-    borderColor: '#2A2A2A',
+    borderColor: '#3A3A3A',
     borderRadius: 8,
     padding: 12,
     color: '#FFFFFF',
@@ -345,7 +345,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: '#1A1A1A',
+    borderColor: '#252525',
   },
   msgText: {
     color: '#CCCCCC',
@@ -374,13 +374,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: '#1A1A1A',
+    borderTopColor: '#252525',
     gap: 8,
   },
   chatInput: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#2A2A2A',
+    borderColor: '#3A3A3A',
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 8,

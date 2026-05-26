@@ -43,7 +43,7 @@ const styles = StyleSheet.create({
     lineHeight: 32,
   },
   label: {
-    color: '#444444',
+    color: '#666666',
     fontSize: 12,
     fontWeight: '300',
     marginTop: 4,

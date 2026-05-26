@@ -44,7 +44,7 @@ const styles = StyleSheet.create({
     lineHeight: 36,
   },
   label: {
-    color: '#444444',
+    color: '#666666',
     fontSize: 12,
     fontWeight: '300',
     marginTop: 2,

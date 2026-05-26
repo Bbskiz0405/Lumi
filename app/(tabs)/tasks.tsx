@@ -106,13 +106,13 @@ const styles = StyleSheet.create({
   headerTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '300', letterSpacing: 2 },
   addBtn: {
     width: 36, height: 36, borderRadius: 18,
-    borderWidth: 1, borderColor: '#2A2A2A',
+    borderWidth: 1, borderColor: '#3A3A3A',
     alignItems: 'center', justifyContent: 'center',
   },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   list: { paddingBottom: 40, paddingTop: 4 },
   empty: { alignItems: 'center', marginTop: 80 },
-  emptyText: { color: '#333333', fontSize: 13, letterSpacing: 1 },
+  emptyText: { color: '#555555', fontSize: 13, letterSpacing: 1 },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.7)',
@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 16,
     maxHeight: 600,
     borderWidth: 1,
-    borderColor: '#2A2A2A',
+    borderColor: '#3A3A3A',
   },
   modalTitle: {
     padding: 20,
@@ -134,5 +134,5 @@ const styles = StyleSheet.create({
     fontWeight: '300',
     letterSpacing: 1,
   },
-  modalDivider: { height: 1, backgroundColor: '#2A2A2A' },
+  modalDivider: { height: 1, backgroundColor: '#3A3A3A' },
 });

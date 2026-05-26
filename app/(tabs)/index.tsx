@@ -215,7 +215,7 @@ export default function HomeScreen() {
               if (classification) handleCancel();
             }}
             placeholder="想到什麼就寫..."
-            placeholderTextColor="#2A2A2A"
+            placeholderTextColor="#3A3A3A"
             multiline
             blurOnSubmit={false}
             returnKeyType="default"
@@ -368,7 +368,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   dateText: {
-    color: '#333333',
+    color: '#555555',
     fontSize: 12,
     letterSpacing: 2,
     fontWeight: '300',
@@ -407,7 +407,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#111111',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#1A1A1A',
+    borderColor: '#252525',
     padding: 14,
     marginBottom: 12,
   },
@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#2A2A2A',
+    borderColor: '#3A3A3A',
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -455,7 +455,7 @@ const styles = StyleSheet.create({
   },
   cancelBtn: {
     borderWidth: 1,
-    borderColor: '#2A2A2A',
+    borderColor: '#3A3A3A',
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -494,7 +494,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#1A1A1A',
+    borderColor: '#252525',
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 7,

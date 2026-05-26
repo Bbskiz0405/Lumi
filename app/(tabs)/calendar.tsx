@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
   weekLabel: {
     flex: 1,
     textAlign: 'center',
-    color: '#444444',
+    color: '#666666',
     fontSize: 11,
     fontWeight: '400',
   },
@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
   },
   todayCircle: {
     borderWidth: 1,
-    borderColor: '#444444',
+    borderColor: '#666666',
   },
   selectedCircle: {
     backgroundColor: '#FFFFFF',
@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: '#1A1A1A',
+    backgroundColor: '#252525',
     marginTop: 8,
   },
   daySection: {
@@ -252,5 +252,5 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   list: { paddingBottom: 24 },
   empty: { alignItems: 'center', paddingTop: 40 },
-  emptyText: { color: '#333333', fontSize: 13, letterSpacing: 1 },
+  emptyText: { color: '#555555', fontSize: 13, letterSpacing: 1 },
 });

@@ -65,7 +65,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginVertical: 4,
     borderWidth: 1,
-    borderColor: '#1A1A1A',
+    borderColor: '#252525',
     overflow: 'hidden',
   },
   indicator: {

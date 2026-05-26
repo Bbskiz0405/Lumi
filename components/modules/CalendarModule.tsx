@@ -45,13 +45,13 @@ const styles = StyleSheet.create({
     lineHeight: 36,
   },
   weekday: {
-    color: '#444444',
+    color: '#666666',
     fontSize: 12,
     fontWeight: '300',
     marginTop: 2,
   },
   taskCount: {
-    color: '#444444',
+    color: '#666666',
     fontSize: 11,
     marginTop: 10,
   },

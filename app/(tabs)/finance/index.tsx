@@ -522,7 +522,7 @@ const styles = StyleSheet.create({
   headerTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '300', letterSpacing: 2 },
   addBtn: {
     width: 36, height: 36, borderRadius: 18,
-    borderWidth: 1, borderColor: '#2A2A2A',
+    borderWidth: 1, borderColor: '#3A3A3A',
     alignItems: 'center', justifyContent: 'center',
   },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
@@ -537,7 +537,7 @@ const styles = StyleSheet.create({
   },
   modePill: {
     borderWidth: 1,
-    borderColor: '#2A2A2A',
+    borderColor: '#3A3A3A',
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 5,
@@ -565,12 +565,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#111111',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#1A1A1A',
+    borderColor: '#252525',
     marginBottom: 20,
     paddingVertical: 16,
   },
   summaryItem: { flex: 1, alignItems: 'center' },
-  summaryDivider: { width: 1, backgroundColor: '#1A1A1A' },
+  summaryDivider: { width: 1, backgroundColor: '#252525' },
   summaryLabel: { color: '#444', fontSize: 11, marginBottom: 4, letterSpacing: 1 },
   summaryAmount: { fontSize: 18, fontWeight: '300' },
 
@@ -590,7 +590,7 @@ const styles = StyleSheet.create({
   },
 
   empty: { alignItems: 'center', paddingTop: 32 },
-  emptyText: { color: '#333333', fontSize: 13, letterSpacing: 1 },
+  emptyText: { color: '#555555', fontSize: 13, letterSpacing: 1 },
 
   modalOverlay: {
     flex: 1,
@@ -602,7 +602,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#111111',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#2A2A2A',
+    borderColor: '#3A3A3A',
     maxHeight: 520,
     marginHorizontal: 12,
   },
@@ -614,7 +614,7 @@ const styles = StyleSheet.create({
     fontWeight: '300',
     letterSpacing: 1,
   },
-  modalDivider: { height: 1, backgroundColor: '#2A2A2A' },
+  modalDivider: { height: 1, backgroundColor: '#3A3A3A' },
   modalBody: { padding: 16 },
 
   typeRow: { flexDirection: 'row', marginBottom: 12 },
@@ -623,7 +623,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#2A2A2A',
+    borderColor: '#3A3A3A',
     marginRight: 8,
     borderRadius: 6,
   },
@@ -634,7 +634,7 @@ const styles = StyleSheet.create({
 
   input: {
     borderWidth: 1,
-    borderColor: '#2A2A2A',
+    borderColor: '#3A3A3A',
     borderRadius: 8,
     padding: 12,
     color: '#FFFFFF',
@@ -648,7 +648,7 @@ const styles = StyleSheet.create({
 
   catRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 },
   catBtn: {
-    borderWidth: 1, borderColor: '#2A2A2A', borderRadius: 20,
+    borderWidth: 1, borderColor: '#3A3A3A', borderRadius: 20,
     paddingHorizontal: 12, paddingVertical: 6, marginRight: 8, marginBottom: 8,
   },
   catBtnActive: { borderColor: '#55DDAA', backgroundColor: '#101A14' },
@@ -657,7 +657,7 @@ const styles = StyleSheet.create({
 
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8, marginBottom: 24 },
   cancelBtn: {
-    borderWidth: 1, borderColor: '#2A2A2A', borderRadius: 8,
+    borderWidth: 1, borderColor: '#3A3A3A', borderRadius: 8,
     paddingHorizontal: 20, paddingVertical: 10, marginRight: 12,
   },
   cancelText: { color: '#888', fontSize: 14 },
