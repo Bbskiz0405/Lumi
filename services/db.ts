@@ -84,5 +84,10 @@ async function initDb(database: SQLite.SQLiteDatabase): Promise<void> {
       task_id TEXT NOT NULL,
       is_recurring INTEGER NOT NULL DEFAULT 0
     );
+
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
   `);
 }

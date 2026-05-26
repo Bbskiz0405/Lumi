@@ -1,0 +1,144 @@
+import { getDb } from './db';
+import { ClassifiedType } from '../types/entry';
+import * as Crypto from 'expo-crypto';
+
+export interface ClassificationResult {
+  type: ClassifiedType;
+  confidence: 'high' | 'medium' | 'low';
+  parsed?: {
+    amount?: number;
+    category?: string;
+    transactionType?: 'income' | 'expense';
+  };
+}
+
+const FINANCE_KEYWORDS = [
+  '買', '花', '付', '繳', '刷', '消費', '支出', '收入', '薪水', '薪資',
+  '早餐', '午餐', '晚餐', '宵夜', '飲料', '咖啡', '便當', '外送',
+  '加油', '停車', '車費', '票', '搭車', '計程車', '捷運', '公車', '高鐵',
+  '房租', '水電', '電話費', '網路費', '保險',
+  '元', '塊', 'NT', '$',
+];
+
+const INCOME_KEYWORDS = ['收入', '薪水', '薪資', '獎金', '入帳', '進帳', '賺'];
+
+const TASK_KEYWORDS = [
+  '要', '記得', '別忘', '提醒', '做', '完成', '處理', '準備', '交',
+  'deadline', '截止', '到期', '明天', '後天', '下週', '下禮拜',
+  '報告', '作業', '考試', '開會', '會議',
+];
+
+const AMOUNT_PATTERN = /(\d+(?:\.\d+)?)\s*(?:元|塊|NT\$?|\$)?/;
+const LEADING_AMOUNT = /^[＄$]?\s*(\d+(?:\.\d+)?)/;
+
+function extractAmount(text: string): number | null {
+  const match = text.match(AMOUNT_PATTERN) || text.match(LEADING_AMOUNT);
+  if (match) {
+    const n = parseFloat(match[1]);
+    if (n > 0 && n < 10_000_000) return n;
+  }
+  return null;
+}
+
+function guessExpenseCategory(text: string): string {
+  const foodWords = ['餐', '吃', '飯', '麵', '早餐', '午餐', '晚餐', '宵夜', '飲料', '咖啡', '便當', '外送', '火鍋', '壽司', '拉麵', '牛排', '茶'];
+  const transportWords = ['車', '油', '停車', '捷運', '公車', '高鐵', '計程', 'uber', '加油', '票'];
+  const interestWords = ['遊戲', 'game', '漫畫', '動漫', '模型', '卡', '抽', '課金', '訂閱', '會員'];
+
+  for (const w of foodWords) if (text.includes(w)) return 'food';
+  for (const w of transportWords) if (text.includes(w)) return 'transport';
+  for (const w of interestWords) if (text.includes(w)) return 'interest';
+  return 'other';
+}
+
+export function classifyByKeywords(text: string): ClassificationResult {
+  const lower = text.toLowerCase();
+  const amount = extractAmount(text);
+
+  let financeScore = 0;
+  let taskScore = 0;
+
+  for (const kw of FINANCE_KEYWORDS) {
+    if (lower.includes(kw.toLowerCase())) financeScore++;
+  }
+  for (const kw of TASK_KEYWORDS) {
+    if (lower.includes(kw.toLowerCase())) taskScore++;
+  }
+
+  if (amount !== null) financeScore += 3;
+
+  if (financeScore > taskScore && financeScore >= 2) {
+    const isIncome = INCOME_KEYWORDS.some(kw => lower.includes(kw));
+    return {
+      type: 'FINANCE',
+      confidence: financeScore >= 4 ? 'high' : 'medium',
+      parsed: {
+        amount: amount ?? undefined,
+        category: isIncome ? undefined : guessExpenseCategory(lower),
+        transactionType: isIncome ? 'income' : 'expense',
+      },
+    };
+  }
+
+  if (taskScore > financeScore && taskScore >= 1) {
+    return { type: 'TASK', confidence: taskScore >= 3 ? 'high' : 'medium' };
+  }
+
+  if (amount !== null) {
+    const isIncome = INCOME_KEYWORDS.some(kw => lower.includes(kw));
+    return {
+      type: 'FINANCE',
+      confidence: 'medium',
+      parsed: {
+        amount,
+        category: isIncome ? undefined : guessExpenseCategory(lower),
+        transactionType: isIncome ? 'income' : 'expense',
+      },
+    };
+  }
+
+  return { type: 'IDEA', confidence: 'low' };
+}
+
+export async function classifyWithHabits(text: string): Promise<ClassificationResult> {
+  const keywordResult = classifyByKeywords(text);
+
+  const db = await getDb();
+  const words = text.split(/\s+/).filter(w => w.length >= 2);
+  if (words.length === 0) return keywordResult;
+
+  const likeConditions = words.map(() => 'raw_input LIKE ?').join(' OR ');
+  const params = words.map(w => `%${w}%`);
+
+  const history = await db.getAllAsync<{ classified_type: string; cnt: number }>(
+    `SELECT classified_type, COUNT(*) as cnt FROM entries
+     WHERE (${likeConditions})
+     GROUP BY classified_type ORDER BY cnt DESC LIMIT 3`,
+    params
+  );
+
+  if (history.length > 0 && history[0].cnt >= 2) {
+    const learnedType = history[0].classified_type as ClassifiedType;
+    if (learnedType !== keywordResult.type && history[0].cnt >= 3) {
+      return { ...keywordResult, type: learnedType, confidence: 'medium' };
+    }
+  }
+
+  return keywordResult;
+}
+
+export async function saveEntry(rawInput: string, classifiedType: ClassifiedType): Promise<string> {
+  const db = await getDb();
+  const id = Crypto.randomUUID();
+  const now = new Date().toISOString();
+  await db.runAsync(
+    'INSERT INTO entries (id, raw_input, classified_type, created_at) VALUES (?, ?, ?, ?)',
+    [id, rawInput, classifiedType, now]
+  );
+  return id;
+}
+
+export async function updateEntryType(id: string, newType: ClassifiedType): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('UPDATE entries SET classified_type = ? WHERE id = ?', [newType, id]);
+}

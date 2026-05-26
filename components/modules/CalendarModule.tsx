@@ -5,11 +5,12 @@ import { getTasksForDate } from '../../services/taskService';
 
 interface Props {
   onPress: () => void;
+  refreshKey?: number;
 }
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
 
-export default function CalendarModule({ onPress }: Props) {
+export default function CalendarModule({ onPress, refreshKey }: Props) {
   const [todayCount, setTodayCount] = useState(0);
   const now = new Date();
   const today = now.toISOString().split('T')[0];
@@ -18,7 +19,7 @@ export default function CalendarModule({ onPress }: Props) {
     getTasksForDate(today).then(tasks =>
       setTodayCount(tasks.filter(t => t.completed === 0).length)
     );
-  }, []);
+  }, [refreshKey]);
 
   return (
     <ModuleCard title="月曆" icon="calendar-month-outline" onPress={onPress} accent="#88AAFF">

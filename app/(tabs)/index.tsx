@@ -6,11 +6,21 @@ import {
   TouchableOpacity,
   Text,
   ScrollView,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useRouter } from 'expo-router';
 import { createTask } from '../../services/taskService';
+import { createNote } from '../../services/noteService';
+import { createTransaction } from '../../services/financeService';
+import {
+  classifyWithHabits,
+  saveEntry,
+  updateEntryType,
+  ClassificationResult,
+} from '../../services/classificationService';
+import { ClassifiedType } from '../../types/entry';
 import TasksModule from '../../components/modules/TasksModule';
 import CalendarModule from '../../components/modules/CalendarModule';
 import FinanceModule from '../../components/modules/FinanceModule';
@@ -22,23 +32,116 @@ function formatDate(): string {
   return `${now.getMonth() + 1}月${now.getDate()}日  星期${weekdays[now.getDay()]}`;
 }
 
+const TYPE_CONFIG: Record<string, { label: string; icon: string; color: string }> = {
+  TASK: { label: '任務', icon: 'checkbox-marked-outline', color: '#FF9944' },
+  FINANCE: { label: '記帳', icon: 'wallet-outline', color: '#55DDAA' },
+  IDEA: { label: '筆記', icon: 'lightbulb-outline', color: '#88AAFF' },
+  GOAL: { label: '目標', icon: 'target', color: '#FF88BB' },
+  UNCERTAIN: { label: '未分類', icon: 'help-circle-outline', color: '#666666' },
+};
+
+const SELECTABLE_TYPES: ClassifiedType[] = ['TASK', 'FINANCE', 'IDEA'];
+
 export default function HomeScreen() {
   const router = useRouter();
   const [text, setText] = useState('');
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [classification, setClassification] = useState<ClassificationResult | null>(null);
+  const [pendingEntryId, setPendingEntryId] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [feedbackText, setFeedbackText] = useState('');
+  const [feedbackOpacity] = useState(new Animated.Value(0));
 
-  async function handleSubmit() {
+  async function handleClassify() {
     const trimmed = text.trim();
     if (!trimmed) return;
-    await createTask({
-      title: trimmed,
-      due_date: null,
-      priority: 'medium',
-      tag: null,
-      source: 'manual',
-      entry_id: null,
-    });
-    setText('');
+    const result = await classifyWithHabits(trimmed);
+    setClassification(result);
+    const entryId = await saveEntry(trimmed, result.type);
+    setPendingEntryId(entryId);
   }
+
+  function handleChangeType(newType: ClassifiedType) {
+    if (!classification || !pendingEntryId) return;
+    setClassification({ ...classification, type: newType, confidence: 'high' });
+    updateEntryType(pendingEntryId, newType);
+  }
+
+  async function handleConfirm() {
+    if (!classification || !pendingEntryId) return;
+    setSubmitting(true);
+    const trimmed = text.trim();
+
+    try {
+      switch (classification.type) {
+        case 'TASK':
+          await createTask({
+            title: trimmed,
+            due_date: null,
+            priority: 'medium',
+            tag: null,
+            source: 'manual',
+            entry_id: pendingEntryId,
+          });
+          showFeedback('已新增任務');
+          break;
+
+        case 'FINANCE': {
+          const p = classification.parsed;
+          await createTransaction({
+            type: p?.transactionType ?? 'expense',
+            item: trimmed.replace(/\d+(?:\.\d+)?\s*(?:元|塊|NT\$?|\$)?/g, '').trim() || trimmed,
+            amount: p?.amount ?? 0,
+            category: p?.transactionType === 'income' ? null : (p?.category as any) ?? 'other',
+            entry_id: pendingEntryId,
+          });
+          showFeedback('已記帳');
+          break;
+        }
+
+        case 'IDEA':
+          await createNote({
+            content: trimmed,
+            entry_id: pendingEntryId,
+          });
+          showFeedback('已儲存筆記');
+          break;
+
+        default:
+          await createNote({
+            content: trimmed,
+            entry_id: pendingEntryId,
+          });
+          showFeedback('已儲存');
+          break;
+      }
+    } finally {
+      setText('');
+      setClassification(null);
+      setPendingEntryId(null);
+      setSubmitting(false);
+      setRefreshKey(k => k + 1);
+    }
+  }
+
+  function handleCancel() {
+    setClassification(null);
+    setPendingEntryId(null);
+  }
+
+  function showFeedback(msg: string) {
+    setFeedbackText(msg);
+    feedbackOpacity.setValue(1);
+    Animated.timing(feedbackOpacity, {
+      toValue: 0,
+      duration: 1500,
+      delay: 800,
+      useNativeDriver: true,
+    }).start();
+  }
+
+  const hasText = text.trim().length > 0;
+  const showClassification = classification !== null;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -52,29 +155,99 @@ export default function HomeScreen() {
           <TextInput
             style={styles.input}
             value={text}
-            onChangeText={setText}
+            onChangeText={(t) => {
+              setText(t);
+              if (classification) handleCancel();
+            }}
             placeholder="想到什麼就寫..."
             placeholderTextColor="#2A2A2A"
             multiline
             blurOnSubmit
-            onSubmitEditing={handleSubmit}
+            onSubmitEditing={showClassification ? handleConfirm : handleClassify}
+            editable={!submitting}
           />
-          {text.trim().length > 0 && (
-            <TouchableOpacity onPress={handleSubmit} style={styles.submitBtn}>
+          {hasText && !showClassification && (
+            <TouchableOpacity onPress={handleClassify} style={styles.submitBtn}>
               <MaterialCommunityIcons name="arrow-up" size={16} color="#0F0F0F" />
             </TouchableOpacity>
           )}
         </View>
 
+        {/* 分類結果 */}
+        {showClassification && classification && (
+          <View style={styles.classificationCard}>
+            <View style={styles.classRow}>
+              <Text style={styles.classLabel}>分類為</Text>
+              <View style={styles.typePills}>
+                {SELECTABLE_TYPES.map(t => {
+                  const config = TYPE_CONFIG[t];
+                  const isActive = classification.type === t;
+                  return (
+                    <TouchableOpacity
+                      key={t}
+                      style={[
+                        styles.typePill,
+                        isActive && { borderColor: config.color, backgroundColor: config.color + '15' },
+                      ]}
+                      onPress={() => handleChangeType(t)}
+                    >
+                      <MaterialCommunityIcons
+                        name={config.icon as any}
+                        size={14}
+                        color={isActive ? config.color : '#444'}
+                        style={{ marginRight: 4 }}
+                      />
+                      <Text style={[styles.typePillText, isActive && { color: config.color }]}>
+                        {config.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* 財務解析預覽 */}
+            {classification.type === 'FINANCE' && classification.parsed && (
+              <View style={styles.parsePreview}>
+                <Text style={styles.parseText}>
+                  {classification.parsed.transactionType === 'income' ? '收入' : '支出'}
+                  {classification.parsed.amount ? ` $${classification.parsed.amount}` : ' (請確認金額)'}
+                  {classification.parsed.category ? ` · ${classification.parsed.category}` : ''}
+                </Text>
+              </View>
+            )}
+
+            <View style={styles.classActions}>
+              <TouchableOpacity onPress={handleCancel} style={styles.cancelBtn}>
+                <Text style={styles.cancelText}>取消</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleConfirm}
+                style={[styles.confirmBtn, submitting && { opacity: 0.5 }]}
+                disabled={submitting}
+              >
+                <Text style={styles.confirmText}>
+                  {submitting ? '儲存中...' : '確認'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Feedback toast */}
+        <Animated.View style={[styles.feedback, { opacity: feedbackOpacity }]} pointerEvents="none">
+          <Text style={styles.feedbackText}>{feedbackText}</Text>
+        </Animated.View>
+
         {/* 模組格 */}
         <View style={styles.grid}>
           <View style={[styles.row, { marginBottom: 12 }]}>
-            <TasksModule onPress={() => router.push('/(tabs)/tasks')} />
+            <TasksModule onPress={() => router.push('/(tabs)/tasks')} refreshKey={refreshKey} />
             <View style={styles.gap} />
-            <CalendarModule onPress={() => router.push('/(tabs)/calendar')} />
+            <CalendarModule onPress={() => router.push('/(tabs)/calendar')} refreshKey={refreshKey} />
           </View>
           <View style={styles.row}>
-            <FinanceModule onPress={() => router.push('/(tabs)/finance/')} />
+            <FinanceModule onPress={() => router.push('/(tabs)/finance/')} refreshKey={refreshKey} />
             <View style={styles.gap} />
             <GoalsModule onPress={() => router.push('/(tabs)/goals/')} />
           </View>
@@ -108,7 +281,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     backgroundColor: '#161616',
-    marginBottom: 24,
+    marginBottom: 12,
     minHeight: 80,
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -131,8 +304,89 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginLeft: 8,
   },
-  grid: {
+  classificationCard: {
+    backgroundColor: '#111111',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#1A1A1A',
+    padding: 14,
+    marginBottom: 12,
   },
+  classRow: {
+    marginBottom: 10,
+  },
+  classLabel: {
+    color: '#444',
+    fontSize: 11,
+    letterSpacing: 1,
+    marginBottom: 8,
+  },
+  typePills: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  typePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  typePillText: {
+    color: '#444',
+    fontSize: 12,
+  },
+  parsePreview: {
+    backgroundColor: '#0A0A0A',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 10,
+  },
+  parseText: {
+    color: '#55DDAA',
+    fontSize: 13,
+    fontWeight: '300',
+  },
+  classActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+  },
+  cancelBtn: {
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  cancelText: {
+    color: '#666',
+    fontSize: 13,
+  },
+  confirmBtn: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+  },
+  confirmText: {
+    color: '#0F0F0F',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  feedback: {
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  feedbackText: {
+    color: '#55DDAA',
+    fontSize: 12,
+    fontWeight: '300',
+    letterSpacing: 1,
+  },
+  grid: {},
   row: {
     flexDirection: 'row',
   },

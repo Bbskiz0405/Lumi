@@ -6,14 +6,15 @@ import { Task } from '../../types/task';
 
 interface Props {
   onPress: () => void;
+  refreshKey?: number;
 }
 
-export default function TasksModule({ onPress }: Props) {
+export default function TasksModule({ onPress, refreshKey }: Props) {
   const [tasks, setTasks] = useState<Task[]>([]);
 
   useEffect(() => {
     getAllTasks().then(data => setTasks(data.filter(t => t.completed === 0)));
-  }, []);
+  }, [refreshKey]);
 
   const urgent = tasks.filter(t => {
     if (!t.due_date) return false;

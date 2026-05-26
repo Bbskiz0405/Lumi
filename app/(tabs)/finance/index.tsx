@@ -1,13 +1,14 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, ScrollView, StyleSheet, TouchableOpacity, Text,
-  Modal, TextInput, ActivityIndicator,
+  Modal, TextInput, ActivityIndicator, Alert,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import TransactionCard from '../../../components/finance/TransactionCard';
 import BudgetMeter from '../../../components/finance/BudgetMeter';
+import FinanceAdvisor from '../../../components/finance/FinanceAdvisor';
 import {
   getTransactionsForMonth,
   getMonthSummary,
@@ -16,6 +17,7 @@ import {
   createTransaction,
   deleteTransaction,
   upsertBudget,
+  resetAllFinance,
 } from '../../../services/financeService';
 import { Transaction, ExpenseCategory } from '../../../types/finance';
 
@@ -42,6 +44,8 @@ export default function FinanceScreen() {
   const [budgetLimits, setBudgetLimits] = useState<Record<string, number>>({});
   const [categoryExpense, setCategoryExpense] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+
+  const [advisorVisible, setAdvisorVisible] = useState(false);
 
   // Add modal
   const [modalVisible, setModalVisible] = useState(false);
@@ -128,6 +132,24 @@ export default function FinanceScreen() {
     setBudgetLimits(prev => ({ ...prev, [category]: newLimit }));
   }
 
+  function handleReset() {
+    Alert.alert(
+      '重置所有記帳資料',
+      '將刪除所有月份的交易記錄和預算設定，此操作無法復原。',
+      [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '確認重置',
+          style: 'destructive',
+          onPress: async () => {
+            await resetAllFinance();
+            loadAll(currentMonth);
+          },
+        },
+      ]
+    );
+  }
+
   const balance = summary.income - summary.expense;
 
   return (
@@ -135,9 +157,17 @@ export default function FinanceScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>財務</Text>
-        <TouchableOpacity onPress={openModal} style={styles.addBtn}>
-          <MaterialCommunityIcons name="plus" size={22} color="#FFFFFF" />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TouchableOpacity onPress={() => setAdvisorVisible(true)} style={styles.addBtn}>
+            <MaterialCommunityIcons name="robot-outline" size={18} color="#55DDAA" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleReset} style={styles.addBtn}>
+            <MaterialCommunityIcons name="refresh" size={18} color="#666" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={openModal} style={styles.addBtn}>
+            <MaterialCommunityIcons name="plus" size={22} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {loading ? (
@@ -212,6 +242,15 @@ export default function FinanceScreen() {
           )}
         </ScrollView>
       )}
+
+      {/* AI Advisor */}
+      <Modal
+        visible={advisorVisible}
+        onRequestClose={() => setAdvisorVisible(false)}
+        animationType="slide"
+      >
+        <FinanceAdvisor month={currentMonth} onClose={() => setAdvisorVisible(false)} />
+      </Modal>
 
       {/* Add modal */}
       <Modal

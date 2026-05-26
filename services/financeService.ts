@@ -82,6 +82,12 @@ export async function upsertBudget(
   }
 }
 
+export async function resetAllFinance(): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('DELETE FROM transactions');
+  await db.runAsync('DELETE FROM budgets');
+}
+
 export async function getExpenseByCategory(month: string): Promise<Record<string, number>> {
   const db = await getDb();
   const rows = await db.getAllAsync<{ category: string; total: number }>(

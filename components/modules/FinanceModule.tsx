@@ -5,9 +5,10 @@ import { getMonthSummary } from '../../services/financeService';
 
 interface Props {
   onPress: () => void;
+  refreshKey?: number;
 }
 
-export default function FinanceModule({ onPress }: Props) {
+export default function FinanceModule({ onPress, refreshKey }: Props) {
   const [income, setIncome] = useState(0);
   const [expense, setExpense] = useState(0);
 
@@ -18,7 +19,7 @@ export default function FinanceModule({ onPress }: Props) {
       setIncome(s.income);
       setExpense(s.expense);
     });
-  }, []);
+  }, [refreshKey]);
 
   const balance = income - expense;
 
