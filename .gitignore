@@ -16,3 +16,5 @@ yarn-error.*
 *.png
 *.jpg
 .claude/
+.playwright-mcp/
+graphify-out/
