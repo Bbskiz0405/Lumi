@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Text, StyleSheet } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import ModuleCard from './ModuleCard';
 import { getMonthSummary } from '../../services/financeService';
 
@@ -12,14 +13,16 @@ export default function FinanceModule({ onPress, refreshKey }: Props) {
   const [income, setIncome] = useState(0);
   const [expense, setExpense] = useState(0);
 
-  useEffect(() => {
-    const now = new Date();
-    const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    getMonthSummary(month).then(s => {
-      setIncome(s.income);
-      setExpense(s.expense);
-    });
-  }, [refreshKey]);
+  useFocusEffect(
+    useCallback(() => {
+      const now = new Date();
+      const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      getMonthSummary(month).then(s => {
+        setIncome(s.income);
+        setExpense(s.expense);
+      });
+    }, [refreshKey])
+  );
 
   const balance = income - expense;
 

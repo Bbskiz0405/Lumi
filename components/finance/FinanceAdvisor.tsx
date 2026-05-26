@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
-  ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform,
+  ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {
@@ -10,6 +10,7 @@ import {
   ChatMessage,
   getGeminiApiKey,
   setGeminiApiKey,
+  removeGeminiApiKey,
 } from '../../services/geminiService';
 
 interface Props {
@@ -39,6 +40,33 @@ export default function FinanceAdvisor({ month, onClose }: Props) {
     await setGeminiApiKey(key);
     setNeedsKey(false);
     setKeyInput('');
+  }
+
+  function handleKeySettings() {
+    Alert.alert(
+      'API Key 設定',
+      '目前已設定 Gemini API Key',
+      [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '移除 Key',
+          style: 'destructive',
+          onPress: async () => {
+            await removeGeminiApiKey();
+            setNeedsKey(true);
+            setMessages([]);
+          },
+        },
+        {
+          text: '更換 Key',
+          onPress: async () => {
+            await removeGeminiApiKey();
+            setNeedsKey(true);
+            setMessages([]);
+          },
+        },
+      ]
+    );
   }
 
   async function handleSend() {
@@ -130,9 +158,14 @@ export default function FinanceAdvisor({ month, onClose }: Props) {
     >
       <View style={styles.header}>
         <Text style={styles.headerTitle}>AI 財務顧問</Text>
-        <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-          <MaterialCommunityIcons name="close" size={20} color="#666" />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          <TouchableOpacity onPress={handleKeySettings} style={styles.closeBtn}>
+            <MaterialCommunityIcons name="key-variant" size={18} color="#444" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+            <MaterialCommunityIcons name="close" size={20} color="#666" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView

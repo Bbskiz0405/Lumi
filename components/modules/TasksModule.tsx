@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import ModuleCard from './ModuleCard';
 import { getAllTasks } from '../../services/taskService';
 import { Task } from '../../types/task';
@@ -12,9 +13,11 @@ interface Props {
 export default function TasksModule({ onPress, refreshKey }: Props) {
   const [tasks, setTasks] = useState<Task[]>([]);
 
-  useEffect(() => {
-    getAllTasks().then(data => setTasks(data.filter(t => t.completed === 0)));
-  }, [refreshKey]);
+  useFocusEffect(
+    useCallback(() => {
+      getAllTasks().then(data => setTasks(data.filter(t => t.completed === 0)));
+    }, [refreshKey])
+  );
 
   const urgent = tasks.filter(t => {
     if (!t.due_date) return false;

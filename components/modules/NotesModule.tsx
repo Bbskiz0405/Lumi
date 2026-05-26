@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Text, StyleSheet } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import ModuleCard from './ModuleCard';
 import { getNotesCount, getRecentNotes } from '../../services/noteService';
 
@@ -12,7 +13,7 @@ export default function NotesModule({ onPress, refreshKey }: Props) {
   const [count, setCount] = useState(0);
   const [lastNote, setLastNote] = useState('');
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     getNotesCount().then(setCount);
     getRecentNotes(1).then(notes => {
       if (notes.length > 0) {
@@ -22,7 +23,7 @@ export default function NotesModule({ onPress, refreshKey }: Props) {
         setLastNote(preview);
       }
     });
-  }, [refreshKey]);
+  }, [refreshKey]));
 
   return (
     <ModuleCard title="筆記" icon="lightbulb-outline" onPress={onPress} accent="#88AAFF">

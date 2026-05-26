@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import ModuleCard from './ModuleCard';
 import { getTasksForDate } from '../../services/taskService';
 
@@ -15,11 +16,13 @@ export default function CalendarModule({ onPress, refreshKey }: Props) {
   const now = new Date();
   const today = now.toISOString().split('T')[0];
 
-  useEffect(() => {
-    getTasksForDate(today).then(tasks =>
-      setTodayCount(tasks.filter(t => t.completed === 0).length)
-    );
-  }, [refreshKey]);
+  useFocusEffect(
+    useCallback(() => {
+      getTasksForDate(today).then(tasks =>
+        setTodayCount(tasks.filter(t => t.completed === 0).length)
+      );
+    }, [refreshKey])
+  );
 
   return (
     <ModuleCard title="月曆" icon="calendar-month-outline" onPress={onPress} accent="#88AAFF">

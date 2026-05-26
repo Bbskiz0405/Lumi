@@ -256,7 +256,7 @@ export default function FinanceScreen() {
       <Modal
         visible={modalVisible}
         onRequestClose={() => setModalVisible(false)}
-        animationType="slide"
+        animationType="fade"
         transparent
       >
         <View style={styles.modalOverlay}>
@@ -406,14 +406,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'flex-start',
+    paddingTop: 48,
   },
   modal: {
     backgroundColor: '#111111',
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: '#2A2A2A',
-    maxHeight: 560,
+    maxHeight: 520,
+    marginHorizontal: 12,
   },
   modalTitle: {
     padding: 20,

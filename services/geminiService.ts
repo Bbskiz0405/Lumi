@@ -27,6 +27,12 @@ export async function getGeminiApiKey(): Promise<string | null> {
   return apiKeyCache;
 }
 
+export async function removeGeminiApiKey(): Promise<void> {
+  apiKeyCache = null;
+  const db = await getDb();
+  await db.runAsync('DELETE FROM settings WHERE key = ?', ['gemini_api_key']);
+}
+
 async function ensureApiKey(): Promise<string> {
   const key = await getGeminiApiKey();
   if (!key) throw new Error('未設定 Gemini API Key');
