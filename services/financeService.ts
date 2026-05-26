@@ -94,6 +94,36 @@ export async function upsertBudget(
   }
 }
 
+const DEFAULT_EXPENSE_CATEGORIES = [
+  { value: 'food', label: '餐飲' },
+  { value: 'transport', label: '交通' },
+  { value: 'interest', label: '興趣' },
+  { value: 'daily', label: '日用品' },
+  { value: 'medical', label: '醫療' },
+  { value: 'education', label: '教育' },
+  { value: 'entertainment', label: '娛樂' },
+  { value: 'communication', label: '通訊' },
+  { value: 'housing', label: '居住' },
+  { value: 'other', label: '其他' },
+];
+
+export async function getExpenseCategories(): Promise<{ value: string; label: string }[]> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ value: string }>('SELECT value FROM settings WHERE key = ?', ['expense_categories']);
+  if (row) {
+    try { return JSON.parse(row.value); } catch { return DEFAULT_EXPENSE_CATEGORIES; }
+  }
+  return DEFAULT_EXPENSE_CATEGORIES;
+}
+
+export async function saveExpenseCategories(categories: { value: string; label: string }[]): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
+    ['expense_categories', JSON.stringify(categories)]
+  );
+}
+
 export async function resetAllFinance(): Promise<void> {
   const db = await getDb();
   await db.runAsync('DELETE FROM transactions');

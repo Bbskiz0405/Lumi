@@ -1,5 +1,5 @@
 export type TransactionType = 'income' | 'expense';
-export type ExpenseCategory = 'food' | 'interest' | 'transport' | 'other';
+export type ExpenseCategory = string;
 
 export interface Transaction {
   id: string;

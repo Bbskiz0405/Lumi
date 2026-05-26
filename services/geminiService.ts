@@ -6,37 +6,66 @@ import {
   getExpenseByCategory,
 } from './financeService';
 
-const GEMINI_MODEL = 'gemini-2.0-flash';
+export type ApiProvider = 'gemini' | 'openrouter' | 'openai';
 
-let apiKeyCache: string | null = null;
+interface ApiConfig {
+  provider: ApiProvider;
+  apiKey: string;
+  model?: string;
+}
 
-export async function setGeminiApiKey(key: string): Promise<void> {
-  apiKeyCache = key;
+const DEFAULT_MODELS: Record<ApiProvider, string> = {
+  gemini: 'gemini-2.0-flash',
+  openrouter: 'google/gemini-2.0-flash-exp:free',
+  openai: 'gpt-4o-mini',
+};
+
+let configCache: ApiConfig | null = null;
+
+export async function setApiConfig(config: ApiConfig): Promise<void> {
+  configCache = config;
   const db = await getDb();
   await db.runAsync(
     'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
-    ['gemini_api_key', key]
+    ['ai_config', JSON.stringify(config)]
   );
 }
 
+export async function getApiConfig(): Promise<ApiConfig | null> {
+  if (configCache) return configCache;
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ value: string }>('SELECT value FROM settings WHERE key = ?', ['ai_config']);
+  if (row) {
+    try {
+      configCache = JSON.parse(row.value);
+      return configCache;
+    } catch { return null; }
+  }
+  return null;
+}
+
+export async function removeApiConfig(): Promise<void> {
+  configCache = null;
+  const db = await getDb();
+  await db.runAsync('DELETE FROM settings WHERE key = ?', ['ai_config']);
+}
+
+// Keep old functions for backward compatibility
+export async function setGeminiApiKey(key: string): Promise<void> {
+  await setApiConfig({ provider: 'openrouter', apiKey: key });
+}
 export async function getGeminiApiKey(): Promise<string | null> {
-  if (apiKeyCache) return apiKeyCache;
-  const db = await getDb();
-  const row = await db.getFirstAsync<{ value: string }>('SELECT value FROM settings WHERE key = ?', ['gemini_api_key']);
-  if (row) apiKeyCache = row.value;
-  return apiKeyCache;
+  const config = await getApiConfig();
+  return config?.apiKey ?? null;
 }
-
 export async function removeGeminiApiKey(): Promise<void> {
-  apiKeyCache = null;
-  const db = await getDb();
-  await db.runAsync('DELETE FROM settings WHERE key = ?', ['gemini_api_key']);
+  await removeApiConfig();
 }
 
-async function ensureApiKey(): Promise<string> {
-  const key = await getGeminiApiKey();
-  if (!key) throw new Error('未設定 Gemini API Key');
-  return key;
+async function ensureConfig(): Promise<ApiConfig> {
+  const config = await getApiConfig();
+  if (!config) throw new Error('未設定 API');
+  return config;
 }
 
 const SYSTEM_PROMPT = `你是 Lumi 的財務分析助手。你的角色嚴格限定於財務相關話題。
@@ -103,100 +132,116 @@ export interface ChatMessage {
   text: string;
 }
 
+async function callGemini(config: ApiConfig, messages: any[], temperature: number, maxTokens: number): Promise<string> {
+  const model = config.model || DEFAULT_MODELS.gemini;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${config.apiKey}`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: messages,
+      generationConfig: { temperature, maxOutputTokens: maxTokens },
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Gemini ${response.status}: ${body.slice(0, 150)}`);
+  }
+
+  const data = await response.json();
+  return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '無回應';
+}
+
+async function callOpenAICompatible(config: ApiConfig, systemPrompt: string, chatMessages: { role: string; content: string }[], temperature: number, maxTokens: number): Promise<string> {
+  const isOpenRouter = config.provider === 'openrouter';
+  const baseUrl = isOpenRouter
+    ? 'https://openrouter.ai/api/v1'
+    : 'https://api.openai.com/v1';
+  const model = config.model || DEFAULT_MODELS[config.provider];
+
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    ...chatMessages,
+  ];
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${config.apiKey}`,
+  };
+  if (isOpenRouter) {
+    headers['HTTP-Referer'] = 'https://lumi-app.local';
+    headers['X-Title'] = 'Lumi';
+  }
+
+  const response = await fetch(`${baseUrl}/chat/completions`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature,
+      max_tokens: maxTokens,
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    if (response.status === 429) throw new Error('請求過於頻繁，請稍後再試');
+    if (response.status === 401) throw new Error('API Key 無效，請檢查設定');
+    throw new Error(`API ${response.status}: ${body.slice(0, 150)}`);
+  }
+
+  const data = await response.json();
+  return data?.choices?.[0]?.message?.content ?? '無回應';
+}
+
+async function callAI(config: ApiConfig, systemPrompt: string, history: ChatMessage[], userMessage: string, financeContext: string, temperature: number = 0.7, maxTokens: number = 1024): Promise<string> {
+  const fullSystem = `${systemPrompt}\n\n${financeContext}`;
+
+  if (config.provider === 'gemini') {
+    const contents = [
+      { role: 'user', parts: [{ text: fullSystem }] },
+      { role: 'model', parts: [{ text: '好的，我已經看到你的財務數據了。有什麼想了解的嗎？' }] },
+      ...history.map(msg => ({
+        role: msg.role === 'model' ? 'model' : 'user',
+        parts: [{ text: msg.text }],
+      })),
+      { role: 'user', parts: [{ text: userMessage }] },
+    ];
+    return callGemini(config, contents, temperature, maxTokens);
+  }
+
+  const chatMessages = [
+    ...history.map(msg => ({
+      role: msg.role === 'model' ? 'assistant' : 'user',
+      content: msg.text,
+    })),
+    { role: 'user', content: userMessage },
+  ];
+  return callOpenAICompatible(config, fullSystem, chatMessages, temperature, maxTokens);
+}
+
 export async function chatWithFinanceAdvisor(
   userMessage: string,
   history: ChatMessage[],
   month: string
 ): Promise<string> {
-  const key = await ensureApiKey();
+  const config = await ensureConfig();
   const financeContext = await buildFinanceContext(month);
-
-  const contents = [
-    {
-      role: 'user',
-      parts: [{ text: `${SYSTEM_PROMPT}\n\n${financeContext}` }],
-    },
-    {
-      role: 'model',
-      parts: [{ text: '好的，我已經看到你的財務數據了。有什麼想了解的嗎？' }],
-    },
-    ...history.map(msg => ({
-      role: msg.role,
-      parts: [{ text: msg.text }],
-    })),
-    {
-      role: 'user',
-      parts: [{ text: userMessage }],
-    },
-  ];
-
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${key}`;
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents,
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 1024,
-      },
-    }),
-  });
-
-  if (!response.ok) {
-    const errorBody = await response.text();
-    if (response.status === 429) {
-      throw new Error('請求過於頻繁，請稍後再試');
-    }
-    if (response.status === 403) {
-      throw new Error('API Key 無權限，請確認已啟用 Gemini API');
-    }
-    if (response.status === 400) {
-      throw new Error(`請求格式錯誤: ${errorBody.slice(0, 100)}`);
-    }
-    throw new Error(`API 錯誤 ${response.status}: ${errorBody.slice(0, 150)}`);
-  }
-
-  const data = await response.json();
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error('Gemini 回傳空內容');
-  return text;
+  return callAI(config, SYSTEM_PROMPT, history, userMessage, financeContext);
 }
 
 export async function getQuickAnalysis(month: string): Promise<string> {
-  const key = await ensureApiKey();
+  const config = await ensureConfig();
   const financeContext = await buildFinanceContext(month);
 
-  const prompt = `${SYSTEM_PROMPT}
-
-${financeContext}
-
-請用 3-5 個重點快速分析這個月的消費狀況，包括：
+  const prompt = `請用 3-5 個重點快速分析這個月的消費狀況，包括：
 1. 花費最多的類別
 2. 是否有異常消費
 3. 一個具體的節省建議
 格式簡潔，每點一行。`;
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${key}`;
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.5, maxOutputTokens: 512 },
-    }),
-  });
-
-  if (!response.ok) {
-    const errBody = await response.text();
-    if (response.status === 429) {
-      throw new Error('請求過於頻繁，請稍後再試');
-    }
-    throw new Error(`API 錯誤 ${response.status}: ${errBody.slice(0, 150)}`);
-  }
-
-  const data = await response.json();
-  return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '無法取得分析結果';
+  return callAI(config, SYSTEM_PROMPT, [], prompt, financeContext, 0.5, 512);
 }

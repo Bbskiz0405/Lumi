@@ -26,17 +26,12 @@ import {
   deleteTransaction,
   upsertBudget,
   resetAllFinance,
+  getExpenseCategories,
+  saveExpenseCategories,
 } from '../../../services/financeService';
 import { Transaction, ExpenseCategory } from '../../../types/finance';
 
 type ViewMode = 'month' | 'year' | 'all';
-
-const EXPENSE_CATEGORIES: { value: ExpenseCategory; label: string }[] = [
-  { value: 'food', label: '餐飲' },
-  { value: 'interest', label: '興趣' },
-  { value: 'transport', label: '交通' },
-  { value: 'other', label: '其他' },
-];
 
 const MONTHS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
 
@@ -55,6 +50,9 @@ export default function FinanceScreen() {
   const [categoryExpense, setCategoryExpense] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('month');
+  const [expenseCategories, setExpenseCategories] = useState<{ value: string; label: string }[]>([]);
+  const [addingCat, setAddingCat] = useState(false);
+  const [newCatLabel, setNewCatLabel] = useState('');
 
   const [advisorVisible, setAdvisorVisible] = useState(false);
 
@@ -141,8 +139,21 @@ export default function FinanceScreen() {
   useFocusEffect(
     useCallback(() => {
       loadAll(viewMode);
+      getExpenseCategories().then(setExpenseCategories);
     }, [currentMonth, viewMode])
   );
+
+  async function handleAddCategory() {
+    const label = newCatLabel.trim();
+    if (!label) return;
+    const value = label.toLowerCase().replace(/\s/g, '_');
+    if (expenseCategories.some(c => c.value === value)) return;
+    const updated = [...expenseCategories, { value, label }];
+    setExpenseCategories(updated);
+    await saveExpenseCategories(updated);
+    setNewCatLabel('');
+    setAddingCat(false);
+  }
 
   function prevMonth() {
     if (viewMode === 'year') {
@@ -263,13 +274,13 @@ export default function FinanceScreen() {
           {viewMode !== 'all' && (
           <View style={styles.monthNav}>
             <TouchableOpacity onPress={prevMonth} style={styles.navBtn}>
-              <Text style={styles.navText}>‹</Text>
+              <MaterialCommunityIcons name="chevron-left" size={24} color="#FFFFFF" />
             </TouchableOpacity>
             <Text style={styles.monthTitle}>
               {viewMode === 'month' ? `${year}年 ${MONTHS[month]}` : `${year}年`}
             </Text>
             <TouchableOpacity onPress={nextMonth} style={styles.navBtn}>
-              <Text style={styles.navText}>›</Text>
+              <MaterialCommunityIcons name="chevron-right" size={24} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
           )}
@@ -312,7 +323,7 @@ export default function FinanceScreen() {
                 <Text style={styles.sectionHint}>點擊設定上限</Text>
               </View>
               <View style={styles.budgetContainer}>
-                {EXPENSE_CATEGORIES.map(cat => (
+                {expenseCategories.map(cat => (
                   <BudgetMeter
                     key={cat.value}
                     category={cat.value}
@@ -387,7 +398,7 @@ export default function FinanceScreen() {
               />
               {editType === 'expense' && (
                 <View style={styles.catRow}>
-                  {EXPENSE_CATEGORIES.map(cat => (
+                  {expenseCategories.map(cat => (
                     <TouchableOpacity
                       key={cat.value}
                       style={[styles.catBtn, editCategory === cat.value && styles.catBtnActive]}
@@ -479,7 +490,7 @@ export default function FinanceScreen() {
                 <>
                   <Text style={styles.fieldLabel}>分類</Text>
                   <View style={styles.catRow}>
-                    {EXPENSE_CATEGORIES.map(cat => (
+                    {expenseCategories.map(cat => (
                       <TouchableOpacity
                         key={cat.value}
                         style={[styles.catBtn, formCategory === cat.value && styles.catBtnActive]}

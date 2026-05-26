@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import TaskCard from '../../components/tasks/TaskCard';
 import {
   getTasksForDate,
@@ -85,11 +86,11 @@ export default function CalendarScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={prevMonth} style={styles.navBtn}>
-          <Text style={styles.navText}>‹</Text>
+          <MaterialCommunityIcons name="chevron-left" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.monthTitle}>{year}年 {MONTHS[month]}</Text>
         <TouchableOpacity onPress={nextMonth} style={styles.navBtn}>
-          <Text style={styles.navText}>›</Text>
+          <MaterialCommunityIcons name="chevron-right" size={24} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
 
