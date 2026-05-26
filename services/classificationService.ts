@@ -59,6 +59,28 @@ function guessExpenseCategory(text: string): string {
   return 'other';
 }
 
+function extractBigrams(text: string): string[] {
+  const clean = text.replace(/\s+/g, '').toLowerCase();
+  const bigrams: string[] = [];
+  for (let i = 0; i < clean.length - 1; i++) {
+    bigrams.push(clean.slice(i, i + 2));
+  }
+  return bigrams;
+}
+
+function similarity(a: string, b: string): number {
+  const bigramsA = new Set(extractBigrams(a));
+  const bigramsB = new Set(extractBigrams(b));
+  if (bigramsA.size === 0 || bigramsB.size === 0) {
+    return a.replace(/\s/g, '').toLowerCase() === b.replace(/\s/g, '').toLowerCase() ? 1 : 0;
+  }
+  let overlap = 0;
+  for (const bg of bigramsA) {
+    if (bigramsB.has(bg)) overlap++;
+  }
+  return (2 * overlap) / (bigramsA.size + bigramsB.size);
+}
+
 export function classifyByKeywords(text: string): ClassificationResult {
   const lower = text.toLowerCase();
   const amount = extractAmount(text);
@@ -110,29 +132,97 @@ export function classifyByKeywords(text: string): ClassificationResult {
 
 export async function classifyWithHabits(text: string): Promise<ClassificationResult> {
   const keywordResult = classifyByKeywords(text);
-
   const db = await getDb();
-  const words = text.split(/\s+/).filter(w => w.length >= 2);
-  if (words.length === 0) return keywordResult;
 
-  const likeConditions = words.map(() => 'raw_input LIKE ?').join(' OR ');
-  const params = words.map(w => `%${w}%`);
-
-  const history = await db.getAllAsync<{ classified_type: string; cnt: number }>(
+  // 1. 精確匹配：完全相同的輸入（最強信號）
+  const exactMatch = await db.getFirstAsync<{ classified_type: string; cnt: number }>(
     `SELECT classified_type, COUNT(*) as cnt FROM entries
-     WHERE (${likeConditions})
-     GROUP BY classified_type ORDER BY cnt DESC LIMIT 3`,
-    params
+     WHERE LOWER(TRIM(raw_input)) = LOWER(TRIM(?))
+     GROUP BY classified_type ORDER BY cnt DESC LIMIT 1`,
+    [text]
+  );
+  if (exactMatch && exactMatch.cnt >= 1) {
+    const learned = exactMatch.classified_type as ClassifiedType;
+    const result = buildResult(learned, text);
+    return { ...result, confidence: exactMatch.cnt >= 2 ? 'high' : 'medium' };
+  }
+
+  // 2. 相似度匹配：拿最近 100 筆 entries 比對 bigram 相似度
+  const recent = await db.getAllAsync<{ raw_input: string; classified_type: string }>(
+    'SELECT raw_input, classified_type FROM entries ORDER BY created_at DESC LIMIT 100'
   );
 
-  if (history.length > 0 && history[0].cnt >= 2) {
-    const learnedType = history[0].classified_type as ClassifiedType;
-    if (learnedType !== keywordResult.type && history[0].cnt >= 3) {
-      return { ...keywordResult, type: learnedType, confidence: 'medium' };
+  const typeScores: Record<string, { score: number; count: number }> = {};
+  for (const entry of recent) {
+    const sim = similarity(text, entry.raw_input);
+    if (sim >= 0.4) {
+      const t = entry.classified_type;
+      if (!typeScores[t]) typeScores[t] = { score: 0, count: 0 };
+      typeScores[t].score += sim;
+      typeScores[t].count++;
+    }
+  }
+
+  let bestType: string | null = null;
+  let bestScore = 0;
+  let bestCount = 0;
+  for (const [type, { score, count }] of Object.entries(typeScores)) {
+    if (score > bestScore) {
+      bestType = type;
+      bestScore = score;
+      bestCount = count;
+    }
+  }
+
+  if (bestType && bestCount >= 2 && bestScore >= 1.0) {
+    const learned = bestType as ClassifiedType;
+    const result = buildResult(learned, text);
+    return { ...result, confidence: bestScore >= 2.0 ? 'high' : 'medium' };
+  }
+
+  if (bestType && bestCount >= 1 && bestScore >= 0.7) {
+    const learned = bestType as ClassifiedType;
+    if (keywordResult.confidence === 'low') {
+      const result = buildResult(learned, text);
+      return { ...result, confidence: 'medium' };
+    }
+  }
+
+  // 3. 單字匹配 fallback（短輸入用）
+  const clean = text.replace(/\s+/g, '').toLowerCase();
+  if (clean.length >= 1 && clean.length <= 4) {
+    const charMatch = await db.getAllAsync<{ classified_type: string; cnt: number }>(
+      `SELECT classified_type, COUNT(*) as cnt FROM entries
+       WHERE LOWER(REPLACE(raw_input, ' ', '')) LIKE ?
+       GROUP BY classified_type ORDER BY cnt DESC LIMIT 3`,
+      [`%${clean}%`]
+    );
+    if (charMatch.length > 0 && charMatch[0].cnt >= 2) {
+      const learned = charMatch[0].classified_type as ClassifiedType;
+      const result = buildResult(learned, text);
+      return { ...result, confidence: charMatch[0].cnt >= 3 ? 'high' : 'medium' };
     }
   }
 
   return keywordResult;
+}
+
+function buildResult(type: ClassifiedType, text: string): ClassificationResult {
+  if (type === 'FINANCE') {
+    const amount = extractAmount(text);
+    const lower = text.toLowerCase();
+    const isIncome = INCOME_KEYWORDS.some(kw => lower.includes(kw));
+    return {
+      type: 'FINANCE',
+      confidence: 'medium',
+      parsed: {
+        amount: amount ?? undefined,
+        category: isIncome ? undefined : guessExpenseCategory(lower),
+        transactionType: isIncome ? 'income' : 'expense',
+      },
+    };
+  }
+  return { type, confidence: 'medium' };
 }
 
 export async function saveEntry(rawInput: string, classifiedType: ClassifiedType): Promise<string> {
