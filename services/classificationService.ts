@@ -28,13 +28,21 @@ const TASK_KEYWORDS = [
   '報告', '作業', '考試', '開會', '會議',
 ];
 
-const AMOUNT_PATTERN = /(\d+(?:\.\d+)?)\s*(?:元|塊|NT\$?|\$)?/;
-const LEADING_AMOUNT = /^[＄$]?\s*(\d+(?:\.\d+)?)/;
+const AMOUNT_PATTERN = /(\d+(?:\.\d+)?)\s*(?:元|塊|NT\$?|\$)/;
+const BARE_AMOUNT = /(?:^|[^年月日時點:：])\s*[＄$]?\s*(\d+(?:\.\d+)?)\s*$/;
+const TIME_CONTEXT = /(?:早上|上午|中午|下午|傍晚|晚上|凌晨|今天|明天|後天)\s*\d|^\d{1,2}\s*[點時:：.]|[\d]\s*[點時]/;
 
 function extractAmount(text: string): number | null {
-  const match = text.match(AMOUNT_PATTERN) || text.match(LEADING_AMOUNT);
+  if (TIME_CONTEXT.test(text)) return null;
+
+  const match = text.match(AMOUNT_PATTERN);
   if (match) {
     const n = parseFloat(match[1]);
+    if (n > 0 && n < 10_000_000) return n;
+  }
+  const bareMatch = text.match(BARE_AMOUNT);
+  if (bareMatch) {
+    const n = parseFloat(bareMatch[1]);
     if (n > 0 && n < 10_000_000) return n;
   }
   return null;

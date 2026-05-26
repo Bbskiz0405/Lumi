@@ -94,9 +94,16 @@ export default function HomeScreen() {
     const trimmed = text.trim();
     if (!trimmed) return;
     const result = await classifyWithHabits(trimmed);
-    setClassification(result);
     const entryId = await saveEntry(trimmed, result.type);
-    setPendingEntryId(entryId);
+
+    if (result.confidence === 'high') {
+      setPendingEntryId(entryId);
+      setClassification(result);
+      await doSave(trimmed, result, entryId);
+    } else {
+      setClassification(result);
+      setPendingEntryId(entryId);
+    }
   }
 
   function handleChangeType(newType: ClassifiedType) {
@@ -119,13 +126,10 @@ export default function HomeScreen() {
     }
   }
 
-  async function handleConfirm() {
-    if (!classification || !pendingEntryId) return;
+  async function doSave(trimmed: string, result: ClassificationResult, entryId: string) {
     setSubmitting(true);
-    const trimmed = text.trim();
-
     try {
-      switch (classification.type) {
+      switch (result.type) {
         case 'TASK':
           await createTask({
             title: trimmed,
@@ -133,37 +137,31 @@ export default function HomeScreen() {
             priority: 'medium',
             tag: null,
             source: 'manual',
-            entry_id: pendingEntryId,
+            entry_id: entryId,
           });
           showFeedback('已新增任務');
           break;
 
         case 'FINANCE': {
-          const p = classification.parsed;
+          const p = result.parsed;
           await createTransaction({
             type: p?.transactionType ?? 'expense',
             item: trimmed.replace(/\d+(?:\.\d+)?\s*(?:元|塊|NT\$?|\$)?/g, '').trim() || trimmed,
             amount: p?.amount ?? 0,
             category: p?.transactionType === 'income' ? null : (p?.category as any) ?? 'other',
-            entry_id: pendingEntryId,
+            entry_id: entryId,
           });
           showFeedback('已記帳');
           break;
         }
 
         case 'IDEA':
-          await createNote({
-            content: trimmed,
-            entry_id: pendingEntryId,
-          });
+          await createNote({ content: trimmed, entry_id: entryId });
           showFeedback('已儲存筆記');
           break;
 
         default:
-          await createNote({
-            content: trimmed,
-            entry_id: pendingEntryId,
-          });
+          await createNote({ content: trimmed, entry_id: entryId });
           showFeedback('已儲存');
           break;
       }
@@ -174,6 +172,11 @@ export default function HomeScreen() {
       setSubmitting(false);
       setRefreshKey(k => k + 1);
     }
+  }
+
+  async function handleConfirm() {
+    if (!classification || !pendingEntryId) return;
+    await doSave(text.trim(), classification, pendingEntryId);
   }
 
   function handleCancel() {
