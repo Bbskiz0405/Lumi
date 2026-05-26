@@ -67,6 +67,23 @@ export async function deleteNote(id: string): Promise<void> {
   await db.runAsync('DELETE FROM notes WHERE id = ?', [id]);
 }
 
+export async function getCustomTags(): Promise<string[]> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ value: string }>('SELECT value FROM settings WHERE key = ?', ['note_tags']);
+  if (row) {
+    try { return JSON.parse(row.value); } catch { return ['目標']; }
+  }
+  return ['目標'];
+}
+
+export async function saveCustomTags(tags: string[]): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
+    ['note_tags', JSON.stringify(tags)]
+  );
+}
+
 export async function getNotesCount(): Promise<number> {
   const db = await getDb();
   const row = await db.getFirstAsync<{ count: number }>('SELECT COUNT(*) as count FROM notes');

@@ -333,8 +333,13 @@ export default function HomeScreen() {
             <Text style={styles.recentTitle}>最近動態</Text>
             {recentItems.map(item => {
               const cfg = RECENT_TYPE_CONFIG[item.type];
+              function handleRecentPress() {
+                if (item.type === 'task') router.push(`/task/${item.id}`);
+                else if (item.type === 'finance') router.push('/(tabs)/finance/');
+                else if (item.type === 'note') router.push('/(tabs)/notes');
+              }
               return (
-                <View key={item.id} style={styles.recentItem}>
+                <TouchableOpacity key={item.id} style={styles.recentItem} onPress={handleRecentPress} activeOpacity={0.6}>
                   <MaterialCommunityIcons
                     name={cfg.icon as any}
                     size={14}
@@ -346,7 +351,7 @@ export default function HomeScreen() {
                     <Text style={[styles.recentSub, { color: cfg.color }]}>{item.subtitle}</Text>
                   )}
                   <Text style={styles.recentTime}>{timeAgo(item.created_at)}</Text>
-                </View>
+                </TouchableOpacity>
               );
             })}
           </View>

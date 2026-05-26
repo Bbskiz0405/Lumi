@@ -12,7 +12,7 @@ export async function getRecentActivity(limit: number = 8): Promise<RecentItem[]
   const db = await getDb();
 
   const tasks = await db.getAllAsync<{ id: string; title: string; created_at: string }>(
-    'SELECT id, title, created_at FROM tasks ORDER BY created_at DESC LIMIT ?',
+    'SELECT id, title, created_at FROM tasks WHERE completed = 0 ORDER BY created_at DESC LIMIT ?',
     [limit]
   );
 
