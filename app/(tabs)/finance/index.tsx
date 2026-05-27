@@ -7,7 +7,6 @@ import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import TransactionCard from '../../../components/finance/TransactionCard';
-import BudgetMeter from '../../../components/finance/BudgetMeter';
 import ExpensePieChart from '../../../components/finance/ExpensePieChart';
 import FinanceAdvisor from '../../../components/finance/FinanceAdvisor';
 import Calculator from '../../../components/finance/Calculator';
@@ -18,14 +17,12 @@ import {
   getMonthSummary,
   getYearSummary,
   getAllTimeSummary,
-  getBudgetsForMonth,
   getExpenseByCategory,
   getExpenseByCategoryForYear,
   getExpenseByCategoryAllTime,
   createTransaction,
   updateTransaction,
   deleteTransaction,
-  upsertBudget,
   resetAllFinance,
   getExpenseCategories,
   saveExpenseCategories,
@@ -47,7 +44,6 @@ export default function FinanceScreen() {
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [summary, setSummary] = useState({ income: 0, expense: 0 });
-  const [budgetLimits, setBudgetLimits] = useState<Record<string, number>>({});
   const [categoryExpense, setCategoryExpense] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('month');
@@ -112,25 +108,18 @@ export default function FinanceScreen() {
         getYearSummary(String(year)),
         getExpenseByCategoryForYear(String(year)),
       ]);
-      setBudgetLimits({});
     } else if (mode === 'all') {
       [txs, sum, catExp] = await Promise.all([
         getAllTransactions(),
         getAllTimeSummary(),
         getExpenseByCategoryAllTime(),
       ]);
-      setBudgetLimits({});
     } else {
-      const [t, s, budgets, c] = await Promise.all([
+      [txs, sum, catExp] = await Promise.all([
         getTransactionsForMonth(currentMonth),
         getMonthSummary(currentMonth),
-        getBudgetsForMonth(currentMonth),
         getExpenseByCategory(currentMonth),
       ]);
-      txs = t; sum = s; catExp = c;
-      const limits: Record<string, number> = {};
-      for (const b of budgets) limits[b.category] = b.limit_amount;
-      setBudgetLimits(limits);
     }
 
     setTransactions(txs);
@@ -211,10 +200,6 @@ export default function FinanceScreen() {
     loadAll(viewMode);
   }
 
-  async function handleUpdateBudget(category: ExpenseCategory, newLimit: number) {
-    await upsertBudget(category, newLimit, currentMonth);
-    setBudgetLimits(prev => ({ ...prev, [category]: newLimit }));
-  }
 
   function handleReset() {
     Alert.alert(
@@ -317,27 +302,6 @@ export default function FinanceScreen() {
             <Text style={styles.sectionTitle}>支出分佈</Text>
           </View>
           <ExpensePieChart data={categoryExpense} />
-
-          {/* Budget — only in month mode */}
-          {viewMode === 'month' && (
-            <>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>預算</Text>
-                <Text style={styles.sectionHint}>點擊設定上限</Text>
-              </View>
-              <View style={styles.budgetContainer}>
-                {expenseCategories.map(cat => (
-                  <BudgetMeter
-                    key={cat.value}
-                    category={cat.value}
-                    spent={categoryExpense[cat.value] ?? 0}
-                    limit={budgetLimits[cat.value] ?? 0}
-                    onUpdateLimit={handleUpdateBudget}
-                  />
-                ))}
-              </View>
-            </>
-          )}
 
           {/* Transactions */}
           <View style={styles.sectionHeader}>

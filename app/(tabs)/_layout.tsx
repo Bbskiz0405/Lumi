@@ -24,6 +24,7 @@ export default function TabsLayout() {
           fontSize: 11,
         },
         animation: 'shift',
+        sceneStyle: { backgroundColor: '#0F0F0F' },
       }}
     >
       <Tabs.Screen

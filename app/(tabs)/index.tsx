@@ -22,7 +22,7 @@ import {
   parseMultipleTransactions,
 } from '../../services/classificationService';
 import { ClassifiedType } from '../../types/entry';
-import { getRecentActivity, getUsagePatterns, RecentItem } from '../../services/recentService';
+import { getRecentActivity, RecentItem } from '../../services/recentService';
 import TasksModule from '../../components/modules/TasksModule';
 import CalendarModule from '../../components/modules/CalendarModule';
 import FinanceModule from '../../components/modules/FinanceModule';
@@ -46,12 +46,6 @@ const RECENT_TYPE_CONFIG: Record<string, { icon: string; color: string }> = {
   task: { icon: 'checkbox-marked-outline', color: '#FF9944' },
   finance: { icon: 'wallet-outline', color: '#55DDAA' },
   note: { icon: 'lightbulb-outline', color: '#88AAFF' },
-};
-
-const QUICK_ACTIONS: Record<string, { label: string; icon: string; color: string; action: string }> = {
-  TASK: { label: '新增任務', icon: 'plus-circle-outline', color: '#FF9944', action: 'task' },
-  FINANCE: { label: '快速記帳', icon: 'cash-plus', color: '#55DDAA', action: 'finance' },
-  IDEA: { label: '寫筆記', icon: 'note-plus-outline', color: '#88AAFF', action: 'note' },
 };
 
 const SELECTABLE_TYPES: ClassifiedType[] = ['TASK', 'FINANCE', 'IDEA'];
@@ -78,16 +72,11 @@ export default function HomeScreen() {
   const [feedbackText, setFeedbackText] = useState('');
   const [feedbackOpacity] = useState(new Animated.Value(0));
   const [recentItems, setRecentItems] = useState<RecentItem[]>([]);
-  const [quickActions, setQuickActions] = useState<string[]>([]);
 
   useFocusEffect(
     useCallback(() => {
       setRefreshKey(k => k + 1);
       getRecentActivity(5).then(setRecentItems);
-      getUsagePatterns().then(patterns => {
-        const top = patterns.slice(0, 3).map(p => p.type);
-        setQuickActions(top.length > 0 ? top : ['TASK', 'FINANCE', 'IDEA']);
-      });
     }, [])
   );
 
@@ -111,20 +100,6 @@ export default function HomeScreen() {
     if (!classification || !pendingEntryId) return;
     setClassification({ ...classification, type: newType, confidence: 'high' });
     updateEntryType(pendingEntryId, newType);
-  }
-
-  function handleQuickAction(action: string) {
-    switch (action) {
-      case 'task':
-        router.push('/(tabs)/tasks');
-        break;
-      case 'finance':
-        router.push('/(tabs)/finance/');
-        break;
-      case 'note':
-        router.push('/notes');
-        break;
-    }
   }
 
   async function doSave(trimmed: string, result: ClassificationResult, entryId: string) {
@@ -308,26 +283,6 @@ export default function HomeScreen() {
           <Text style={styles.feedbackText}>{feedbackText}</Text>
         </Animated.View>
 
-        {/* 常用快捷 */}
-        {quickActions.length > 0 && (
-          <View style={styles.quickRow}>
-            {quickActions.map(type => {
-              const qa = QUICK_ACTIONS[type];
-              if (!qa) return null;
-              return (
-                <TouchableOpacity
-                  key={type}
-                  style={styles.quickBtn}
-                  onPress={() => handleQuickAction(qa.action)}
-                >
-                  <MaterialCommunityIcons name={qa.icon as any} size={16} color={qa.color} />
-                  <Text style={[styles.quickBtnText, { color: qa.color }]}>{qa.label}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        )}
-
         {/* 模組格 */}
         <View style={styles.grid}>
           <View style={[styles.row, { marginBottom: 12 }]}>
@@ -504,26 +459,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '300',
     letterSpacing: 1,
-  },
-  quickRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 16,
-  },
-  quickBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#252525',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    backgroundColor: '#111111',
-    gap: 5,
-  },
-  quickBtnText: {
-    fontSize: 12,
-    fontWeight: '300',
   },
   grid: {},
   row: {

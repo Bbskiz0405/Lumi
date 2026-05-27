@@ -14,6 +14,8 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 export default function TasksScreen() {
   const router = useRouter();
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [completedTasks, setCompletedTasks] = useState<Task[]>([]);
+  const [showCompleted, setShowCompleted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
 
@@ -21,7 +23,10 @@ export default function TasksScreen() {
     useCallback(() => {
       setLoading(true);
       getAllTasks()
-        .then(data => setTasks(data.filter(t => t.completed === 0)))
+        .then(data => {
+          setTasks(data.filter(t => t.completed === 0));
+          setCompletedTasks(data.filter(t => t.completed === 1));
+        })
         .catch(err => console.error('[TasksScreen] getAllTasks failed:', err))
         .finally(() => setLoading(false));
     }, [])
@@ -29,7 +34,15 @@ export default function TasksScreen() {
 
   async function handleToggle(id: string, completed: boolean) {
     await toggleTaskComplete(id, completed);
-    if (completed) setTasks(prev => prev.filter(t => t.id !== id));
+    if (completed) {
+      const task = tasks.find(t => t.id === id);
+      setTasks(prev => prev.filter(t => t.id !== id));
+      if (task) setCompletedTasks(prev => [{ ...task, completed: 1 }, ...prev]);
+    } else {
+      const task = completedTasks.find(t => t.id === id);
+      setCompletedTasks(prev => prev.filter(t => t.id !== id));
+      if (task) setTasks(prev => [{ ...task, completed: 0 }, ...prev]);
+    }
   }
 
   async function handleCreate(input: CreateTaskInput) {
@@ -37,6 +50,7 @@ export default function TasksScreen() {
     setModalVisible(false);
     const data = await getAllTasks();
     setTasks(data.filter(t => t.completed === 0));
+    setCompletedTasks(data.filter(t => t.completed === 1));
   }
 
   return (
@@ -69,6 +83,31 @@ export default function TasksScreen() {
             <View style={styles.empty}>
               <Text style={styles.emptyText}>沒有待辦任務</Text>
             </View>
+          }
+          ListFooterComponent={
+            completedTasks.length > 0 ? (
+              <View style={styles.completedSection}>
+                <TouchableOpacity
+                  style={styles.completedHeader}
+                  onPress={() => setShowCompleted(!showCompleted)}
+                >
+                  <MaterialCommunityIcons
+                    name={showCompleted ? 'chevron-down' : 'chevron-right'}
+                    size={18}
+                    color="#666"
+                  />
+                  <Text style={styles.completedTitle}>已完成 ({completedTasks.length})</Text>
+                </TouchableOpacity>
+                {showCompleted && completedTasks.map(item => (
+                  <TaskCard
+                    key={item.id}
+                    task={item}
+                    onToggleComplete={handleToggle}
+                    onPress={id => router.push(`/task/${id}`)}
+                  />
+                ))}
+              </View>
+            ) : null
           }
         />
       )}
@@ -113,6 +152,9 @@ const styles = StyleSheet.create({
   list: { paddingBottom: 40, paddingTop: 4 },
   empty: { alignItems: 'center', marginTop: 80 },
   emptyText: { color: '#555555', fontSize: 13, letterSpacing: 1 },
+  completedSection: { marginTop: 20, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#252525' },
+  completedHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 8 },
+  completedTitle: { color: '#666', fontSize: 13, fontWeight: '300', marginLeft: 4 },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.7)',
