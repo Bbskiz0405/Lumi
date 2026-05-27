@@ -4,76 +4,75 @@
 
 ---
 
-## 當前狀態 (2026-05-27)
+## 當前狀態 (2026-05-28)
 
 **版號：0.3.0**
 Phase 1（任務/月曆）✅ 完成
 Phase 4（財務記帳）✅ 完成
-Phase 2（智慧分流 + AI）✅ 大致完成（API 待使用者設定）
+Phase 2（智慧分流 + AI）✅ 大致完成
 Phase 5（目標）— 融入筆記標籤
 Phase 3（Dashboard）⬜ 未開始
 
-## 最近完成 (2026-05-26 ~ 05-27)
+**Build 方式：** 本地 Gradle build（EAS 免費額度 6/1 重置）
+**環境：** Android Studio JBR 21 + Gradle 8.13 + ANDROID_HOME + JAVA_HOME 已設
 
-### 行事曆雙模式滑動
-- 任務/財務共享同一日曆 grid
-- PanResponder 左右滑動切換模式，日曆固定不動
-- 日期同時顯示藍點（任務）+綠點（財務）
-- 任務模式：當天任務列表
-- 財務模式：月摘要三格 + 當天交易記錄
+## 最近完成 (2026-05-28)
+
+### 共享日曆系統
+- CalendarContext — 共享年月日狀態（React Context）
+- CalendarGrid 共用元件 — 行事曆 tab 和財務 tab 都渲染同一個日曆
+- 切換兩個 tab 時日曆不動，只換下方內容和點的顏色
+- 藍點（任務）+ 綠點（財務）同時顯示
+
+### 本地 Build 環境
+- Android Studio + JBR 21 + Gradle 8.13 設定完成
+- `expo export` → 複製 bundle → `gradlew assembleDebug` 流程建立
+- adb install 到 Pixel 8a 測試成功
+- APK 可傳到手機安裝（不受 EAS 額度限制）
+
+### 行事曆雙模式（已移除內部滑動，改為 tab 共享）
+- 行事曆 tab：日曆 + 當天任務
+- 財務 tab：同一日曆 + 月摘要 + 圓餅圖 + 交易記錄
+- Tab 切換 animation: none，日曆視覺固定
 
 ### 多筆記帳拆分
-- 「飲料60 便當50」→ 自動拆成兩筆，各自判斷分類
-- parseMultipleTransactions() regex 匹配 item+amount pairs
+- 「飲料60 便當50」自動拆兩筆，各自判斷分類
+- parseMultipleTransactions() 
 
 ### 嵌入式計算機
-- Calculator.tsx — 支援 +-×÷、即時預覽結果、退格
-- 財務新增/編輯金額欄旁加計算機按鈕，底部滑出
+- Calculator.tsx — +-×÷、即時預覽、退格
+- 財務新增/編輯金額欄旁計算機按鈕
 
 ### 多 API 供應商
-- 支援 Gemini / OpenRouter / OpenAI 三種
-- 各自用正確 API 格式（Gemini 原生、OpenRouter/OpenAI 用 OpenAI 格式）
-- 供應商選擇 UI + API key 持久化
+- Gemini / OpenRouter / OpenAI 三選一
+- 各自正確 API 格式
+- 供應商選擇 UI + 持久化
 
-### 動態標籤系統
-- 記帳：10 個預設分類 + 使用者自訂新增
-- 筆記：使用者自訂標籤（預設「目標」），可新增/長按刪除
-
-### 智慧分流 + 自學習
-- 三層匹配：精確→Bigram 相似度→短文字
-- 高信心自動存，低信心才跳選擇器
-- 時間詞偵測、欠還分類
-- Enter 改為換行
-
-### 筆記/記帳編輯
-- 點擊筆記/交易卡 → 編輯 modal
-- updateTransaction() / updateNote()
-
-### UI 修復
-- 全局色彩對比度提升（20 檔 66 處）
-- ‹› 換成 chevron icon
-- AI 頁面 SafeAreaView + KeyboardAvoidingView
-- 記帳 Modal 從上方出現
+### 其他完成項
+- 動態標籤系統（記帳 10 預設 + 自訂，筆記自訂）
+- 三層自學習分類（精確→Bigram→短文字）
+- 高信心自動存、時間詞偵測、欠還分類
+- 筆記/記帳點擊編輯 modal
+- 任務頁「已完成」收折區
+- Enter 改換行
+- 全局色彩對比度提升
+- chevron icon 修復
+- 移除首頁快捷按鈕、預算功能
 - Tab 順序：首頁/行事曆/財務/任務/筆記
-- 月曆改名「行事曆」
-- Tab 切換加 shift 滑動動畫
-- 行事曆滑動 stale closure 修復（modeRef），雙向都正常
-
-### 其他
-- 版號改為 0.3.0 語意化版本
-- README.md
-- task/[id].tsx 腳本覆蓋修復
+- Tab 閃白修復（sceneStyle + animation: none）
 
 ## 待辦
 
-- Gemini API 排查（使用者確認 billing）
+- 問號符號排查（部分 icon 仍顯示 ?）
+- 全 tab 左右滑動切換（需 react-native-pager-view）
 - 筆記頁無法直接新增
 - 財務補記日期
 - Phase 3 Dashboard
+- 參考其他記帳 app 設計
 
 ### 財務進階規劃（朋友回饋）
 
-**儲蓄目標：** 設定月存金額 → 從收入扣除 → 固定支出扣除 → 剩餘按比例分配各類上限
-**收入分類：** 固定（薪水）vs 額外（股票/獎金）→ 額外收入可選歸類或存起來
-**緩衝區：** 未分配額外收入 → 可抵消任何類別超標
-**長期目標：** 設定幾月/幾年存多少 → 用歷史平均反推月存額
+**儲蓄目標：** 月存金額 → 從收入扣除 → 固定支出扣除 → 剩餘按比例分配各類上限
+**收入分類：** 固定 vs 額外 → 額外可選歸類或存起來
+**緩衝區：** 未分配額外收入 → 可抵消超標
+**長期目標：** 幾月/幾年存多少 → 歷史平均反推月存額

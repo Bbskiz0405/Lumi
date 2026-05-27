@@ -8,70 +8,67 @@
 - **Language**: TypeScript
 - **Navigation**: Expo Router (file-based)
 - **Storage**: Expo SQLite (純本地，不需登入)
-- **AI**: Gemini 2.0 Flash API (財務顧問)
+- **AI**: Gemini / OpenRouter / OpenAI (多供應商支援)
+- **Charts**: react-native-svg
 - **Platform**: Android
 
 ## 功能
 
 ### 智慧輸入 (首頁)
 
-單一輸入框，打字送出後自動分類：
+單一輸入框，自動分類 + 自學習：
 
 | 輸入範例 | 分類結果 |
 |----------|----------|
 | 午餐 80 | 記帳 (支出 $80, 餐飲) |
+| 飲料60 便當50 | 自動拆成兩筆記帳 |
 | 記得交報告 | 任務 |
 | VTuber 新企劃想法 | 筆記 |
 
-- 關鍵字 + 金額偵測自動判斷
-- 使用者可修正分類，app 記錄修正結果逐漸學習
-- 分類後一鍵確認儲存至對應模組
+- **三層自學習**：精確匹配 → Bigram 相似度 → 短文字包含
+- 高信心自動存，低信心才跳選擇器
+- 時間詞偵測（晚上8點不會誤判為金額）
+- 使用者修正後記錄，越用越準
+
+### 共享日曆系統
+
+行事曆和財務共享同一個日曆，切換 tab 時日曆不動：
+
+- **行事曆 tab**：日曆 + 藍點標記 + 當天任務列表
+- **財務 tab**：同一日曆 + 綠點標記 + 月統計 + 圓餅圖 + 交易記錄
+- 日期狀態透過 React Context 共享
 
 ### 任務管理
 
-- 任務清單：依優先度排序，支援完成/刪除
-- 任務詳情：標題、截止日期、優先度 (高/中/低)、標籤
-- 首頁模組卡顯示待辦數量與即將到期任務
-
-### 月曆
-
-- 自製月曆 grid（不依賴第三方套件）
-- 有任務的日期標記藍點
-- 點選日期查看當天任務
-- 月份左右切換導覽
+- 任務清單：依優先度排序
+- 新增/編輯/完成/刪除
+- 優先度 (高/中/低)、標籤、截止日期
+- 「已完成」收折區
 
 ### 財務記帳
 
-- 月份導覽，收入/支出/結餘三格摘要
-- 4 類預算管理：餐飲、興趣、交通、其他
-  - 進度條顯示花費比例
-  - 超過 80% 橘色警告，超標紅色警告
-  - 點擊設定預算上限
-- 交易記錄列表，支援刪除
-- 手動新增收支（支出/收入切換 + 分類選擇）
-- 一鍵重置所有記帳資料
+- 月/年/全部三模式切換
+- 支出分佈甜甜圈圓餅圖
+- 交易記錄列表，點擊可編輯
+- 嵌入式計算機 (+-×÷)
+- 多筆自動拆分
+- 動態分類標籤 (10 個預設 + 自訂新增)
+- 一鍵重置
 
 ### AI 財務顧問
 
-基於 Gemini 2.0 Flash 的嵌入式財務分析助手。
+嵌入財務 tab 的專業分析助手：
 
-- **角色鎖定**：只回答財務相關問題，拒答其他話題
-- **數據驅動**：自動載入當月交易記錄進行分析
-- **功能**：
-  - 消費行為模式分析
-  - 預算規劃建議
-  - 財務問答（如「我這個月餐飲花太多嗎？」）
-  - 一鍵快速分析本月消費
-- **隱私**：API Key 存本地 SQLite，資料不上傳第三方
+- **多供應商**：Gemini / OpenRouter / OpenAI
+- **角色鎖定**：只回答財務相關問題
+- **數據驅動**：自動載入當月交易記錄
+- 消費行為分析、預算建議、一鍵快速分析
 
 ### 筆記
 
-- 後端 CRUD 完成，支援分類（vtuber/cardgame/tech/life）
-- 頁面 UI 待開發
-
-### 目標規劃器
-
-- Tab 已佔位，功能待開發
+- 筆記列表 + 點擊編輯
+- 使用者自訂標籤 (預設「目標」)
+- 新增/長按刪除標籤
 
 ## 資料庫
 
@@ -79,7 +76,7 @@ SQLite 純本地儲存，共 9 張表：
 
 | 表名 | 用途 |
 |------|------|
-| entries | 原始輸入 + 分類記錄（習慣學習用） |
+| entries | 原始輸入 + 分類記錄（自學習用） |
 | tasks | 任務 |
 | notes | 筆記 |
 | transactions | 收支交易 |
@@ -87,32 +84,38 @@ SQLite 純本地儲存，共 9 張表：
 | goals | 長期目標 |
 | goal_milestones | 目標里程碑 |
 | goal_tasks | 目標產生的任務 |
-| settings | 設定 (API Key 等) |
+| settings | 設定 (API config, 自訂標籤等) |
 
 ## 專案結構
 
 ```
 app/
   (tabs)/
-    index.tsx          # 首頁 (智慧輸入 + 模組格)
-    calendar.tsx       # 月曆
-    tasks.tsx          # 任務列表
-    finance/index.tsx  # 財務記帳 + AI 顧問
-    goals/index.tsx    # 目標 (佔位)
+    index.tsx          # 首頁 (智慧輸入 + 模組格 + 最近動態)
+    calendar.tsx       # 行事曆 (共享日曆 + 任務)
+    finance/index.tsx  # 財務 (共享日曆 + 記帳 + 圓餅圖 + AI)
+    tasks.tsx          # 任務列表 + 已完成區
+    notes.tsx          # 筆記 + 自訂標籤
   task/[id].tsx        # 任務詳情
 
 components/
+  shared/
+    CalendarGrid.tsx   # 共享日曆元件
   tasks/               # TaskCard, TaskForm, PriorityBadge
-  finance/             # TransactionCard, BudgetMeter, FinanceAdvisor
-  modules/             # ModuleCard, TasksModule, CalendarModule, FinanceModule, GoalsModule
+  finance/             # TransactionCard, ExpensePieChart, Calculator, FinanceAdvisor
+  modules/             # ModuleCard, TasksModule, CalendarModule, FinanceModule, NotesModule
+
+contexts/
+  CalendarContext.tsx   # 共享日曆狀態
 
 services/
   db.ts                # SQLite 初始化
   taskService.ts       # 任務 CRUD
-  noteService.ts       # 筆記 CRUD
-  financeService.ts    # 財務 CRUD + 重置
-  classificationService.ts  # 智慧分類 (關鍵字 + 習慣學習)
-  geminiService.ts     # Gemini API 整合
+  noteService.ts       # 筆記 CRUD + 自訂標籤
+  financeService.ts    # 財務 CRUD + 動態分類
+  classificationService.ts  # 三層自學習分類
+  geminiService.ts     # 多供應商 AI API
+  recentService.ts     # 最近動態
 
 types/
   task.ts, note.ts, finance.ts, goal.ts, entry.ts
@@ -128,12 +131,13 @@ types/
 | 卡片 | `#111111` |
 | 輸入框 | `#161616` |
 | 主文字 | `#FFFFFF` |
-| 次文字 | `#444444` |
+| 次文字 | `#666666` |
 | 收入 | `#55DDAA` |
 | 支出 | `#FF6655` |
 | 任務 | `#FF9944` |
+| 筆記 | `#88AAFF` |
 
-字重以 `'300'` 為主基調。Modal 一律 bottom sheet 樣式。
+Tab 順序：首頁 / 行事曆 / 財務 / 任務 / 筆記
 
 ## 開發
 
@@ -141,19 +145,30 @@ types/
 # 安裝依賴
 npm install
 
-# 開發
+# 開發 (Metro)
 npx expo start
 
-# 建置 APK (EAS Cloud Build)
+# 本地 Build APK
+npx expo export --platform android --output-dir android/app/src/main/assets
+copy android\app\src\main\assets\_expo\static\js\android\*.hbc android\app\src\main\assets\index.android.bundle
+android\gradlew.bat -p android app:assembleDebug -x lint -x test
+# APK: android/app/build/outputs/apk/debug/app-debug.apk
+
+# EAS Cloud Build (每月 15 次免費)
 npx eas-cli build --platform android --profile preview
+
+# 安裝到手機
+adb install -r android/app/build/outputs/apk/debug/app-debug.apk
 ```
+
+環境需求：Android Studio + JDK (JBR 21) + Gradle 8.13
 
 ## 開發階段
 
 | Phase | 狀態 | 內容 |
 |-------|------|------|
 | 1 | ✅ 完成 | 日曆 & 任務清單 |
-| 2 | 🔄 進行中 | 智慧分流 + Gemini 整合 |
+| 2 | ✅ 大致完成 | 智慧分流 + AI 整合 |
 | 3 | ⬜ 未開始 | Dashboard 總覽 |
 | 4 | ✅ 完成 | 財務記帳 |
-| 5 | ⬜ 未開始 | 目標規劃器 |
+| 5 | — | 融入筆記標籤 |

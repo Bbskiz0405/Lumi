@@ -1,6 +1,7 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { CalendarProvider } from '../../contexts/CalendarContext';
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -10,6 +11,7 @@ function TabIcon({ name, color, size }: { name: IconName; color: string; size: n
 
 export default function TabsLayout() {
   return (
+    <CalendarProvider>
     <Tabs
       screenOptions={{
         headerShown: false,
@@ -19,11 +21,12 @@ export default function TabsLayout() {
           backgroundColor: '#0F0F0F',
           borderTopColor: '#252525',
           elevation: 0,
+          paddingBottom: 4,
         },
         tabBarLabelStyle: {
           fontSize: 11,
         },
-        animation: 'shift',
+        animation: 'none',
         sceneStyle: { backgroundColor: '#0F0F0F' },
       }}
     >
@@ -81,5 +84,6 @@ export default function TabsLayout() {
         options={{ href: null }}
       />
     </Tabs>
+    </CalendarProvider>
   );
 }

@@ -10,6 +10,8 @@ import TransactionCard from '../../../components/finance/TransactionCard';
 import ExpensePieChart from '../../../components/finance/ExpensePieChart';
 import FinanceAdvisor from '../../../components/finance/FinanceAdvisor';
 import Calculator from '../../../components/finance/Calculator';
+import CalendarGrid from '../../../components/shared/CalendarGrid';
+import { useCalendar } from '../../../contexts/CalendarContext';
 import {
   getTransactionsForMonth,
   getTransactionsForYear,
@@ -28,6 +30,7 @@ import {
   saveExpenseCategories,
 } from '../../../services/financeService';
 import { Transaction, ExpenseCategory } from '../../../types/finance';
+import { getDatesWithTasks } from '../../../services/taskService';
 
 type ViewMode = 'month' | 'year' | 'all';
 
@@ -38,15 +41,15 @@ function toMonthStr(year: number, month: number): string {
 }
 
 export default function FinanceScreen() {
-  const today = new Date();
-  const [year, setYear] = useState(today.getFullYear());
-  const [month, setMonth] = useState(today.getMonth());
+  const { year, month, selectedDate } = useCalendar();
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [summary, setSummary] = useState({ income: 0, expense: 0 });
   const [categoryExpense, setCategoryExpense] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('month');
+  const [taskDates, setTaskDates] = useState<Set<string>>(new Set());
+  const [financeDates, setFinanceDates] = useState<Set<string>>(new Set());
   const [expenseCategories, setExpenseCategories] = useState<{ value: string; label: string }[]>([]);
   const [addingCat, setAddingCat] = useState(false);
   const [newCatLabel, setNewCatLabel] = useState('');
@@ -132,6 +135,10 @@ export default function FinanceScreen() {
     useCallback(() => {
       loadAll(viewMode);
       getExpenseCategories().then(setExpenseCategories);
+      getDatesWithTasks().then(dates => setTaskDates(new Set(dates)));
+      getTransactionsForMonth(currentMonth).then(txs => {
+        setFinanceDates(new Set(txs.map(t => t.created_at.split('T')[0])));
+      });
     }, [currentMonth, viewMode])
   );
 
@@ -145,24 +152,6 @@ export default function FinanceScreen() {
     await saveExpenseCategories(updated);
     setNewCatLabel('');
     setAddingCat(false);
-  }
-
-  function prevMonth() {
-    if (viewMode === 'year') {
-      setYear(y => y - 1);
-    } else {
-      if (month === 0) { setYear(y => y - 1); setMonth(11); }
-      else setMonth(m => m - 1);
-    }
-  }
-
-  function nextMonth() {
-    if (viewMode === 'year') {
-      setYear(y => y + 1);
-    } else {
-      if (month === 11) { setYear(y => y + 1); setMonth(0); }
-      else setMonth(m => m + 1);
-    }
   }
 
   function openModal() {
@@ -239,6 +228,13 @@ export default function FinanceScreen() {
         </View>
       </View>
 
+      <CalendarGrid
+        taskDates={taskDates}
+        financeDates={financeDates}
+      />
+
+      <View style={{ height: 1, backgroundColor: '#252525', marginTop: 4 }} />
+
       {loading ? (
         <View style={styles.center}><ActivityIndicator color="#FFFFFF" /></View>
       ) : (
@@ -257,21 +253,6 @@ export default function FinanceScreen() {
               </TouchableOpacity>
             ))}
           </View>
-
-          {/* Period nav */}
-          {viewMode !== 'all' && (
-          <View style={styles.monthNav}>
-            <TouchableOpacity onPress={prevMonth} style={styles.navBtn}>
-              <MaterialCommunityIcons name="chevron-left" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
-            <Text style={styles.monthTitle}>
-              {viewMode === 'month' ? `${year}年 ${MONTHS[month]}` : `${year}年`}
-            </Text>
-            <TouchableOpacity onPress={nextMonth} style={styles.navBtn}>
-              <MaterialCommunityIcons name="chevron-right" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
-          )}
 
           {/* Summary */}
           <View style={styles.summaryRow}>
