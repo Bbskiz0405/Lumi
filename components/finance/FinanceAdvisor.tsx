@@ -196,7 +196,7 @@ export default function FinanceAdvisor({ month, onClose }: Props) {
       >
         {messages.length === 0 && (
           <View style={styles.welcome}>
-            <MaterialCommunityIcons name="robot-outline" size={40} color="#555" />
+            <MaterialCommunityIcons name="brain" size={40} color="#555" />
             <Text style={styles.welcomeText}>
               我是你的財務分析助手{'\n'}問我任何關於消費的問題
             </Text>

@@ -10,7 +10,6 @@ import TaskForm from '../../components/tasks/TaskForm';
 import { getAllTasks, createTask, toggleTaskComplete } from '../../services/taskService';
 import { Task, CreateTaskInput } from '../../types/task';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import SwipeableTab from '../../components/shared/SwipeableTab';
 
 export default function TasksScreen() {
   const router = useRouter();
@@ -55,7 +54,6 @@ export default function TasksScreen() {
   }
 
   return (
-    <SwipeableTab>
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>任務</Text>
@@ -132,7 +130,6 @@ export default function TasksScreen() {
         </View>
       </Modal>
     </SafeAreaView>
-    </SwipeableTab>
   );
 }
 

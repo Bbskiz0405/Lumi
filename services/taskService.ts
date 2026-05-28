@@ -92,3 +92,17 @@ export async function getDatesWithTasks(): Promise<string[]> {
   );
   return rows.map((r) => r.due_date);
 }
+
+export async function getTaskDatesByPriority(): Promise<Map<string, 'high' | 'medium' | 'low'>> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<{ due_date: string; priority: 'high' | 'medium' | 'low' }>(
+    `SELECT due_date, priority FROM tasks
+     WHERE due_date IS NOT NULL AND completed = 0
+     ORDER BY due_date, CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END`
+  );
+  const map = new Map<string, 'high' | 'medium' | 'low'>();
+  for (const r of rows) {
+    if (!map.has(r.due_date)) map.set(r.due_date, r.priority);
+  }
+  return map;
+}

@@ -25,7 +25,7 @@ export async function createTransaction(input: CreateTransactionInput): Promise<
     item: input.item,
     amount: input.amount,
     category: input.type === 'expense' ? (input.category ?? 'other') : null,
-    created_at: now,
+    created_at: input.created_at ?? now,
   };
   await db.runAsync(
     `INSERT INTO transactions (id, entry_id, type, item, amount, category, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,

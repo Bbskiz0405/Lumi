@@ -25,4 +25,5 @@ export interface CreateTransactionInput {
   amount: number;
   category: ExpenseCategory | null;
   entry_id?: string | null;
+  created_at?: string;
 }

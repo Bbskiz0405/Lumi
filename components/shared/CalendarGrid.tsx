@@ -9,8 +9,15 @@ const MONTHS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', 
 interface Props {
   taskDates?: Set<string>;
   financeDates?: Set<string>;
+  taskPriorityMap?: Map<string, 'high' | 'medium' | 'low'>;
   onDayPress?: (date: string) => void;
 }
+
+const PRIORITY_COLORS: Record<string, string> = {
+  high: '#FF6655',
+  medium: '#FF9944',
+  low: '#88AAFF',
+};
 
 function toDateStr(year: number, month: number, day: number): string {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -19,7 +26,7 @@ function toDateStr(year: number, month: number, day: number): string {
 const today = new Date();
 const todayStr = toDateStr(today.getFullYear(), today.getMonth(), today.getDate());
 
-export default function CalendarGrid({ taskDates, financeDates, onDayPress }: Props) {
+export default function CalendarGrid({ taskDates, financeDates, taskPriorityMap, onDayPress }: Props) {
   const { year, month, selectedDate, setSelectedDate, prevMonth, nextMonth } = useCalendar();
 
   const firstDay = new Date(year, month, 1).getDay();
@@ -80,7 +87,12 @@ export default function CalendarGrid({ taskDates, financeDates, onDayPress }: Pr
                 </Text>
               </View>
               <View style={styles.dotRow}>
-                {hasTask && <View style={[styles.dot, { backgroundColor: '#88AAFF' }]} />}
+                {hasTask && (
+                  <View style={[
+                    styles.dot,
+                    { backgroundColor: PRIORITY_COLORS[taskPriorityMap?.get(dateStr) ?? 'medium'] },
+                  ]} />
+                )}
                 {hasFinance && <View style={[styles.dot, { backgroundColor: '#55DDAA' }]} />}
               </View>
             </TouchableOpacity>

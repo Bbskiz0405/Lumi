@@ -11,7 +11,7 @@ import ExpensePieChart from '../../../components/finance/ExpensePieChart';
 import FinanceAdvisor from '../../../components/finance/FinanceAdvisor';
 import Calculator from '../../../components/finance/Calculator';
 import { useCalendar } from '../../../contexts/CalendarContext';
-import SwipeableTab from '../../../components/shared/SwipeableTab';
+import { getDatesWithTasks } from '../../../services/taskService';
 import {
   getTransactionsForMonth,
   getTransactionsForYear,
@@ -30,7 +30,6 @@ import {
   saveExpenseCategories,
 } from '../../../services/financeService';
 import { Transaction, ExpenseCategory } from '../../../types/finance';
-import { getDatesWithTasks } from '../../../services/taskService';
 
 type ViewMode = 'month' | 'year' | 'all';
 
@@ -173,11 +172,16 @@ export default function FinanceScreen() {
     else setFormAmountError('');
     if (!valid) return;
     setFormSubmitting(true);
+    const todayStr = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
+    const useDate = selectedDate !== todayStr
+      ? `${selectedDate}T${new Date().toISOString().split('T')[1]}`
+      : undefined;
     await createTransaction({
       type: formType,
       item: formItem.trim(),
       amount: amt,
       category: formType === 'expense' ? formCategory : null,
+      created_at: useDate,
     });
     setFormSubmitting(false);
     setModalVisible(false);
@@ -211,7 +215,6 @@ export default function FinanceScreen() {
   const balance = summary.income - summary.expense;
 
   return (
-    <SwipeableTab>
     <View style={styles.safe}>
       {loading ? (
         <View style={styles.center}><ActivityIndicator color="#FFFFFF" /></View>
@@ -234,7 +237,7 @@ export default function FinanceScreen() {
             </View>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <TouchableOpacity onPress={() => setAdvisorVisible(true)} style={styles.addBtn}>
-                <MaterialCommunityIcons name="robot-outline" size={18} color="#55DDAA" />
+                <MaterialCommunityIcons name="brain" size={18} color="#55DDAA" />
               </TouchableOpacity>
               <TouchableOpacity onPress={handleReset} style={styles.addBtn}>
                 <MaterialCommunityIcons name="refresh" size={16} color="#666" />
@@ -389,7 +392,7 @@ export default function FinanceScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modal}>
-            <Text style={styles.modalTitle}>新增記錄</Text>
+            <Text style={styles.modalTitle}>新增記錄（{parseInt(selectedDate.split('-')[1])}月{parseInt(selectedDate.split('-')[2])}日）</Text>
             <View style={styles.modalDivider} />
 
             <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
@@ -494,7 +497,6 @@ export default function FinanceScreen() {
         </View>
       </Modal>
     </View>
-    </SwipeableTab>
   );
 }
 

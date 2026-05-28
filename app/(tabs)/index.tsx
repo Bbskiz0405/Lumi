@@ -27,7 +27,6 @@ import TasksModule from '../../components/modules/TasksModule';
 import CalendarModule from '../../components/modules/CalendarModule';
 import FinanceModule from '../../components/modules/FinanceModule';
 import NotesModule from '../../components/modules/NotesModule';
-import SwipeableTab from '../../components/shared/SwipeableTab';
 
 function formatDate(): string {
   const now = new Date();
@@ -190,7 +189,6 @@ export default function HomeScreen() {
   const showClassification = classification !== null;
 
   return (
-    <SwipeableTab>
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
@@ -331,7 +329,6 @@ export default function HomeScreen() {
 
       </ScrollView>
     </SafeAreaView>
-    </SwipeableTab>
   );
 }
 
