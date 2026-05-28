@@ -6,6 +6,17 @@
 
 ## 當前狀態 (2026-05-29)
 
+**版號：0.4.46**
+
+### 0.4.46 — Gemini model 404 修復 (2026-05-29)
+- 0.4.45 實機測試回報 `Gemini 404: models/gemini-1.5-flash is not found for API version v1beta`。
+- 原因：`gemini-1.5-flash` 已於 2025/09 從 v1beta API 下架。
+- 修正：
+  - `services/geminiService.ts` DEFAULT_MODELS.gemini 改為 `gemini-2.0-flash`（穩定免費）。
+  - 順手修掉 `setGeminiApiKey` 把 provider hardcode 成 `'openrouter'` 的舊 bug（既然名字是 Gemini，provider 改回 `'gemini'`）。
+- 因為朋友的 OpenRouter 額度用完，**Gemini 重新成為主要 provider**，需確保預設 model 可用。
+- 備案：若 `gemini-2.0-flash` 再失效，改 `gemini-flash-latest`（永遠指最新）。
+
 **版號：0.4.45**
 **Build 方式：** 本地 Gradle build（不靠 EAS）
 **環境：** Android Studio JBR 21 + Gradle 8.13

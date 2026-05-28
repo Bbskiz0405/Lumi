@@ -15,7 +15,7 @@ interface ApiConfig {
 }
 
 const DEFAULT_MODELS: Record<ApiProvider, string> = {
-  gemini: 'gemini-1.5-flash',
+  gemini: 'gemini-2.0-flash',
   openrouter: 'google/gemma-7b-it:free',
   openai: 'gpt-4o-mini',
 };
@@ -52,7 +52,7 @@ export async function removeApiConfig(): Promise<void> {
 
 // Keep old functions for backward compatibility
 export async function setGeminiApiKey(key: string): Promise<void> {
-  await setApiConfig({ provider: 'openrouter', apiKey: key });
+  await setApiConfig({ provider: 'gemini', apiKey: key });
 }
 export async function getGeminiApiKey(): Promise<string | null> {
   const config = await getApiConfig();
