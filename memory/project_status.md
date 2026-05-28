@@ -1,75 +1,64 @@
 # Project Status
 
-已完成 Phase 的歸檔、架構決策、UI 慣例。需要歷史細節時才讀。
+已完成 Phase 的歸檔、架構決策、UI 慣例。需要歷史細節時才讀。**新 AI 接手時請務必先閱讀此檔與 `daily_log.md`。**
 
 ---
 
 ## 專案概覽
 
-Expo 55 + React Native 0.83 + TypeScript + SQLite + Expo Router
-目標平台：Android。純本地，不需登入。
-PRD：`Lumi_PRD.md`
+- **Framework**: Expo 55 + React Native 0.83 + TypeScript + Expo Router
+- **Database**: SQLite (純本地，不需登入)
+- **AI Integration**: OpenRouter / Gemini (使用者自填 API Key)
+- **目標平台**：Android
+- **PRD**：`Lumi_PRD.md`
+
+---
+
+## 核心架構與 UI 慣例 (極度重要)
+
+### 導覽架構 (Custom Nested Routing)
+由於原生 `MaterialTopTabs` 有字體裁切與佈局問題，我們採用了高度客製化的導覽結構：
+1. **外層 (`app/(tabs)/_layout.tsx`)**:
+   - 使用自製 `CustomTabBar` 取代預設的 Bottom Tab Bar。
+   - 包含 5 個主要入口：首頁(`index`)、行事曆/財務容器(`(calendar-finance)`)、任務(`tasks`)、筆記(`notes`)。
+   - **請勿使用負 margin 或 padding 來排版 Tab Bar 文字，請依賴 Flexbox (`alignItems: 'center'`)。**
+2. **內層 (`app/(tabs)/(calendar-finance)/_layout.tsx`)**:
+   - 包含共用的 `PersistentCalendar` (不會因滑動而重繪)。
+   - 使用自製 `SubTabBar` 在「行事曆」與「財務」間切換。
+
+### UI 風格 (Minimalist / Kaomoji)
+- **禁用外部 Icon 字體**: 由於 Android 實機打包常出現 `MaterialCommunityIcons` 失效問題，全 App 的控制按鈕皆已改用 **Unicode 純文字符號**。
+- **範例**:
+  - `+` (新增), `x` (關閉/刪除), `^` (發送/提交), `v` / `>` (展開/收合)
+  - `✧` (AI 顧問), `↻` (重置), `[=]` (計算機)
+  - 導覽列：`✎`(首頁), `[ ]`(行事曆), `$`(財務), `[v]`(任務), `!`(筆記)
+- **禁止隨意引入新的字體 Icon 套件，請維持純文字符號策略。**
+
+### 資料狀態管理
+- **Silent Refresh**: 避免使用 `ActivityIndicator` 造成畫面切換閃爍。在 `useFocusEffect` 中使用 `hasLoaded` 鎖定初始加載，後續切換僅在背景靜默更新 `state`。
 
 ---
 
 ## 已完成 Phase
 
 ### Phase 1 — 日曆 & 任務清單 ✅
+- 自製月曆 Grid (`components/shared/CalendarGrid.tsx`)。
+- 任務列表 (`app/(tabs)/tasks.tsx`) 支援優先度、標籤、到期日倒數。
 
-**建立的檔案：**
-- `services/db.ts` — SQLite 初始化，8 張表（entries/tasks/notes/transactions/budgets/goals/goal_milestones/goal_tasks）
-- `services/taskService.ts` — 完整 CRUD（getAllTasks, getTodayTasks, getTasksForDate, getTaskById, createTask, updateTask, toggleTaskComplete, deleteTask, getDatesWithTasks）
-- `app/(tabs)/index.tsx` — 首頁：日期顯示、快速文字輸入（直接建任務）、4 個模組格
-- `app/(tabs)/calendar.tsx` — 自製月曆 grid（不用 react-native-calendars），點選日期顯示當天任務
-- `app/(tabs)/tasks.tsx` — 任務列表 + bottom sheet Modal 新增
-- `app/task/[id].tsx` — 任務詳情編輯頁
-- `components/tasks/TaskCard.tsx` — checkbox、優先度、tag、deadline 倒數
-- `components/tasks/TaskForm.tsx` — 標題、日期、優先度、tag
-- `components/tasks/PriorityBadge.tsx`
-- `components/modules/ModuleCard.tsx` — 首頁模組格底層元件
-- `components/modules/TasksModule.tsx` — 顯示待辦數 + 即將到期
-- `components/modules/CalendarModule.tsx`
-- `components/modules/GoalsModule.tsx`（佔位）
-- `app/(tabs)/_layout.tsx` — 底部 tab bar（首頁/月曆/任務/財務/目標）
+### Phase 2 — 智慧分流 & AI 財務顧問 ✅
+- `services/geminiService.ts` 負責處理 AI 邏輯。
+- 支援 Gemini (`gemini-1.5-flash`) 與 OpenRouter (`google/gemma-7b-it:free`)。
+- AI 財務顧問 (`FinanceAdvisor.tsx`) 實作了鍵盤防擋 (`KeyboardAvoidingView`) 與 API Key 儲存機制。
 
-**關鍵決策：**
-- 月曆自製，不用 react-native-calendars（省依賴，控制更細）
-- 首頁輸入框 Phase 1 直接建任務，Phase 2 改接 Gemini 分流
+### Phase 4 — 財務記帳 ✅
+- 包含收支明細、圓餅圖統計、手動輸入與計算機功能。
+
+### 筆記模組 (取代 Dashboard) ✅
+- `app/(tabs)/notes.tsx` 提供標籤過濾與純文字筆記功能。
 
 ---
 
-### Phase 4 — 財務記帳 ✅（跳過 Phase 2, 3 先做）
+## 待完成 / 開發中
 
-**建立的檔案：**
-- `types/finance.ts` — Transaction, Budget, CreateTransactionInput
-- `services/financeService.ts` — getTransactionsForMonth, createTransaction, deleteTransaction, getMonthSummary, getBudgetsForMonth, upsertBudget, getExpenseByCategory
-- `components/finance/TransactionCard.tsx` — 左側 3px 色條（綠/紅）、刪除按鈕
-- `components/finance/BudgetMeter.tsx` — 進度條、未設上限提示、點擊彈 dialog 設定上限
-- `app/(tabs)/finance/index.tsx` — 月份導覽、收支結餘三格、4類預算條（餐飲/興趣/交通/其他）、記錄列表、新增 Modal（支出/收入切換）
-- `components/modules/FinanceModule.tsx` — 首頁格顯示本月結餘
-
-**關鍵決策：**
-- 第一個月純記錄，不設預算上限干預；第二個月起手動設上限（Gemini 建議留到 Phase 2 後）
-- 用 `strftime('%Y-%m', created_at)` 篩月份
-- 月份導覽：year/month state + `useFocusEffect(useCallback([currentMonth]))`
-
----
-
-## 架構慣例
-
-```
-Service 層：getDb() → getAllAsync / getFirstAsync / runAsync
-ID：Crypto.randomUUID()（同步，不 await）
-時間：new Date().toISOString()
-月份字串格式：'YYYY-MM'
-Modal：bottom sheet 樣式（justifyContent: 'flex-end'）
-```
-
-## 尚未開始
-
-- Phase 2：Gemini 分流（`geminiService.ts` 空白）
-- Phase 3：Dashboard
-- Phase 5：目標規劃器
-- `components/shared/QuickInput.tsx`（Phase 2 核心元件）
-- `components/shared/UncertainQueue.tsx`（Phase 2 待確認清單）
-- `services/noteService.ts`、`services/goalService.ts`（骨架）
+- Phase 5：目標規劃器 (`services/goalService.ts` 尚未實作)。
+- 財務進階規劃：儲蓄目標、固定/額外收入分類。

@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, TouchableOpacity, Text } from 'react-native';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Task } from '../../types/task';
 import PriorityBadge from './PriorityBadge';
 
@@ -47,9 +48,11 @@ export default function TaskCard({ task, onToggleComplete, onPress }: Props) {
         style={styles.checkbox}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
-        <View style={[styles.checkCircle, isCompleted && styles.checkCircleDone]}>
-          {isCompleted && <Text style={styles.checkMark}>✓</Text>}
-        </View>
+        <MaterialCommunityIcons 
+          name={isCompleted ? "checkbox-marked-circle" : "circle-outline"} 
+          size={24} 
+          color={isCompleted ? "#55DDAA" : "#333"} 
+        />
       </TouchableOpacity>
 
       <View style={styles.middle}>

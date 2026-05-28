@@ -1,128 +1,117 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { View } from 'react-native';
-import { withLayoutContext, usePathname } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { withLayoutContext, useRouter, usePathname } from 'expo-router';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CalendarProvider, useCalendar } from '../../contexts/CalendarContext';
-import CalendarGrid from '../../components/shared/CalendarGrid';
-import { getDatesWithTasks, getTaskDatesByPriority } from '../../services/taskService';
-import { getTransactionsForMonth } from '../../services/financeService';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
+import { CalendarProvider } from '../../contexts/CalendarContext';
+import * as Font from 'expo-font';
 
 const { Navigator } = createMaterialTopTabNavigator();
 const MaterialTopTabs = withLayoutContext<any, any, any, any>(Navigator);
 
-type IconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
-
-function TabIcon({ name, color, size }: { name: IconName; color: string; size: number }) {
-  return <MaterialCommunityIcons name={name} size={size} color={color} />;
-}
-
-function PersistentCalendar() {
+function CustomTabBar({ insets }: any) {
+  const router = useRouter();
   const pathname = usePathname();
-  const isCalendarOrFinance = pathname.includes('/calendar') || pathname.includes('/finance');
-  const [taskDates, setTaskDates] = useState<Set<string>>(new Set());
-  const [financeDates, setFinanceDates] = useState<Set<string>>(new Set());
-  const [taskPriorityMap, setTaskPriorityMap] = useState<Map<string, 'high' | 'medium' | 'low'>>(new Map());
-  const { year, month } = useCalendar();
+const tabs = [
+  { name: 'index', label: '首頁', icon: '✎', route: '/' },
+  { name: 'calendar', label: '行事曆', icon: '[ ]', route: '/(calendar-finance)/calendar' },
+  { name: 'finance', label: '財務', icon: '$', route: '/(calendar-finance)/finance' },
+  { name: 'tasks', label: '任務', icon: '[v]', route: '/tasks' },
+  { name: 'notes', label: '筆記', icon: '!', route: '/notes' },
+];
 
-  const loadDates = useCallback(async () => {
-    if (!isCalendarOrFinance) return;
-    const taskList = await getDatesWithTasks();
-    setTaskDates(new Set(taskList));
-    const priorityMap = await getTaskDatesByPriority();
-    setTaskPriorityMap(priorityMap);
-    const m = `${year}-${String(month + 1).padStart(2, '0')}`;
-    const txs = await getTransactionsForMonth(m);
-    setFinanceDates(new Set(txs.map(t => t.created_at.split('T')[0])));
-  }, [isCalendarOrFinance, year, month]);
+return (
+  <View style={[styles.tabBar, { height: 50 + insets.bottom, paddingBottom: insets.bottom }]}>
+    {tabs.map((tab) => {
+      const isActive = 
+        (tab.name === 'index' && pathname === '/') ||
+        (tab.name === 'calendar' && pathname.includes('/calendar')) ||
+        (tab.name === 'finance' && pathname.includes('/finance')) ||
+        (tab.name === 'tasks' && pathname.includes('/tasks')) ||
+        (tab.name === 'notes' && pathname.includes('/notes'));
 
-  useEffect(() => {
-    loadDates();
-  }, [loadDates, pathname]);
+      const color = isActive ? '#FFFFFF' : '#666666';
 
-  if (!isCalendarOrFinance) return null;
-
-  return (
-    <View style={{ backgroundColor: '#0F0F0F', paddingTop: 32 }}>
-      <CalendarGrid
-        taskDates={taskDates}
-        financeDates={financeDates}
-        taskPriorityMap={taskPriorityMap}
-      />
-      <View style={{ height: 1, backgroundColor: '#252525', marginTop: 4 }} />
-    </View>
+      return (
+        <TouchableOpacity
+          key={tab.name}
+          onPress={() => router.push(tab.route as any)}
+          style={styles.tabItem}
+          activeOpacity={0.7}
+        >
+          <View style={styles.iconContainer}>
+            <Text style={{ fontSize: 18, color, fontWeight: '400' }}>{tab.icon}</Text>
+          </View>
+          <Text style={[styles.tabLabel, { color }]}>{tab.label}</Text>
+        </TouchableOpacity>
+      );
+    })}
+  </View>
   );
 }
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
+  
+  useEffect(() => {
+    async function load() {
+      try {
+        await Font.loadAsync(MaterialCommunityIcons.font);
+      } catch (e) {
+        console.warn('Font load error:', e);
+      }
+    }
+    load();
+  }, []);
+
   return (
     <CalendarProvider>
-      <View style={{ flex: 1, backgroundColor: '#0F0F0F' }}>
-        <PersistentCalendar />
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#0F0F0F' }} edges={['top']}>
         <MaterialTopTabs
           tabBarPosition="bottom"
+          tabBar={(props) => <CustomTabBar {...props} insets={insets} />}
           screenOptions={{
-            tabBarActiveTintColor: '#FFFFFF',
-            tabBarInactiveTintColor: '#666666',
-            tabBarStyle: {
-              backgroundColor: '#0F0F0F',
-              borderTopWidth: 1,
-              borderTopColor: '#252525',
-              elevation: 0,
-              height: 70 + insets.bottom,
-              paddingBottom: insets.bottom + 16,
-              paddingTop: 6,
-            },
-            tabBarLabelStyle: { fontSize: 11, textTransform: 'none', marginTop: 0 },
-            tabBarIconStyle: { width: 22, height: 22 },
-            tabBarIndicatorStyle: { backgroundColor: '#FFFFFF', height: 0 },
-            tabBarShowIcon: true,
-            tabBarPressColor: 'transparent',
-            sceneStyle: { backgroundColor: '#0F0F0F' },
             swipeEnabled: true,
             animationEnabled: true,
-            lazy: false,
+            lazy: true,
+            sceneStyle: { backgroundColor: '#0F0F0F' },
           }}
         >
-          <MaterialTopTabs.Screen
-            name="index"
-            options={{
-              title: '首頁',
-              tabBarIcon: ({ color }: any) => <TabIcon name="pencil-outline" color={color} size={22} />,
-            }}
-          />
-          <MaterialTopTabs.Screen
-            name="calendar"
-            options={{
-              title: '行事曆',
-              tabBarIcon: ({ color }: any) => <TabIcon name="calendar-month-outline" color={color} size={22} />,
-            }}
-          />
-          <MaterialTopTabs.Screen
-            name="finance/index"
-            options={{
-              title: '財務',
-              tabBarIcon: ({ color }: any) => <TabIcon name="wallet-outline" color={color} size={22} />,
-            }}
-          />
-          <MaterialTopTabs.Screen
-            name="tasks"
-            options={{
-              title: '任務',
-              tabBarIcon: ({ color }: any) => <TabIcon name="checkbox-marked-outline" color={color} size={22} />,
-            }}
-          />
-          <MaterialTopTabs.Screen
-            name="notes"
-            options={{
-              title: '筆記',
-              tabBarIcon: ({ color }: any) => <TabIcon name="lightbulb-outline" color={color} size={22} />,
-            }}
-          />
+          <MaterialTopTabs.Screen name="index" />
+          <MaterialTopTabs.Screen name="(calendar-finance)" />
+          <MaterialTopTabs.Screen name="tasks" />
+          <MaterialTopTabs.Screen name="notes" />
         </MaterialTopTabs>
-      </View>
+      </SafeAreaView>
     </CalendarProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: '#0F0F0F',
+    borderTopWidth: 1,
+    borderTopColor: '#252525',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabItem: {
+    flex: 1,
+    height: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconContainer: {
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tabLabel: {
+    fontSize: 10,
+    fontWeight: '500',
+    marginTop: 2,
+    lineHeight: 12,
+  },
+});

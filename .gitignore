@@ -18,3 +18,4 @@ yarn-error.*
 .claude/
 .playwright-mcp/
 graphify-out/
+build_release.log

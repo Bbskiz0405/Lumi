@@ -189,7 +189,7 @@ export default function HomeScreen() {
   const showClassification = classification !== null;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={[]}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
         {/* 日期 */}

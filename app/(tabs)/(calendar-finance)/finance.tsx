@@ -4,7 +4,6 @@ import {
   Modal, TextInput, ActivityIndicator, Alert,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import TransactionCard from '../../../components/finance/TransactionCard';
 import ExpensePieChart from '../../../components/finance/ExpensePieChart';
@@ -98,8 +97,8 @@ export default function FinanceScreen() {
 
   const currentMonth = toMonthStr(year, month);
 
-  async function loadAll(mode: ViewMode) {
-    setLoading(true);
+  async function loadAll(mode: ViewMode, silent = false) {
+    if (!silent) setLoading(true);
     let txs: Transaction[];
     let sum: { income: number; expense: number };
     let catExp: Record<string, number>;
@@ -132,7 +131,7 @@ export default function FinanceScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadAll(viewMode);
+      loadAll(viewMode, true);
       getExpenseCategories().then(setExpenseCategories);
       getDatesWithTasks().then(dates => setTaskDates(new Set(dates)));
       getTransactionsForMonth(currentMonth).then(txs => {
@@ -237,13 +236,13 @@ export default function FinanceScreen() {
             </View>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <TouchableOpacity onPress={() => setAdvisorVisible(true)} style={styles.addBtn}>
-                <MaterialCommunityIcons name="brain" size={18} color="#55DDAA" />
+                <Text style={{ color: '#55DDAA', fontSize: 18, fontWeight: '200' }}>✧</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={handleReset} style={styles.addBtn}>
-                <MaterialCommunityIcons name="refresh" size={16} color="#666" />
+                <Text style={{ color: '#666', fontSize: 22, fontWeight: '200', marginTop: -2 }}>↻</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={openModal} style={styles.addBtn}>
-                <MaterialCommunityIcons name="plus" size={20} color="#FFFFFF" />
+                <Text style={{ color: '#FFFFFF', fontSize: 24, fontWeight: '200', marginTop: -2 }}>+</Text>
               </TouchableOpacity>
             </View>
           </View>
