@@ -10,8 +10,8 @@ import TransactionCard from '../../../components/finance/TransactionCard';
 import ExpensePieChart from '../../../components/finance/ExpensePieChart';
 import FinanceAdvisor from '../../../components/finance/FinanceAdvisor';
 import Calculator from '../../../components/finance/Calculator';
-import CalendarGrid from '../../../components/shared/CalendarGrid';
 import { useCalendar } from '../../../contexts/CalendarContext';
+import SwipeableTab from '../../../components/shared/SwipeableTab';
 import {
   getTransactionsForMonth,
   getTransactionsForYear,
@@ -211,47 +211,38 @@ export default function FinanceScreen() {
   const balance = summary.income - summary.expense;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>財務</Text>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          <TouchableOpacity onPress={() => setAdvisorVisible(true)} style={styles.addBtn}>
-            <MaterialCommunityIcons name="robot-outline" size={18} color="#55DDAA" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleReset} style={styles.addBtn}>
-            <MaterialCommunityIcons name="refresh" size={18} color="#666" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={openModal} style={styles.addBtn}>
-            <MaterialCommunityIcons name="plus" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <CalendarGrid
-        taskDates={taskDates}
-        financeDates={financeDates}
-      />
-
-      <View style={{ height: 1, backgroundColor: '#252525', marginTop: 4 }} />
-
+    <SwipeableTab>
+    <View style={styles.safe}>
       {loading ? (
         <View style={styles.center}><ActivityIndicator color="#FFFFFF" /></View>
       ) : (
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          {/* View mode toggle */}
-          <View style={styles.modeRow}>
-            {(['month', 'year', 'all'] as ViewMode[]).map(m => (
-              <TouchableOpacity
-                key={m}
-                style={[styles.modePill, viewMode === m && styles.modePillActive]}
-                onPress={() => setViewMode(m)}
-              >
-                <Text style={[styles.modePillText, viewMode === m && styles.modePillTextActive]}>
-                  {m === 'month' ? '月' : m === 'year' ? '年' : '全部'}
-                </Text>
+          {/* Toolbar: mode toggle + action buttons */}
+          <View style={styles.toolbar}>
+            <View style={styles.modeRow}>
+              {(['month', 'year', 'all'] as ViewMode[]).map(m => (
+                <TouchableOpacity
+                  key={m}
+                  style={[styles.modePill, viewMode === m && styles.modePillActive]}
+                  onPress={() => setViewMode(m)}
+                >
+                  <Text style={[styles.modePillText, viewMode === m && styles.modePillTextActive]}>
+                    {m === 'month' ? '月' : m === 'year' ? '年' : '全部'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TouchableOpacity onPress={() => setAdvisorVisible(true)} style={styles.addBtn}>
+                <MaterialCommunityIcons name="robot-outline" size={18} color="#55DDAA" />
               </TouchableOpacity>
-            ))}
+              <TouchableOpacity onPress={handleReset} style={styles.addBtn}>
+                <MaterialCommunityIcons name="refresh" size={16} color="#666" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={openModal} style={styles.addBtn}>
+                <MaterialCommunityIcons name="plus" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Summary */}
@@ -502,20 +493,13 @@ export default function FinanceScreen() {
           />
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
+    </SwipeableTab>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#0F0F0F' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-  },
-  headerTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '300', letterSpacing: 2 },
   addBtn: {
     width: 36, height: 36, borderRadius: 18,
     borderWidth: 1, borderColor: '#3A3A3A',
@@ -525,10 +509,15 @@ const styles = StyleSheet.create({
 
   scroll: { paddingBottom: 48 },
 
+  toolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
   modeRow: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
     gap: 8,
   },
   modePill: {

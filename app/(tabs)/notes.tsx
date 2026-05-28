@@ -7,6 +7,7 @@ import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { getAllNotes, deleteNote, updateNote, getCustomTags, saveCustomTags } from '../../services/noteService';
+import SwipeableTab from '../../components/shared/SwipeableTab';
 import { Note, NoteCategory } from '../../types/note';
 
 const TAG_COLORS = ['#FF88BB', '#FF9944', '#88AAFF', '#55DDAA', '#FFCC44', '#AA88FF', '#FF6655', '#66CCCC'];
@@ -108,6 +109,7 @@ export default function NotesScreen() {
   const filtered = filter ? notes.filter(n => n.category === filter) : notes;
 
   return (
+    <SwipeableTab>
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>筆記</Text>
@@ -263,6 +265,7 @@ export default function NotesScreen() {
         </View>
       </Modal>
     </SafeAreaView>
+    </SwipeableTab>
   );
 }
 

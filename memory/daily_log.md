@@ -6,7 +6,7 @@
 
 ## 當前狀態 (2026-05-28)
 
-**版號：0.3.0**
+**版號：0.3.2**
 Phase 1（任務/月曆）✅ 完成
 Phase 4（財務記帳）✅ 完成
 Phase 2（智慧分流 + AI）✅ 大致完成
@@ -17,6 +17,26 @@ Phase 3（Dashboard）⬜ 未開始
 **環境：** Android Studio JBR 21 + Gradle 8.13 + ANDROID_HOME + JAVA_HOME 已設
 
 ## 最近完成 (2026-05-28)
+
+### v0.3.2 — 日曆固定到 layout + UI 修復
+- CalendarGrid 移到 (tabs)/_layout.tsx，只在行事曆/財務 tab 顯示
+- 切換兩 tab 時日曆完全不動（持久化在 layout）
+- Tab bar height 88 + paddingBottom 30（避開手勢列）
+- API endpoint v1beta → v1
+- Gemini 模型更新為 `gemini-3.5-flash`
+- Tab 動畫改回 'shift'（滑動過渡）
+- MaterialCommunityIcons 字型複製到 Android assets/fonts/
+- 移除 calendar.tsx 和 finance/index.tsx 內的 CalendarGrid（搬到 layout）
+
+### v0.3.1 — Tab 滑動 + 對齊
+- SwipeableTab + PanResponder（放開時觸發切換）
+- 財務頁移除 header，按鈕搬到 toolbar 跟 mode toggle 同排
+- 動態記帳分類
+
+### 待解決問題
+- finger-following 滑動（手指跟著動）— 需 react-native-pager-view + 重構 tab 系統
+- 部分 icon 仍可能顯示 ? — 字型已加，待測試確認
+- API 429 — 確認模型 ID 正確後待測試
 
 ### 共享日曆系統
 - CalendarContext — 共享年月日狀態（React Context）

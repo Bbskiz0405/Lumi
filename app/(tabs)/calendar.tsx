@@ -3,39 +3,26 @@ import {
   View, FlatList, StyleSheet, Text, ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import CalendarGrid from '../../components/shared/CalendarGrid';
 import TaskCard from '../../components/tasks/TaskCard';
 import { useCalendar } from '../../contexts/CalendarContext';
 import {
   getTasksForDate,
-  getDatesWithTasks,
   toggleTaskComplete,
 } from '../../services/taskService';
-import { getTransactionsForMonth } from '../../services/financeService';
 import { Task } from '../../types/task';
-
-function toMonthStr(year: number, month: number): string {
-  return `${year}-${String(month + 1).padStart(2, '0')}`;
-}
+import SwipeableTab from '../../components/shared/SwipeableTab';
 
 export default function CalendarScreen() {
   const router = useRouter();
-  const { year, month, selectedDate } = useCalendar();
+  const { selectedDate } = useCalendar();
 
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [taskDates, setTaskDates] = useState<Set<string>>(new Set());
-  const [financeDates, setFinanceDates] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
-      getDatesWithTasks().then(dates => setTaskDates(new Set(dates)));
-      getTransactionsForMonth(toMonthStr(year, month)).then(txs => {
-        setFinanceDates(new Set(txs.map(t => t.created_at.split('T')[0])));
-      });
       loadDayTasks(selectedDate);
-    }, [year, month])
+    }, [selectedDate])
   );
 
   async function loadDayTasks(date: string) {
@@ -43,10 +30,6 @@ export default function CalendarScreen() {
     const data = await getTasksForDate(date);
     setTasks(data);
     setLoading(false);
-  }
-
-  function handleDayPress(date: string) {
-    loadDayTasks(date);
   }
 
   async function handleToggle(id: string, completed: boolean) {
@@ -59,15 +42,8 @@ export default function CalendarScreen() {
   const todayStr = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <CalendarGrid
-        taskDates={taskDates}
-        financeDates={financeDates}
-        onDayPress={handleDayPress}
-      />
-
-      <View style={styles.divider} />
-
+    <SwipeableTab>
+    <View style={styles.safe}>
       <View style={styles.daySection}>
         <Text style={styles.dayLabel}>
           {dateMonth}月{dateDay}日
@@ -99,7 +75,8 @@ export default function CalendarScreen() {
           }
         />
       )}
-    </SafeAreaView>
+    </View>
+    </SwipeableTab>
   );
 }
 

@@ -15,8 +15,8 @@ interface ApiConfig {
 }
 
 const DEFAULT_MODELS: Record<ApiProvider, string> = {
-  gemini: 'gemini-2.0-flash',
-  openrouter: 'google/gemini-2.0-flash-exp:free',
+  gemini: 'gemini-3.5-flash',
+  openrouter: 'openrouter/free',
   openai: 'gpt-4o-mini',
 };
 
@@ -134,7 +134,7 @@ export interface ChatMessage {
 
 async function callGemini(config: ApiConfig, messages: any[], temperature: number, maxTokens: number): Promise<string> {
   const model = config.model || DEFAULT_MODELS.gemini;
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${config.apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${config.apiKey}`;
 
   const response = await fetch(url, {
     method: 'POST',
