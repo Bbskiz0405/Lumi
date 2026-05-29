@@ -9,8 +9,24 @@
 - **Framework**: Expo 55 + React Native 0.83 + TypeScript + Expo Router
 - **Database**: SQLite (純本地，不需登入)
 - **AI Integration**: OpenRouter / Gemini (使用者自填 API Key)
-- **目標平台**：Android
+- **目標平台**：Android（開發中）+ iOS（未 build）→ **最終目標：雙平台正式上架 App Store + Google Play**
 - **PRD**：`Lumi_PRD.md`
+
+## 最終目標：雙平台上架 (2026-05-29 決策)
+
+所有架構決策需以雙平台上架為前提。上架前 blocker 清單：
+
+1. Bundle ID `com.anonymous.lumi` → 正式 reverse-domain（Apple 拒收 anonymous）。
+2. Debug keystore → 正式 release keystore（Google Play 拒收 debug 簽）。
+3. iOS 從未 build → 需 EAS Build 雲端或 macOS Xcode。
+4. Google Play 要 `.aab`（`bundleRelease`），不是 APK。
+5. 隱私政策 URL（揭露 AI 呼叫送輸入給 Google/OpenAI）。
+6. App icon / splash 全尺寸符規。
+7. Apple Developer $99/yr + Google Play Console $25。
+
+**規劃順序**：Android internal testing → Apple TestFlight → 雙平台正式發佈。
+
+**政策風險**：AI Key BYOK 可能被 Apple 質疑，預留後端代理 / first-party key 切換點。
 
 ---
 

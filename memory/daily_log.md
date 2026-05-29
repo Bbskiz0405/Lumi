@@ -64,3 +64,13 @@
 
 ### Phase 5：目標規劃器
 - `services/goalService.ts` 尚未實作。
+
+---
+
+## 最終目標：雙平台上架 (2026-05-29 決策)
+
+設定最終目標為 **App Store + Google Play 雙平台正式上架**。詳細 blocker 清單見 `project_status.md`。
+
+**現階段不立即動，但每次設計新功能 / 動到 build config / 加外部依賴時，需以「能否雙平台上架」為前提考量**。
+
+短期內仍以本地 Gradle release APK 持續測試新版（debug keystore 簽）。正式上架前再一次性處理 bundle ID + 正式 keystore + iOS EAS build + 隱私政策。
