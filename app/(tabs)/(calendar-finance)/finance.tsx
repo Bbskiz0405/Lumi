@@ -361,6 +361,26 @@ export default function FinanceScreen() {
                 </View>
               )}
               <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={styles.deleteBtn}
+                  onPress={() => {
+                    if (!editTx) return;
+                    const id = editTx.id;
+                    Alert.alert('刪除記錄', '確定要刪除這筆記帳嗎？', [
+                      { text: '取消', style: 'cancel' },
+                      {
+                        text: '刪除',
+                        style: 'destructive',
+                        onPress: async () => {
+                          setEditTx(null);
+                          await handleDelete(id);
+                        },
+                      },
+                    ]);
+                  }}
+                >
+                  <Text style={styles.deleteText}>刪除</Text>
+                </TouchableOpacity>
                 <TouchableOpacity style={styles.cancelBtn} onPress={() => setEditTx(null)}>
                   <Text style={styles.cancelText}>取消</Text>
                 </TouchableOpacity>
@@ -641,10 +661,16 @@ const styles = StyleSheet.create({
   catBtnText: { color: '#444', fontSize: 12 },
   catBtnTextActive: { color: '#55DDAA' },
 
-  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8, marginBottom: 24 },
+  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: 8, marginBottom: 24, gap: 12 },
+  deleteBtn: {
+    borderWidth: 1, borderColor: '#3A1010', borderRadius: 8,
+    paddingHorizontal: 16, paddingVertical: 10,
+    marginRight: 'auto',
+  },
+  deleteText: { color: '#FF6666', fontSize: 14 },
   cancelBtn: {
     borderWidth: 1, borderColor: '#3A3A3A', borderRadius: 8,
-    paddingHorizontal: 20, paddingVertical: 10, marginRight: 12,
+    paddingHorizontal: 20, paddingVertical: 10,
   },
   cancelText: { color: '#888', fontSize: 14 },
   submitBtn: {

@@ -152,7 +152,9 @@
       "Bash(git checkout *)",
       "Bash(git add *)",
       "Bash(git commit *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "PowerShell($adb = \"C:\\\\Users\\\\Brayden\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\"; & $adb devices)",
+      "PowerShell($adb = \"C:\\\\Users\\\\Brayden\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\"; & $adb install -r \"$env:USERPROFILE\\\\Desktop\\\\Lumi-0.4.47.apk\")"
     ]
   }
 }

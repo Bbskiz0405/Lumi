@@ -245,3 +245,104 @@ export async function getQuickAnalysis(month: string): Promise<string> {
 
   return callAI(config, SYSTEM_PROMPT, [], prompt, financeContext, 0.5, 512);
 }
+
+export interface AIClassification {
+  type: 'TASK' | 'FINANCE' | 'IDEA';
+  amount?: number;
+  category?: 'food' | 'transport' | 'interest' | 'other';
+  transactionType?: 'income' | 'expense';
+}
+
+const CLASSIFY_PROMPT = `你是一個輸入分類器。把使用者輸入的一句話分類成 TASK、FINANCE、IDEA 其中之一。
+- TASK：待辦、提醒、要做的事、deadline、會議、報告、作業等
+- FINANCE：花錢、收錢、買東西、薪水、繳費、消費紀錄（含金額或明顯消費動詞）
+- IDEA：靈感、想法、心情、隨手筆記、其他
+
+若分類為 FINANCE，請額外抽取：
+- amount：金額數字（若無則省略）
+- category：food / transport / interest / other（收入時省略）
+- transactionType：income 或 expense
+
+只回傳 JSON，不要任何額外文字或 markdown 標記。
+
+範例：
+輸入「買午餐 100」→ {"type":"FINANCE","amount":100,"category":"food","transactionType":"expense"}
+輸入「明天要交報告」→ {"type":"TASK"}
+輸入「今天看到一隻可愛的貓」→ {"type":"IDEA"}
+輸入「薪水 30000 入帳」→ {"type":"FINANCE","amount":30000,"transactionType":"income"}`;
+
+export async function classifyTextWithAI(text: string, timeoutMs = 6000): Promise<AIClassification | null> {
+  const config = await getApiConfig();
+  if (!config || !config.apiKey) return null;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    let raw: string;
+    if (config.provider === 'gemini') {
+      const model = config.model || DEFAULT_MODELS.gemini;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${config.apiKey}`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            { role: 'user', parts: [{ text: `${CLASSIFY_PROMPT}\n\n輸入：「${text}」` }] },
+          ],
+          generationConfig: {
+            temperature: 0,
+            maxOutputTokens: 128,
+            responseMimeType: 'application/json',
+          },
+        }),
+        signal: controller.signal,
+      });
+      if (!response.ok) return null;
+      const data = await response.json();
+      raw = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+    } else {
+      const isOpenRouter = config.provider === 'openrouter';
+      const baseUrl = isOpenRouter ? 'https://openrouter.ai/api/v1' : 'https://api.openai.com/v1';
+      const model = config.model || DEFAULT_MODELS[config.provider];
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`,
+      };
+      if (isOpenRouter) {
+        headers['HTTP-Referer'] = 'https://lumi-app.local';
+        headers['X-Title'] = 'Lumi';
+      }
+      const response = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: CLASSIFY_PROMPT },
+            { role: 'user', content: text },
+          ],
+          temperature: 0,
+          max_tokens: 128,
+          response_format: { type: 'json_object' },
+        }),
+        signal: controller.signal,
+      });
+      if (!response.ok) return null;
+      const data = await response.json();
+      raw = data?.choices?.[0]?.message?.content ?? '';
+    }
+
+    const jsonStart = raw.indexOf('{');
+    const jsonEnd = raw.lastIndexOf('}');
+    if (jsonStart === -1 || jsonEnd === -1) return null;
+    const parsed = JSON.parse(raw.slice(jsonStart, jsonEnd + 1)) as AIClassification;
+
+    if (parsed.type !== 'TASK' && parsed.type !== 'FINANCE' && parsed.type !== 'IDEA') return null;
+    return parsed;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}

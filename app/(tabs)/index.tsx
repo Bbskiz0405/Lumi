@@ -21,6 +21,7 @@ import {
   ClassificationResult,
   parseMultipleTransactions,
 } from '../../services/classificationService';
+import { classifyTextWithAI } from '../../services/geminiService';
 import { ClassifiedType } from '../../types/entry';
 import { getRecentActivity, RecentItem } from '../../services/recentService';
 import TasksModule from '../../components/modules/TasksModule';
@@ -83,7 +84,26 @@ export default function HomeScreen() {
   async function handleClassify() {
     const trimmed = text.trim();
     if (!trimmed) return;
-    const result = await classifyWithHabits(trimmed);
+
+    let result: ClassificationResult | null = null;
+
+    const ai = await classifyTextWithAI(trimmed);
+    if (ai) {
+      result = {
+        type: ai.type,
+        confidence: 'high',
+        parsed: ai.type === 'FINANCE' ? {
+          amount: ai.amount,
+          category: ai.category,
+          transactionType: ai.transactionType,
+        } : undefined,
+      };
+    }
+
+    if (!result) {
+      result = await classifyWithHabits(trimmed);
+    }
+
     const entryId = await saveEntry(trimmed, result.type);
 
     if (result.confidence === 'high') {

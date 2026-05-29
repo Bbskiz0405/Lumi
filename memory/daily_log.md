@@ -6,7 +6,21 @@
 
 ## 當前狀態 (2026-05-29)
 
-**版號：0.4.47**
+**版號：0.4.48**
+
+### 0.4.48 — 任務完成按鈕 + 記帳刪除 + AI 優先分類 (2026-05-29)
+1. **任務詳情頁加「完成 / 取消完成」按鈕** (`app/task/[id].tsx`)
+   - 三顆按鈕：完成（綠）/ 編輯 / 刪除（紅）。
+   - 點完成切 `toggleTaskComplete(id, !completed)`，再次點變「取消完成」。
+2. **記帳編輯 Modal 加「刪除」按鈕** (`app/(tabs)/(calendar-finance)/finance.tsx`)
+   - 三顆：刪除（左對齊紅）/ 取消 / 儲存。
+   - 點刪除跳 Alert 確認 → `deleteTransaction` + 關 Modal + 重新 load。
+3. **首頁智慧分流改 AI 優先** (`app/(tabs)/index.tsx` + `services/geminiService.ts`)
+   - 新增 `classifyTextWithAI(text)`：先取 `getApiConfig()`，若無 → 回 `null` → fallback 本地 `classifyWithHabits`。
+   - AI 成功（網路 + key + API 都通）→ 用 AI 結果，`confidence='high'` 直接保存。
+   - AI 失敗（網路 / 429 / JSON parse error）→ 6 秒 timeout 後 fallback 本地。
+   - Gemini 用 `responseMimeType: application/json`；OpenAI/OpenRouter 用 `response_format: json_object` 強制 JSON 輸出。
+   - Prompt 限定三類 TASK/FINANCE/IDEA，FINANCE 抽取 amount/category/transactionType。
 
 ### 0.4.47 — Gemini 改用 2.5-flash-lite ✅ (2026-05-29)
 - 0.4.46 用 `gemini-2.0-flash`，新 project 新 key 仍持續 429。
