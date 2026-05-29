@@ -7,9 +7,9 @@ import {
   Text,
   ScrollView,
   Animated,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { createTask } from '../../services/taskService';
 import { createNote } from '../../services/noteService';
@@ -36,17 +36,17 @@ function formatDate(): string {
 }
 
 const TYPE_CONFIG: Record<string, { label: string; icon: string; color: string }> = {
-  TASK: { label: '任務', icon: 'checkbox-marked-outline', color: '#FF9944' },
-  FINANCE: { label: '記帳', icon: 'wallet-outline', color: '#55DDAA' },
-  IDEA: { label: '筆記', icon: 'lightbulb-outline', color: '#88AAFF' },
-  GOAL: { label: '目標', icon: 'target', color: '#FF88BB' },
-  UNCERTAIN: { label: '未分類', icon: 'help-circle-outline', color: '#666666' },
+  TASK: { label: '任務', icon: '[v]', color: '#FF9944' },
+  FINANCE: { label: '記帳', icon: '$', color: '#55DDAA' },
+  IDEA: { label: '筆記', icon: '!', color: '#88AAFF' },
+  GOAL: { label: '目標', icon: '◎', color: '#FF88BB' },
+  UNCERTAIN: { label: '未分類', icon: '?', color: '#666666' },
 };
 
 const RECENT_TYPE_CONFIG: Record<string, { icon: string; color: string }> = {
-  task: { icon: 'checkbox-marked-outline', color: '#FF9944' },
-  finance: { icon: 'wallet-outline', color: '#55DDAA' },
-  note: { icon: 'lightbulb-outline', color: '#88AAFF' },
+  task: { icon: '[v]', color: '#FF9944' },
+  finance: { icon: '$', color: '#55DDAA' },
+  note: { icon: '!', color: '#88AAFF' },
 };
 
 const SELECTABLE_TYPES: ClassifiedType[] = ['TASK', 'FINANCE', 'IDEA'];
@@ -70,6 +70,7 @@ export default function HomeScreen() {
   const [classification, setClassification] = useState<ClassificationResult | null>(null);
   const [pendingEntryId, setPendingEntryId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [classifying, setClassifying] = useState(false);
   const [feedbackText, setFeedbackText] = useState('');
   const [feedbackOpacity] = useState(new Animated.Value(0));
   const [recentItems, setRecentItems] = useState<RecentItem[]>([]);
@@ -85,23 +86,38 @@ export default function HomeScreen() {
     const trimmed = text.trim();
     if (!trimmed) return;
 
+    setClassifying(true);
     let result: ClassificationResult | null = null;
 
-    const ai = await classifyTextWithAI(trimmed);
-    if (ai) {
-      result = {
-        type: ai.type,
-        confidence: 'high',
-        parsed: ai.type === 'FINANCE' ? {
-          amount: ai.amount,
-          category: ai.category,
-          transactionType: ai.transactionType,
-        } : undefined,
-      };
-    }
+    try {
+      const ai = await classifyTextWithAI(trimmed);
+      if (ai) {
+        if (ai.type === 'FINANCE') {
+          result = {
+            type: 'FINANCE',
+            confidence: 'high',
+            parsed: {
+              amount: ai.amount,
+              category: ai.category,
+              transactionType: ai.transactionType,
+            },
+          };
+        } else if (ai.type === 'TASK') {
+          result = {
+            type: 'TASK',
+            confidence: 'high',
+            parsed: ai.dueDate ? { dueDate: ai.dueDate } : undefined,
+          };
+        } else {
+          result = { type: 'IDEA', confidence: 'high' };
+        }
+      }
 
-    if (!result) {
-      result = await classifyWithHabits(trimmed);
+      if (!result) {
+        result = await classifyWithHabits(trimmed);
+      }
+    } finally {
+      setClassifying(false);
     }
 
     const entryId = await saveEntry(trimmed, result.type);
@@ -129,13 +145,13 @@ export default function HomeScreen() {
         case 'TASK':
           await createTask({
             title: trimmed,
-            due_date: null,
+            due_date: result.parsed?.dueDate ?? null,
             priority: 'medium',
             tag: null,
             source: 'manual',
             entry_id: entryId,
           });
-          showFeedback('已新增任務');
+          showFeedback(result.parsed?.dueDate ? `已新增任務（${result.parsed.dueDate}）` : '已新增任務');
           break;
 
         case 'FINANCE': {
@@ -232,8 +248,16 @@ export default function HomeScreen() {
             editable={!submitting}
           />
           {hasText && !showClassification && (
-            <TouchableOpacity onPress={handleClassify} style={styles.submitBtn}>
-              <MaterialCommunityIcons name="arrow-up" size={16} color="#0F0F0F" />
+            <TouchableOpacity
+              onPress={handleClassify}
+              style={[styles.submitBtn, classifying && { opacity: 0.7 }]}
+              disabled={classifying}
+            >
+              {classifying ? (
+                <ActivityIndicator size="small" color="#0F0F0F" />
+              ) : (
+                <Text style={styles.submitBtnArrow}>↑</Text>
+              )}
             </TouchableOpacity>
           )}
         </View>
@@ -256,12 +280,14 @@ export default function HomeScreen() {
                       ]}
                       onPress={() => handleChangeType(t)}
                     >
-                      <MaterialCommunityIcons
-                        name={config.icon as any}
-                        size={14}
-                        color={isActive ? config.color : '#444'}
-                        style={{ marginRight: 4 }}
-                      />
+                      <Text
+                        style={[
+                          styles.typePillIcon,
+                          { color: isActive ? config.color : '#444' },
+                        ]}
+                      >
+                        {config.icon}
+                      </Text>
                       <Text style={[styles.typePillText, isActive && { color: config.color }]}>
                         {config.label}
                       </Text>
@@ -330,12 +356,7 @@ export default function HomeScreen() {
               }
               return (
                 <TouchableOpacity key={item.id} style={styles.recentItem} onPress={handleRecentPress} activeOpacity={0.6}>
-                  <MaterialCommunityIcons
-                    name={cfg.icon as any}
-                    size={14}
-                    color={cfg.color}
-                    style={styles.recentIcon}
-                  />
+                  <Text style={[styles.recentIconText, { color: cfg.color }]}>{cfg.icon}</Text>
                   <Text style={styles.recentText} numberOfLines={1}>{item.title}</Text>
                   {item.subtitle && (
                     <Text style={[styles.recentSub, { color: cfg.color }]}>{item.subtitle}</Text>
@@ -398,6 +419,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginLeft: 8,
   },
+  submitBtnArrow: {
+    color: '#0F0F0F',
+    fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 18,
+  },
   classificationCard: {
     backgroundColor: '#111111',
     borderRadius: 12,
@@ -427,6 +454,11 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 6,
+  },
+  typePillIcon: {
+    fontSize: 12,
+    marginRight: 4,
+    fontWeight: '500',
   },
   typePillText: {
     color: '#444',
@@ -506,6 +538,13 @@ const styles = StyleSheet.create({
   },
   recentIcon: {
     marginRight: 10,
+  },
+  recentIconText: {
+    fontSize: 13,
+    marginRight: 10,
+    width: 16,
+    textAlign: 'center',
+    fontWeight: '500',
   },
   recentText: {
     flex: 1,

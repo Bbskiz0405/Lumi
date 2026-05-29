@@ -251,30 +251,48 @@ export interface AIClassification {
   amount?: number;
   category?: 'food' | 'transport' | 'interest' | 'other';
   transactionType?: 'income' | 'expense';
+  dueDate?: string;
 }
 
-const CLASSIFY_PROMPT = `你是一個輸入分類器。把使用者輸入的一句話分類成 TASK、FINANCE、IDEA 其中之一。
-- TASK：待辦、提醒、要做的事、deadline、會議、報告、作業等
+function buildClassifyPrompt(): string {
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  const todayStr = `${yyyy}-${mm}-${dd}`;
+  const weekday = ['日', '一', '二', '三', '四', '五', '六'][today.getDay()];
+
+  return `你是一個輸入分類器。把使用者輸入的一句話分類成 TASK、FINANCE、IDEA 其中之一。
+- TASK：待辦、提醒、要做的事、deadline、會議、報告、作業、行程
 - FINANCE：花錢、收錢、買東西、薪水、繳費、消費紀錄（含金額或明顯消費動詞）
 - IDEA：靈感、想法、心情、隨手筆記、其他
 
-若分類為 FINANCE，請額外抽取：
+今天日期：${todayStr}（星期${weekday}）。請以此為基準解析相對日期。
+
+若分類為 TASK 且輸入有提到任何日期（如「明天」「下週三」「5/30」「6 月 1 號」「週五」），抽取：
+- dueDate：YYYY-MM-DD 格式（必須使用上方的今天日期推算）
+
+若分類為 FINANCE，抽取：
 - amount：金額數字（若無則省略）
 - category：food / transport / interest / other（收入時省略）
 - transactionType：income 或 expense
 
 只回傳 JSON，不要任何額外文字或 markdown 標記。
 
-範例：
+範例（假設今天是 ${todayStr}）：
 輸入「買午餐 100」→ {"type":"FINANCE","amount":100,"category":"food","transactionType":"expense"}
-輸入「明天要交報告」→ {"type":"TASK"}
+輸入「明天要交報告」→ {"type":"TASK","dueDate":"<明天的日期>"}
+輸入「5/30 要出去」→ {"type":"TASK","dueDate":"${yyyy}-05-30"}
+輸入「下週三開會」→ {"type":"TASK","dueDate":"<該週三的日期>"}
 輸入「今天看到一隻可愛的貓」→ {"type":"IDEA"}
 輸入「薪水 30000 入帳」→ {"type":"FINANCE","amount":30000,"transactionType":"income"}`;
+}
 
 export async function classifyTextWithAI(text: string, timeoutMs = 6000): Promise<AIClassification | null> {
   const config = await getApiConfig();
   if (!config || !config.apiKey) return null;
 
+  const prompt = buildClassifyPrompt();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -288,7 +306,7 @@ export async function classifyTextWithAI(text: string, timeoutMs = 6000): Promis
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [
-            { role: 'user', parts: [{ text: `${CLASSIFY_PROMPT}\n\n輸入：「${text}」` }] },
+            { role: 'user', parts: [{ text: `${prompt}\n\n輸入：「${text}」` }] },
           ],
           generationConfig: {
             temperature: 0,
@@ -319,7 +337,7 @@ export async function classifyTextWithAI(text: string, timeoutMs = 6000): Promis
         body: JSON.stringify({
           model,
           messages: [
-            { role: 'system', content: CLASSIFY_PROMPT },
+            { role: 'system', content: prompt },
             { role: 'user', content: text },
           ],
           temperature: 0,
@@ -339,6 +357,9 @@ export async function classifyTextWithAI(text: string, timeoutMs = 6000): Promis
     const parsed = JSON.parse(raw.slice(jsonStart, jsonEnd + 1)) as AIClassification;
 
     if (parsed.type !== 'TASK' && parsed.type !== 'FINANCE' && parsed.type !== 'IDEA') return null;
+    if (parsed.dueDate && !/^\d{4}-\d{2}-\d{2}$/.test(parsed.dueDate)) {
+      delete parsed.dueDate;
+    }
     return parsed;
   } catch {
     return null;

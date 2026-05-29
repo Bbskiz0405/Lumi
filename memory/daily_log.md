@@ -6,7 +6,15 @@
 
 ## 當前狀態 (2026-05-29)
 
-**版號：0.4.48**
+**版號：0.4.49**
+
+### 0.4.49 — Loading + AI 抽日期 + 修打勾 icon (2026-05-29)
+1. **AI 分類 loading**：首頁送出按鈕 AI 跑時換成 `ActivityIndicator`，避免使用者以為卡住（`app/(tabs)/index.tsx` `classifying` state）。
+2. **AI 抽 dueDate**：CLASSIFY_PROMPT 加入「今天日期」上下文 + 範例，要求 TASK 類別額外回 `dueDate` (YYYY-MM-DD)；回傳格式檢查正則 `\\d{4}-\\d{2}-\\d{2}`。`ClassificationResult.parsed.dueDate` 新欄位；HomeScreen `doSave` 把 dueDate 傳給 `createTask` → 自動同步到行事曆。
+3. **修任務打勾 icon 顯示 `?`**：`MaterialCommunityIcons.ttf` 已刪 → MCI 全部變問號。
+   - `components/tasks/TaskCard.tsx` 改成自製圓形 View + `✓` 文字。
+   - `app/(tabs)/index.tsx` 殘留的 MCI（arrow-up / 類型 pill / 最近動態 icon）全改 Unicode（`↑` / `[v]` `$` `!`）。
+   - 其他檔案（finance.tsx 計算機按鈕等）尚有 MCI，如有需要再修。
 
 ### 0.4.48 — 任務完成按鈕 + 記帳刪除 + AI 優先分類 (2026-05-29)
 1. **任務詳情頁加「完成 / 取消完成」按鈕** (`app/task/[id].tsx`)
