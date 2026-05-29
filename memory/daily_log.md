@@ -8,12 +8,17 @@
 
 **版號：0.4.47**
 
-### 0.4.47 — Gemini 改用 2.5-flash-lite (2026-05-29)
+### 0.4.47 — Gemini 改用 2.5-flash-lite ✅ (2026-05-29)
 - 0.4.46 用 `gemini-2.0-flash`，新 project 新 key 仍持續 429。
 - 確認排除：key 有效、Generative Language API 已啟用、project 對。
 - 原因：2026 年 Google 砍 free tier，`gemini-2.0-flash` RPD 很低，輕鬆打爆。
 - 修正：DEFAULT_MODELS.gemini 改為 **`gemini-2.5-flash-lite`**（2025/07 stable，free tier RPD 高得多，且 1M context、智能更高）。
 - 備案順位：2.5-flash-lite → flash-lite-latest → 2.5-flash → 2.0-flash。
+- **實機驗證通過**：adb install 上機直接成功回應。
+
+### 環境變數 / 安裝流程備忘
+- adb 路徑：`C:\Users\Brayden\AppData\Local\Android\Sdk\platform-tools\adb.exe`
+- 直接安裝：`adb install -r <apk>`（`-r` 保留資料覆蓋升級，因 keystore 相同）。
 
 **版號：0.4.46**
 
