@@ -154,7 +154,10 @@
       "Bash(git commit *)",
       "Bash(git push *)",
       "PowerShell($adb = \"C:\\\\Users\\\\Brayden\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\"; & $adb devices)",
-      "PowerShell($adb = \"C:\\\\Users\\\\Brayden\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\"; & $adb install -r \"$env:USERPROFILE\\\\Desktop\\\\Lumi-0.4.47.apk\")"
+      "PowerShell($adb = \"C:\\\\Users\\\\Brayden\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\"; & $adb install -r \"$env:USERPROFILE\\\\Desktop\\\\Lumi-0.4.47.apk\")",
+      "Bash(git merge --no-ff release/v0.4.45 -m 'merge: release/v0.4.45 → master \\(v0.4.45 → v0.4.49\\) *)",
+      "Bash(git stash *)",
+      "Bash(git ls-remote *)"
     ]
   }
 }

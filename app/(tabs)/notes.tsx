@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getAllNotes, deleteNote, updateNote, getCustomTags, saveCustomTags } from '../../services/noteService';
+import { getAllNotes, createNote, deleteNote, updateNote, getCustomTags, saveCustomTags } from '../../services/noteService';
 import { Note, NoteCategory } from '../../types/note';
 
 const TAG_COLORS = ['#FF88BB', '#FF9944', '#88AAFF', '#55DDAA', '#FFCC44', '#AA88FF', '#FF6655', '#66CCCC'];
@@ -27,6 +27,7 @@ export default function NotesScreen() {
   const [tags, setTags] = useState<string[]>(['目標']);
 
   const [editNote, setEditNote] = useState<Note | null>(null);
+  const [addingNote, setAddingNote] = useState(false);
   const [editContent, setEditContent] = useState('');
   const [editCategory, setEditCategory] = useState<string | null>(null);
 
@@ -39,16 +40,41 @@ export default function NotesScreen() {
     setEditCategory(note.category);
   }
 
-  async function handleSaveEdit() {
-    if (!editNote) return;
-    await updateNote(editNote.id, {
-      content: editContent.trim(),
-      category: editCategory as NoteCategory | null,
-    });
-    setNotes(prev => prev.map(n =>
-      n.id === editNote.id ? { ...n, content: editContent.trim(), category: editCategory as NoteCategory | null } : n
-    ));
+  function openAdd() {
+    setAddingNote(true);
+    setEditContent('');
+    setEditCategory(null);
+  }
+
+  function closeModal() {
     setEditNote(null);
+    setAddingNote(false);
+    setEditContent('');
+    setEditCategory(null);
+  }
+
+  async function handleSaveEdit() {
+    const content = editContent.trim();
+    if (!content) {
+      closeModal();
+      return;
+    }
+    if (addingNote) {
+      const created = await createNote({
+        content,
+        category: editCategory as NoteCategory | null,
+      });
+      setNotes(prev => [created, ...prev]);
+    } else if (editNote) {
+      await updateNote(editNote.id, {
+        content,
+        category: editCategory as NoteCategory | null,
+      });
+      setNotes(prev => prev.map(n =>
+        n.id === editNote.id ? { ...n, content, category: editCategory as NoteCategory | null } : n
+      ));
+    }
+    closeModal();
   }
 
   async function handleAddTag() {
@@ -116,6 +142,9 @@ export default function NotesScreen() {
     <SafeAreaView style={styles.safe} edges={[]}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>筆記</Text>
+        <TouchableOpacity onPress={openAdd} style={styles.headerAddBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={styles.headerAddText}>+</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.filterRow}>
@@ -213,16 +242,16 @@ export default function NotesScreen() {
         />
       )}
 
-      {/* Edit modal */}
+      {/* Edit / Add modal */}
       <Modal
-        visible={editNote !== null}
-        onRequestClose={() => setEditNote(null)}
+        visible={editNote !== null || addingNote}
+        onRequestClose={closeModal}
         animationType="fade"
         transparent
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modal}>
-            <Text style={styles.modalTitle}>編輯筆記</Text>
+            <Text style={styles.modalTitle}>{addingNote ? '新增筆記' : '編輯筆記'}</Text>
             <View style={styles.modalDivider} />
             <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
               <TextInput
@@ -231,6 +260,8 @@ export default function NotesScreen() {
                 onChangeText={setEditContent}
                 multiline
                 autoFocus
+                placeholder={addingNote ? '寫點什麼...' : undefined}
+                placeholderTextColor="#444"
               />
               <Text style={styles.fieldLabel}>標籤</Text>
               <View style={styles.catRow}>
@@ -256,11 +287,11 @@ export default function NotesScreen() {
                 ))}
               </View>
               <View style={styles.modalActions}>
-                <TouchableOpacity onPress={() => setEditNote(null)} style={styles.cancelBtn}>
+                <TouchableOpacity onPress={closeModal} style={styles.cancelBtn}>
                   <Text style={styles.cancelText}>取消</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handleSaveEdit} style={styles.saveBtn}>
-                  <Text style={styles.saveText}>儲存</Text>
+                  <Text style={styles.saveText}>{addingNote ? '新增' : '儲存'}</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -273,8 +304,10 @@ export default function NotesScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#0F0F0F' },
-  header: { paddingHorizontal: 24, paddingVertical: 16 },
+  header: { paddingHorizontal: 24, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '300', letterSpacing: 2 },
+  headerAddBtn: { borderWidth: 1, borderColor: '#3A3A3A', borderRadius: 18, width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  headerAddText: { color: '#FFFFFF', fontSize: 22, fontWeight: '200', lineHeight: 24, marginTop: -2 },
 
   filterRow: { flexDirection: 'row', paddingHorizontal: 16, paddingBottom: 8, gap: 8, flexWrap: 'wrap', alignItems: 'center' },
   filterPill: { borderWidth: 1, borderColor: '#3A3A3A', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 5 },

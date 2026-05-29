@@ -6,7 +6,13 @@
 
 ## 當前狀態 (2026-05-29)
 
-**版號：0.4.49**
+**版號：0.4.50**
+
+### 0.4.50 — 筆記新增按鈕 + AI 分類 TASK vs IDEA 修正 (2026-05-29)
+1. **筆記頁加新增按鈕**：原本只有「+」新增標籤、沒有獨立新增筆記入口。
+   - `app/(tabs)/notes.tsx` 標題右側加 `+` 按鈕 → 開 modal「新增筆記」（內容 + 標籤）。
+   - 重用 edit modal：新增 `addingNote` state，modal title / button label 隨 mode 切換。
+2. **修 AI 把「會議紀錄」誤判為 TASK**：CLASSIFY_PROMPT 加入關鍵判斷規則「TASK 是未來要做的動作，IDEA 是紀錄/想法」+ 多個對比範例（「明天開會」TASK vs 「會議紀錄」IDEA、「上課筆記」IDEA、「讀書心得」IDEA）。
 **Build 方式：** 本地 Gradle build（不靠 EAS）
 **環境：** Android Studio JBR 21 + Gradle 8.13
 **主分支：** `master`（已合併 `release/v0.4.45`）
