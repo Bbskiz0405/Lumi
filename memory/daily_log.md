@@ -65,6 +65,15 @@
 ### Phase 5：目標規劃器
 - `services/goalService.ts` 尚未實作。
 
+### 換裝置資料遷移（上架 v1 blocker）
+SQLite 純本地，使用者換手機 / 重裝 App 會掉所有資料（任務 / 記帳 / 筆記 / entries / AI 學習）。**上架前必須有方案**。候選：
+1. **JSON export / import**（最簡單，v1 推薦）— 設定頁「匯出」→ dump 全表 JSON → `expo-sharing` 分享；新裝置「匯入」讀回。
+2. iCloud / Google Drive 自動備份 — 平台差異大。
+3. 雲端帳號同步（Firebase / Supabase）— UX 最佳，要寫後端、加登入、處理 conflict、付雲端費。
+4. QR / Wi-Fi Direct 點對點 — 零後端，實作較複雜。
+
+**策略：** v1 先做 #1（JSON），v2 視反饋加 #3。
+
 ---
 
 ## 最終目標：雙平台上架 (2026-05-29 決策)

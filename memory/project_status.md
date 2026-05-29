@@ -28,6 +28,8 @@
 
 **政策風險**：AI Key BYOK 可能被 Apple 質疑，預留後端代理 / first-party key 切換點。
 
+**換裝置資料遷移（上架 v1 必做）**：SQLite 純本地，使用者換手機會掉資料。v1 至少要做 JSON export / import（設定頁按鈕 + `expo-sharing`）。v2 視反饋再評估雲端同步（Firebase / Supabase）。
+
 ---
 
 ## 核心架構與 UI 慣例 (極度重要)
