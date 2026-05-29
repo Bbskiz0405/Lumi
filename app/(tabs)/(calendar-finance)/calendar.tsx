@@ -4,16 +4,15 @@ import {
   TouchableOpacity, Modal,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import TaskCard from '../../components/tasks/TaskCard';
-import TaskForm from '../../components/tasks/TaskForm';
-import { useCalendar } from '../../contexts/CalendarContext';
+import TaskCard from '../../../components/tasks/TaskCard';
+import TaskForm from '../../../components/tasks/TaskForm';
+import { useCalendar } from '../../../contexts/CalendarContext';
 import {
   getTasksForDate,
   toggleTaskComplete,
   createTask,
-} from '../../services/taskService';
-import { Task, CreateTaskInput } from '../../types/task';
+} from '../../../services/taskService';
+import { Task, CreateTaskInput } from '../../../types/task';
 
 export default function CalendarScreen() {
   const router = useRouter();
@@ -25,15 +24,20 @@ export default function CalendarScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadDayTasks(selectedDate);
+      let active = true;
+      getTasksForDate(selectedDate).then(data => {
+        if (active) {
+          setTasks(data);
+          setLoading(false);
+        }
+      });
+      return () => { active = false; };
     }, [selectedDate])
   );
 
   async function loadDayTasks(date: string) {
-    setLoading(true);
     const data = await getTasksForDate(date);
     setTasks(data);
-    setLoading(false);
   }
 
   async function handleToggle(id: string, completed: boolean) {
@@ -59,7 +63,7 @@ export default function CalendarScreen() {
           {selectedDate === todayStr ? '  今天' : ''}
         </Text>
         <TouchableOpacity style={styles.addBtn} onPress={() => setModalVisible(true)}>
-          <MaterialCommunityIcons name="plus" size={20} color="#FFFFFF" />
+          <Text style={{ color: '#FFFFFF', fontSize: 22, fontWeight: '200', marginTop: -2 }}>+</Text>
         </TouchableOpacity>
       </View>
 
@@ -84,7 +88,7 @@ export default function CalendarScreen() {
             <View style={styles.empty}>
               <Text style={styles.emptyText}>這天沒有任務</Text>
               <TouchableOpacity style={styles.emptyAddBtn} onPress={() => setModalVisible(true)}>
-                <MaterialCommunityIcons name="plus" size={14} color="#888" />
+                <Text style={{ color: '#888', fontSize: 14, marginRight: 4 }}>+</Text>
                 <Text style={styles.emptyAddText}>新增任務</Text>
               </TouchableOpacity>
             </View>

@@ -7,7 +7,7 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import TaskForm from '../../components/tasks/TaskForm';
 import PriorityBadge from '../../components/tasks/PriorityBadge';
-import { getTaskById, updateTask, deleteTask } from '../../services/taskService';
+import { getTaskById, updateTask, deleteTask, toggleTaskComplete } from '../../services/taskService';
 import { Task, CreateTaskInput } from '../../types/task';
 
 const TAG_LABELS: Record<string, string> = {
@@ -58,6 +58,14 @@ export default function TaskDetailScreen() {
         },
       },
     ]);
+  }
+
+  async function handleToggleComplete() {
+    if (!task) return;
+    const next = !task.completed;
+    await toggleTaskComplete(task.id, next);
+    const updated = await getTaskById(task.id);
+    setTask(updated);
   }
 
   if (loading) {
@@ -133,6 +141,14 @@ export default function TaskDetailScreen() {
         <View style={styles.divider} />
 
         <View style={styles.actions}>
+          <TouchableOpacity
+            style={[styles.completeBtn, task.completed && styles.completeBtnDone]}
+            onPress={handleToggleComplete}
+          >
+            <Text style={[styles.completeBtnText, task.completed && styles.completeBtnTextDone]}>
+              {task.completed ? '取消完成' : '完成'}
+            </Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.editBtn} onPress={() => setEditing(true)}>
             <Text style={styles.editBtnText}>編輯</Text>
           </TouchableOpacity>
@@ -159,7 +175,20 @@ const styles = StyleSheet.create({
   },
   rowLabel: { width: 72, color: '#555555', fontSize: 14 },
   rowValue: { fontSize: 14, color: '#CCCCCC', fontWeight: '300', flex: 1 },
-  actions: { flexDirection: 'row', marginTop: 8 },
+  actions: { flexDirection: 'row', marginTop: 8, gap: 8 },
+  completeBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#103A20',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  completeBtnText: { color: '#66BB66', fontSize: 14 },
+  completeBtnDone: {
+    borderColor: '#3A3A3A',
+  },
+  completeBtnTextDone: { color: '#888' },
   editBtn: {
     flex: 1,
     borderWidth: 1,
@@ -167,7 +196,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',
-    marginRight: 12,
   },
   editBtnText: { color: '#FFFFFF', fontSize: 14 },
   deleteBtn: {

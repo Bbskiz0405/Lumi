@@ -5,7 +5,6 @@ import {
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { getAllNotes, deleteNote, updateNote, getCustomTags, saveCustomTags } from '../../services/noteService';
 import { Note, NoteCategory } from '../../types/note';
 
@@ -23,6 +22,7 @@ function formatDate(isoStr: string): string {
 export default function NotesScreen() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [filter, setFilter] = useState<string | null>(null);
   const [tags, setTags] = useState<string[]>(['目標']);
 
@@ -79,17 +79,22 @@ export default function NotesScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadNotes();
-      getCustomTags().then(setTags);
-    }, [])
-  );
+      let active = true;
+      if (!hasLoaded) setLoading(true);
 
-  async function loadNotes() {
-    setLoading(true);
-    const data = await getAllNotes();
-    setNotes(data);
-    setLoading(false);
-  }
+      getAllNotes().then(data => {
+        if (active) {
+          setNotes(data);
+          setLoading(false);
+          setHasLoaded(true);
+        }
+      });
+      getCustomTags().then(tags => {
+        if (active) setTags(tags);
+      });
+      return () => { active = false; };
+    }, [hasLoaded])
+  );
 
   function handleDelete(id: string) {
     Alert.alert('刪除筆記', '確定要刪除嗎？', [
@@ -108,7 +113,7 @@ export default function NotesScreen() {
   const filtered = filter ? notes.filter(n => n.category === filter) : notes;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={[]}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>筆記</Text>
       </View>
@@ -136,7 +141,7 @@ export default function NotesScreen() {
           </TouchableOpacity>
         ))}
         <TouchableOpacity style={styles.addTagBtn} onPress={() => setAddingTag(true)}>
-          <MaterialCommunityIcons name="plus" size={14} color="#666" />
+          <Text style={{ color: '#666', fontSize: 18, fontWeight: '200' }}>+</Text>
         </TouchableOpacity>
       </View>
 
@@ -193,14 +198,14 @@ export default function NotesScreen() {
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   style={styles.deleteBtn}
                 >
-                  <MaterialCommunityIcons name="close" size={14} color="#666" />
+                  <Text style={{ color: '#666', fontSize: 16, fontWeight: '200' }}>x</Text>
                 </TouchableOpacity>
               </TouchableOpacity>
             );
           }}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <MaterialCommunityIcons name="lightbulb-outline" size={40} color="#333" />
+              <Text style={{ fontSize: 40, color: '#333', marginBottom: 12 }}>!</Text>
               <Text style={styles.emptyText}>還沒有筆記</Text>
               <Text style={styles.emptyHint}>在首頁輸入任何想法，會自動歸類到這裡</Text>
             </View>

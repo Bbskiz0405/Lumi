@@ -9,6 +9,7 @@ export interface ClassificationResult {
     amount?: number;
     category?: string;
     transactionType?: 'income' | 'expense';
+    dueDate?: string;
   };
 }
 

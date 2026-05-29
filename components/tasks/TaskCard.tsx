@@ -47,8 +47,8 @@ export default function TaskCard({ task, onToggleComplete, onPress }: Props) {
         style={styles.checkbox}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
-        <View style={[styles.checkCircle, isCompleted && styles.checkCircleDone]}>
-          {isCompleted && <Text style={styles.checkMark}>✓</Text>}
+        <View style={[styles.checkBox, isCompleted && styles.checkBoxDone]}>
+          {isCompleted && <Text style={styles.checkBoxMark}>✓</Text>}
         </View>
       </TouchableOpacity>
 
@@ -92,17 +92,17 @@ const styles = StyleSheet.create({
   },
   completedCard: { backgroundColor: '#0A0A0A' },
   checkbox: { marginRight: 12 },
-  checkCircle: {
+  checkBox: {
     width: 22,
     height: 22,
     borderRadius: 11,
-    borderWidth: 1,
-    borderColor: '#333',
+    borderWidth: 1.5,
+    borderColor: '#444',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkCircleDone: { backgroundColor: '#333', borderColor: '#555' },
-  checkMark: { color: '#FFFFFF', fontSize: 12 },
+  checkBoxDone: { backgroundColor: '#55DDAA', borderColor: '#55DDAA' },
+  checkBoxMark: { color: '#0F0F0F', fontSize: 14, fontWeight: '700', lineHeight: 16 },
   middle: { flex: 1 },
   title: { color: '#FFFFFF', fontSize: 15, fontWeight: '300', lineHeight: 20, marginBottom: 4 },
   completedText: { textDecorationLine: 'line-through', color: '#444' },

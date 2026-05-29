@@ -9,7 +9,6 @@ import TaskCard from '../../components/tasks/TaskCard';
 import TaskForm from '../../components/tasks/TaskForm';
 import { getAllTasks, createTask, toggleTaskComplete } from '../../services/taskService';
 import { Task, CreateTaskInput } from '../../types/task';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 export default function TasksScreen() {
   const router = useRouter();
@@ -17,19 +16,27 @@ export default function TasksScreen() {
   const [completedTasks, setCompletedTasks] = useState<Task[]>([]);
   const [showCompleted, setShowCompleted] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
+      let active = true;
+      if (!hasLoaded) setLoading(true);
+      
       getAllTasks()
         .then(data => {
+          if (!active) return;
           setTasks(data.filter(t => t.completed === 0));
           setCompletedTasks(data.filter(t => t.completed === 1));
+          setHasLoaded(true);
         })
         .catch(err => console.error('[TasksScreen] getAllTasks failed:', err))
-        .finally(() => setLoading(false));
-    }, [])
+        .finally(() => {
+          if (active) setLoading(false);
+        });
+      return () => { active = false; };
+    }, [hasLoaded])
   );
 
   async function handleToggle(id: string, completed: boolean) {
@@ -54,11 +61,11 @@ export default function TasksScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={[]}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>任務</Text>
         <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.addBtn}>
-          <MaterialCommunityIcons name="plus" size={22} color="#FFFFFF" />
+          <Text style={{ color: '#FFFFFF', fontSize: 24, fontWeight: '200', marginTop: -2 }}>+</Text>
         </TouchableOpacity>
       </View>
 
@@ -91,11 +98,9 @@ export default function TasksScreen() {
                   style={styles.completedHeader}
                   onPress={() => setShowCompleted(!showCompleted)}
                 >
-                  <MaterialCommunityIcons
-                    name={showCompleted ? 'chevron-down' : 'chevron-right'}
-                    size={18}
-                    color="#666"
-                  />
+                  <Text style={{ color: '#666', fontSize: 14, marginRight: 8, fontWeight: '500' }}>
+                    {showCompleted ? 'v' : '>'}
+                  </Text>
                   <Text style={styles.completedTitle}>已完成 ({completedTasks.length})</Text>
                 </TouchableOpacity>
                 {showCompleted && completedTasks.map(item => (

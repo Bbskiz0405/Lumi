@@ -46,12 +46,12 @@ export default function CalendarGrid({ taskDates, financeDates, taskPriorityMap,
     <View>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={prevMonth} style={styles.navBtn}>
-          <MaterialCommunityIcons name="chevron-left" size={24} color="#FFFFFF" />
+        <TouchableOpacity onPress={prevMonth} style={styles.navBtn} hitSlop={{top:20, bottom:20, left:20, right:20}}>
+          <Text style={{ color: '#55DDAA', fontSize: 24, fontWeight: 'bold' }}>{' < '}</Text>
         </TouchableOpacity>
         <Text style={styles.monthTitle}>{year}年 {MONTHS[month]}</Text>
-        <TouchableOpacity onPress={nextMonth} style={styles.navBtn}>
-          <MaterialCommunityIcons name="chevron-right" size={24} color="#FFFFFF" />
+        <TouchableOpacity onPress={nextMonth} style={styles.navBtn} hitSlop={{top:20, bottom:20, left:20, right:20}}>
+          <Text style={{ color: '#55DDAA', fontSize: 24, fontWeight: 'bold' }}>{' > '}</Text>
         </TouchableOpacity>
       </View>
 
