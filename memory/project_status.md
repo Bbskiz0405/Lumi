@@ -79,5 +79,16 @@
 
 ## 待完成 / 開發中
 
-- Phase 5：目標規劃器 (`services/goalService.ts` 尚未實作)。
 - 財務進階規劃：儲蓄目標、固定/額外收入分類。
+
+## 差異化方向：A + B + D (2026-05-29 決策)
+
+砍 Phase 3 Dashboard + Phase 5 簡化（退化為筆記標籤「目標」）。改做三條備審導向 + 市場差異化路線：
+
+- **A — 個人時間軸敘事 (Lifeline)**：tasks/finance/notes/entries 按時序合一 + 月底 LLM narrative。取代 Dashboard。
+- **B — 行為迴路偵測**：本地演算法找週期/連鎖/未完成規律，AI 翻譯成首頁推送。
+- **D — 問 Lumi 任何事**：全文檢索 + AI 整理。最快出成果（1–2 天）。
+
+共用基建：`services/eventStreamService.ts` 統一事件流（避免三條各寫 SQL）。
+
+**建議順序**：D → A → B。詳細見 auto-memory `project_differentiation_vision.md`。

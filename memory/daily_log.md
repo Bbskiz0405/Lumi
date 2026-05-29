@@ -62,8 +62,20 @@
 - 緩衝區：未分配額外收入 → 抵消超標。
 - 長期目標：幾月/幾年存多少 → 歷史平均反推月存額。
 
-### Phase 5：目標規劃器
-- `services/goalService.ts` 尚未實作。
+### Phase 5：目標規劃器（**砍掉**）
+- 原 `services/goalService.ts` 計畫不做了。差異化不足。
+- 退化為「筆記標籤『目標』」即可。
+
+### 差異化方向：A + B + D（2026-05-29 決策，取代 Phase 3 / 5）
+備審導向，市面上沒人做過 + 對使用者有實際價值。三條共用 `eventStreamService` 統一事件流。
+
+- **A — 個人時間軸敘事 (Lifeline)**：tasks/finance/notes/entries 按時序合一 + 月底 LLM narrative summary（"這個月你過得怎樣"）。取代 Phase 3 Dashboard。工時 3–4 天。
+- **B — 行為迴路偵測**：本地演算法找週期性 / 連鎖性 / 未完成規律 → 首頁 "Lumi 觀察" card。備審研究角度（可量化準確率）。工時 4–5 天。
+- **D — 問 Lumi 任何事**：全文檢索 + AI 整理回答（"兩個月前冷氣多少"）。工時 1–2 天，**最快出成果**。
+
+**建議順序：** D → A → B（簡 → 中 → 難）。或 A 先（UI 先有可丟備審 demo）→ D → B。
+
+詳細見 auto-memory `project_differentiation_vision.md`。
 
 ### 換裝置資料遷移（上架 v1 blocker）
 SQLite 純本地，使用者換手機 / 重裝 App 會掉所有資料（任務 / 記帳 / 筆記 / entries / AI 學習）。**上架前必須有方案**。候選：
