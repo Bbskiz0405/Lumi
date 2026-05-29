@@ -15,7 +15,7 @@ interface ApiConfig {
 }
 
 const DEFAULT_MODELS: Record<ApiProvider, string> = {
-  gemini: 'gemini-2.0-flash',
+  gemini: 'gemini-2.5-flash-lite',
   openrouter: 'google/gemma-7b-it:free',
   openai: 'gpt-4o-mini',
 };

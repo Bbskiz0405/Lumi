@@ -6,6 +6,15 @@
 
 ## 當前狀態 (2026-05-29)
 
+**版號：0.4.47**
+
+### 0.4.47 — Gemini 改用 2.5-flash-lite (2026-05-29)
+- 0.4.46 用 `gemini-2.0-flash`，新 project 新 key 仍持續 429。
+- 確認排除：key 有效、Generative Language API 已啟用、project 對。
+- 原因：2026 年 Google 砍 free tier，`gemini-2.0-flash` RPD 很低，輕鬆打爆。
+- 修正：DEFAULT_MODELS.gemini 改為 **`gemini-2.5-flash-lite`**（2025/07 stable，free tier RPD 高得多，且 1M context、智能更高）。
+- 備案順位：2.5-flash-lite → flash-lite-latest → 2.5-flash → 2.0-flash。
+
 **版號：0.4.46**
 
 ### 0.4.46 — Gemini model 404 修復 (2026-05-29)
