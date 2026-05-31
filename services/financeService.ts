@@ -3,7 +3,10 @@ import { Transaction, Budget, ExpenseCategory, CreateTransactionInput } from '..
 import * as Crypto from 'expo-crypto';
 
 function nowISO(): string {
-  return new Date().toISOString();
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const pad3 = (n: number) => String(n).padStart(3, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad3(d.getMilliseconds())}Z`;
 }
 
 export async function getTransactionsForMonth(month: string): Promise<Transaction[]> {

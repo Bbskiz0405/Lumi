@@ -171,10 +171,11 @@ export default function FinanceScreen() {
     else setFormAmountError('');
     if (!valid) return;
     setFormSubmitting(true);
-    const todayStr = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
-    const useDate = selectedDate !== todayStr
-      ? `${selectedDate}T${new Date().toISOString().split('T')[1]}`
-      : undefined;
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const pad3 = (n: number) => String(n).padStart(3, '0');
+    const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}.${pad3(now.getMilliseconds())}Z`;
+    const useDate = `${selectedDate}T${timeStr}`;
     await createTransaction({
       type: formType,
       item: formItem.trim(),
@@ -188,8 +189,17 @@ export default function FinanceScreen() {
   }
 
   async function handleDelete(id: string) {
-    await deleteTransaction(id);
-    loadAll(viewMode);
+    Alert.alert('刪除記錄', '確定要刪除這筆記帳嗎？', [
+      { text: '取消', style: 'cancel' },
+      {
+        text: '刪除',
+        style: 'destructive',
+        onPress: async () => {
+          await deleteTransaction(id);
+          loadAll(viewMode);
+        },
+      },
+    ]);
   }
 
 

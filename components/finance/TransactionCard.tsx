@@ -1,6 +1,5 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Transaction } from '../../types/finance';
 
 interface Props {
@@ -49,7 +48,7 @@ export default function TransactionCard({ transaction: tx, onDelete, onEdit }: P
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           style={styles.deleteBtn}
         >
-          <MaterialCommunityIcons name="close" size={14} color="#444" />
+          <Text style={styles.deleteBtnText}>×</Text>
         </TouchableOpacity>
       )}
     </TouchableOpacity>
@@ -114,5 +113,11 @@ const styles = StyleSheet.create({
   },
   deleteBtn: {
     padding: 12,
+  },
+  deleteBtnText: {
+    color: '#555',
+    fontSize: 18,
+    fontWeight: '300',
+    lineHeight: 18,
   },
 });
