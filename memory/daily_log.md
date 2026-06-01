@@ -6,7 +6,16 @@
 
 ## 當前狀態 (2026-06-01)
 
-**版號：0.4.53**
+**版號：0.4.54**
+
+### 0.4.54 — 首頁右上側邊選單 (2026-06-01)
+- 新元件：`components/SidebarDrawer.tsx`。Modal + Animated 從右側滑入（DRAWER_WIDTH = min(320, 螢幕寬 82%)）。
+- 首頁 (`app/(tabs)/index.tsx`) 日期文字右側加 `≡` 圓鈕，點開 drawer。
+- Drawer 三段：
+  - **設定**：佔位（目前 AI 設定還在財務頁 ✧ 按鈕，後續搬過來集中管理）。
+  - **更新日誌**：硬編碼 0.4.47–0.4.53 release notes。
+  - **關於**：版號 + GitHub 連結 (`Linking.openURL`) + 簡介。
+- 後續：設定要把 AI 供應商 / API key 管理 UI 從 FinanceAdvisor 搬進來；資料匯出 / 匯入按鈕加在這裡（對應 v1 上架 blocker）。
 
 ### 0.4.53 — Task detail 閃退 hotfix (2026-06-01)
 - 問題：0.4.52 後點任務詳情頁立刻閃退。

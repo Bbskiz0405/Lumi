@@ -25,6 +25,7 @@ import { classifyTextWithAI } from '../../services/geminiService';
 import { ClassifiedType } from '../../types/entry';
 import { getRecentActivity, RecentItem } from '../../services/recentService';
 import { useCalendar } from '../../contexts/CalendarContext';
+import SidebarDrawer from '../../components/SidebarDrawer';
 import TasksModule from '../../components/modules/TasksModule';
 import CalendarModule from '../../components/modules/CalendarModule';
 import FinanceModule from '../../components/modules/FinanceModule';
@@ -76,6 +77,7 @@ export default function HomeScreen() {
   const [feedbackText, setFeedbackText] = useState('');
   const [feedbackOpacity] = useState(new Animated.Value(0));
   const [recentItems, setRecentItems] = useState<RecentItem[]>([]);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -231,8 +233,17 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.safe} edges={[]}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
-        {/* 日期 */}
-        <Text style={styles.dateText}>{formatDate()}</Text>
+        {/* 日期 + 側邊選單 */}
+        <View style={styles.topRow}>
+          <Text style={styles.dateText}>{formatDate()}</Text>
+          <TouchableOpacity
+            onPress={() => setDrawerOpen(true)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={styles.menuBtn}
+          >
+            <Text style={styles.menuBtnIcon}>≡</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* 輸入框 */}
         <View style={styles.inputCard}>
@@ -372,6 +383,8 @@ export default function HomeScreen() {
         )}
 
       </ScrollView>
+
+      <SidebarDrawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
     </SafeAreaView>
   );
 }
@@ -386,12 +399,33 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     paddingBottom: 40,
   },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
   dateText: {
     color: '#555555',
     fontSize: 12,
     letterSpacing: 2,
     fontWeight: '300',
-    marginBottom: 16,
+  },
+  menuBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#3A3A3A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  menuBtnIcon: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '300',
+    lineHeight: 18,
+    marginTop: -2,
   },
   inputCard: {
     borderWidth: 1,
