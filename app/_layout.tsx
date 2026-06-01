@@ -1,10 +1,11 @@
 import React from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { CalendarProvider } from '../contexts/CalendarContext';
 
 export default function RootLayout() {
   return (
-    <>
+    <CalendarProvider>
       <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -19,6 +20,6 @@ export default function RootLayout() {
           }}
         />
       </Stack>
-    </>
+    </CalendarProvider>
   );
 }

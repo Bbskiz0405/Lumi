@@ -4,7 +4,6 @@ import { withLayoutContext, useRouter, usePathname } from 'expo-router';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
-import { CalendarProvider } from '../../contexts/CalendarContext';
 import * as Font from 'expo-font';
 
 const { Navigator } = createMaterialTopTabNavigator();
@@ -66,25 +65,23 @@ export default function TabsLayout() {
   }, []);
 
   return (
-    <CalendarProvider>
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#0F0F0F' }} edges={['top']}>
-        <MaterialTopTabs
-          tabBarPosition="bottom"
-          tabBar={(props) => <CustomTabBar {...props} insets={insets} />}
-          screenOptions={{
-            swipeEnabled: true,
-            animationEnabled: true,
-            lazy: true,
-            sceneStyle: { backgroundColor: '#0F0F0F' },
-          }}
-        >
-          <MaterialTopTabs.Screen name="index" />
-          <MaterialTopTabs.Screen name="(calendar-finance)" />
-          <MaterialTopTabs.Screen name="tasks" />
-          <MaterialTopTabs.Screen name="notes" />
-        </MaterialTopTabs>
-      </SafeAreaView>
-    </CalendarProvider>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#0F0F0F' }} edges={['top']}>
+      <MaterialTopTabs
+        tabBarPosition="bottom"
+        tabBar={(props) => <CustomTabBar {...props} insets={insets} />}
+        screenOptions={{
+          swipeEnabled: true,
+          animationEnabled: true,
+          lazy: true,
+          sceneStyle: { backgroundColor: '#0F0F0F' },
+        }}
+      >
+        <MaterialTopTabs.Screen name="index" />
+        <MaterialTopTabs.Screen name="(calendar-finance)" />
+        <MaterialTopTabs.Screen name="tasks" />
+        <MaterialTopTabs.Screen name="notes" />
+      </MaterialTopTabs>
+    </SafeAreaView>
   );
 }
 

@@ -6,7 +6,12 @@
 
 ## 當前狀態 (2026-06-01)
 
-**版號：0.4.52**
+**版號：0.4.53**
+
+### 0.4.53 — Task detail 閃退 hotfix (2026-06-01)
+- 問題：0.4.52 後點任務詳情頁立刻閃退。
+- 根因：`task/[id].tsx` 在 `(tabs)` 路由群組「外」，但 `CalendarProvider` 只包在 `(tabs)/_layout.tsx`。0.4.52 改 `task/[id].tsx` 用 `useCalendar()` 來叫 `bumpRefresh()` → 找不到 provider → throw。
+- 修：把 `CalendarProvider` 升到 root `app/_layout.tsx`，移除 `(tabs)/_layout.tsx` 內的重複 wrapper（避免兩層獨立 state）。
 
 ### 0.4.52 — 行事曆 dot 即時刷新 (2026-06-01)
 - 問題：新增 / 刪除任務或記帳時，行事曆上的綠點 / 藍點要切換月份再切回來才會更新。
