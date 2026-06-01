@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
-  ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Alert,
+  ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -10,7 +10,6 @@ import {
   ChatMessage,
   getApiConfig,
   setApiConfig,
-  removeApiConfig,
   ApiProvider,
 } from '../../services/geminiService';
 
@@ -49,26 +48,6 @@ export default function FinanceAdvisor({ month, onClose }: Props) {
     await setApiConfig({ provider: selectedProvider, apiKey: key });
     setNeedsKey(false);
     setKeyInput('');
-  }
-
-  function handleKeySettings() {
-    Alert.alert(
-      'API 設定',
-      '管理 AI 連線設定',
-      [
-        { text: '取消', style: 'cancel' },
-        {
-          text: '移除設定',
-          style: 'destructive',
-          onPress: async () => {
-            await removeApiConfig();
-            setNeedsKey(true);
-            setSelectedProvider('gemini');
-            setMessages([]);
-          },
-        },
-      ]
-    );
   }
 
   async function handleSend() {
@@ -187,14 +166,9 @@ export default function FinanceAdvisor({ month, onClose }: Props) {
     >
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Lumi AI 顧問</Text>
-        <View style={{ flexDirection: 'row', gap: 16 }}>
-          <TouchableOpacity onPress={handleKeySettings} style={styles.closeBtn}>
-            <Text style={{ color: '#666', fontSize: 18, fontWeight: '300' }}>⚙</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-            <Text style={{ color: '#666', fontSize: 20, fontWeight: '200' }}>x</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+          <Text style={{ color: '#666', fontSize: 20, fontWeight: '200' }}>x</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView

@@ -6,7 +6,13 @@
 
 ## 當前狀態 (2026-06-01)
 
-**版號：0.4.54**
+**版號：0.4.55**
+
+### 0.4.55 — API 設定搬進 Sidebar (2026-06-01)
+- 新元件：`components/ApiSettings.tsx`。供應商選擇（Gemini / OpenRouter / OpenAI）+ API key 輸入 + 更換 / 移除按鈕 + 取得 key 連結提示。Gemini 列為推薦。
+- `SidebarDrawer` 「設定」section 改成內嵌 `<ApiSettings />`，從佔位變成可實際操作 UI。
+- `FinanceAdvisor.tsx`：移除 header 的 `⚙` 齒輪按鈕（設定已搬到 sidebar），刪掉相關 `handleKeySettings` / 未用 imports（`Alert`、`removeApiConfig`）。
+- 首次設定 UI 仍保留在 FinanceAdvisor 內（needsKey 分支），方便新使用者從顧問頁直接入門。設好後管理走 sidebar。
 
 ### 0.4.54 — 首頁右上側邊選單 (2026-06-01)
 - 新元件：`components/SidebarDrawer.tsx`。Modal + Animated 從右側滑入（DRAWER_WIDTH = min(320, 螢幕寬 82%)）。

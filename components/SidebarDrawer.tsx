@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import ApiSettings from './ApiSettings';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DRAWER_WIDTH = Math.min(320, Math.round(SCREEN_WIDTH * 0.82));
@@ -168,19 +169,9 @@ export default function SidebarDrawer({ visible, onClose }: Props) {
           )}
 
           {section === 'settings' && (
-            <ScrollView contentContainerStyle={styles.contentPad}>
-              <Text style={styles.subTitle}>AI 供應商</Text>
-              <Text style={styles.helpText}>
-                目前 AI 設定入口在「財務」→「✧」按鈕（財務顧問頁同時管理 API key）。後續會搬到這裡集中管理。
-              </Text>
-
-              <View style={styles.subDivider} />
-
-              <Text style={styles.subTitle}>資料</Text>
-              <Text style={styles.helpText}>
-                匯出 / 匯入功能規劃中（換手機備援用）。詳見 GitHub Roadmap。
-              </Text>
-            </ScrollView>
+            <View style={{ flex: 1 }}>
+              <ApiSettings />
+            </View>
           )}
 
           {section === 'changelog' && (
