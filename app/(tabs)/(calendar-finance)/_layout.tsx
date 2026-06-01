@@ -6,7 +6,6 @@ import { useCalendar } from '../../../contexts/CalendarContext';
 import CalendarGrid from '../../../components/shared/CalendarGrid';
 import { getDatesWithTasks, getTaskDatesByPriority } from '../../../services/taskService';
 import { getTransactionsForMonth } from '../../../services/financeService';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 const { Navigator } = createMaterialTopTabNavigator();
 const MaterialTopTabs = withLayoutContext<any, any, any, any>(Navigator);
@@ -15,7 +14,7 @@ function PersistentCalendar() {
   const [taskDates, setTaskDates] = useState<Set<string>>(new Set());
   const [financeDates, setFinanceDates] = useState<Set<string>>(new Set());
   const [taskPriorityMap, setTaskPriorityMap] = useState<Map<string, 'high' | 'medium' | 'low'>>(new Map());
-  const { year, month } = useCalendar();
+  const { year, month, refreshKey } = useCalendar();
 
   const loadDates = useCallback(async () => {
     const taskList = await getDatesWithTasks();
@@ -25,7 +24,7 @@ function PersistentCalendar() {
     const m = `${year}-${String(month + 1).padStart(2, '0')}`;
     const txs = await getTransactionsForMonth(m);
     setFinanceDates(new Set(txs.map(t => t.created_at.split('T')[0])));
-  }, [year, month]);
+  }, [year, month, refreshKey]);
 
   useEffect(() => {
     loadDates();

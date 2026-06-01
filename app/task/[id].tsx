@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import TaskForm from '../../components/tasks/TaskForm';
 import PriorityBadge from '../../components/tasks/PriorityBadge';
 import { getTaskById, updateTask, deleteTask, toggleTaskComplete } from '../../services/taskService';
+import { useCalendar } from '../../contexts/CalendarContext';
 import { Task, CreateTaskInput } from '../../types/task';
 
 const TAG_LABELS: Record<string, string> = {
@@ -20,6 +21,7 @@ const TAG_LABELS: Record<string, string> = {
 export default function TaskDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { bumpRefresh } = useCalendar();
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -44,6 +46,7 @@ export default function TaskDetailScreen() {
     const updated = await getTaskById(task.id);
     setTask(updated);
     setEditing(false);
+    bumpRefresh();
   }
 
   async function handleDelete() {
@@ -54,6 +57,7 @@ export default function TaskDetailScreen() {
         style: 'destructive',
         onPress: async () => {
           await deleteTask(task!.id);
+          bumpRefresh();
           router.back();
         },
       },
@@ -66,6 +70,7 @@ export default function TaskDetailScreen() {
     await toggleTaskComplete(task.id, next);
     const updated = await getTaskById(task.id);
     setTask(updated);
+    bumpRefresh();
   }
 
   if (loading) {

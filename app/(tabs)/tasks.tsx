@@ -8,10 +8,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import TaskCard from '../../components/tasks/TaskCard';
 import TaskForm from '../../components/tasks/TaskForm';
 import { getAllTasks, createTask, toggleTaskComplete } from '../../services/taskService';
+import { useCalendar } from '../../contexts/CalendarContext';
 import { Task, CreateTaskInput } from '../../types/task';
 
 export default function TasksScreen() {
   const router = useRouter();
+  const { bumpRefresh } = useCalendar();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [completedTasks, setCompletedTasks] = useState<Task[]>([]);
   const [showCompleted, setShowCompleted] = useState(false);
@@ -50,6 +52,7 @@ export default function TasksScreen() {
       setCompletedTasks(prev => prev.filter(t => t.id !== id));
       if (task) setTasks(prev => [{ ...task, completed: 0 }, ...prev]);
     }
+    bumpRefresh();
   }
 
   async function handleCreate(input: CreateTaskInput) {
@@ -58,6 +61,7 @@ export default function TasksScreen() {
     const data = await getAllTasks();
     setTasks(data.filter(t => t.completed === 0));
     setCompletedTasks(data.filter(t => t.completed === 1));
+    bumpRefresh();
   }
 
   return (

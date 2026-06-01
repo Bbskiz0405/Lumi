@@ -24,6 +24,7 @@ import {
 import { classifyTextWithAI } from '../../services/geminiService';
 import { ClassifiedType } from '../../types/entry';
 import { getRecentActivity, RecentItem } from '../../services/recentService';
+import { useCalendar } from '../../contexts/CalendarContext';
 import TasksModule from '../../components/modules/TasksModule';
 import CalendarModule from '../../components/modules/CalendarModule';
 import FinanceModule from '../../components/modules/FinanceModule';
@@ -65,6 +66,7 @@ function timeAgo(isoStr: string): string {
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { bumpRefresh } = useCalendar();
   const [text, setText] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
   const [classification, setClassification] = useState<ClassificationResult | null>(null);
@@ -197,6 +199,7 @@ export default function HomeScreen() {
       setPendingEntryId(null);
       setSubmitting(false);
       setRefreshKey(k => k + 1);
+      bumpRefresh();
     }
   }
 

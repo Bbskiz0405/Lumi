@@ -16,7 +16,7 @@ import { Task, CreateTaskInput } from '../../../types/task';
 
 export default function CalendarScreen() {
   const router = useRouter();
-  const { selectedDate } = useCalendar();
+  const { selectedDate, bumpRefresh } = useCalendar();
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(false);
@@ -43,12 +43,14 @@ export default function CalendarScreen() {
   async function handleToggle(id: string, completed: boolean) {
     await toggleTaskComplete(id, completed);
     setTasks(prev => prev.map(t => (t.id === id ? { ...t, completed: completed ? 1 : 0 } : t)));
+    bumpRefresh();
   }
 
   async function handleCreate(input: CreateTaskInput) {
     await createTask({ ...input, due_date: input.due_date ?? selectedDate });
     setModalVisible(false);
     loadDayTasks(selectedDate);
+    bumpRefresh();
   }
 
   const dateMonth = parseInt(selectedDate.split('-')[1]);

@@ -4,9 +4,20 @@
 
 ---
 
-## 當前狀態 (2026-05-31)
+## 當前狀態 (2026-06-01)
 
-**版號：0.4.51**
+**版號：0.4.52**
+
+### 0.4.52 — 行事曆 dot 即時刷新 (2026-06-01)
+- 問題：新增 / 刪除任務或記帳時，行事曆上的綠點 / 藍點要切換月份再切回來才會更新。
+- 根因：`PersistentCalendar` 的 `loadDates` deps 只有 `[year, month]`，沒在 CRUD 後重新跑。
+- 修：`CalendarContext` 加 `refreshKey` + `bumpRefresh()`；`PersistentCalendar` deps 加 `refreshKey`；所有 CRUD 入口在動 DB 後呼叫 `bumpRefresh()`：
+  - `app/(tabs)/(calendar-finance)/finance.tsx`：create / edit / delete transaction。
+  - `app/(tabs)/(calendar-finance)/calendar.tsx`：create / toggle task。
+  - `app/task/[id].tsx`：update / delete / toggle complete。
+  - `app/(tabs)/tasks.tsx`：create task / toggle complete。
+  - `app/(tabs)/index.tsx`：智慧分流 doSave 結束時。
+- 順手：`_layout.tsx` 移除沒在用的 `MaterialCommunityIcons` import。
 
 ### 0.4.51 — 記帳 timezone 修正 + 刪除確認 + 圖示修 (2026-05-31)
 1. **記帳日期 timezone bug**：原本 `new Date().toISOString()` 走 UTC，台灣 UTC+8 在午夜前後、或從行事曆指定其他天時會把記帳算到 UTC 日期而非使用者看到的 local 日期 → 綠點跑掉 / 算到「下一天」。

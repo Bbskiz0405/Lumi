@@ -39,7 +39,7 @@ function toMonthStr(year: number, month: number): string {
 }
 
 export default function FinanceScreen() {
-  const { year, month, selectedDate } = useCalendar();
+  const { year, month, selectedDate, bumpRefresh } = useCalendar();
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [summary, setSummary] = useState({ income: 0, expense: 0 });
@@ -81,6 +81,7 @@ export default function FinanceScreen() {
     });
     setEditTx(null);
     loadAll(viewMode);
+    bumpRefresh();
   }
 
   // Add modal
@@ -186,6 +187,7 @@ export default function FinanceScreen() {
     setFormSubmitting(false);
     setModalVisible(false);
     loadAll(viewMode);
+    bumpRefresh();
   }
 
   async function handleDelete(id: string) {
@@ -197,6 +199,7 @@ export default function FinanceScreen() {
         onPress: async () => {
           await deleteTransaction(id);
           loadAll(viewMode);
+          bumpRefresh();
         },
       },
     ]);
