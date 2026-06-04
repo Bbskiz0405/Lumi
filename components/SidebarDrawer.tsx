@@ -25,6 +25,24 @@ interface ReleaseEntry {
 
 const RELEASES: ReleaseEntry[] = [
   {
+    version: '0.4.56',
+    date: '2026-06-04',
+    notes: [
+      '新功能「問 Lumi」：首頁右上放大鏡 ⌕，用自然語言問你的任務／記帳／筆記紀錄',
+      '新增統一事件流基建（eventStreamService）',
+    ],
+  },
+  {
+    version: '0.4.55',
+    date: '2026-06-01',
+    notes: ['API 設定搬進側邊選單（供應商選擇 + key 管理）'],
+  },
+  {
+    version: '0.4.54',
+    date: '2026-06-01',
+    notes: ['首頁右上側邊選單（設定 / 更新日誌 / 關於）'],
+  },
+  {
     version: '0.4.53',
     date: '2026-06-01',
     notes: ['修任務詳情頁閃退（CalendarProvider 升到 root layout）'],
@@ -76,7 +94,7 @@ const RELEASES: ReleaseEntry[] = [
   },
 ];
 
-const VERSION = '0.4.54';
+const VERSION = '0.4.56';
 const GITHUB_URL = 'https://github.com/Bbskiz0405/Lumi';
 
 interface Props {

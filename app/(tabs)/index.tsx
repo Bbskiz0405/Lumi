@@ -233,16 +233,25 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.safe} edges={[]}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
-        {/* 日期 + 側邊選單 */}
+        {/* 日期 + 問 Lumi + 側邊選單 */}
         <View style={styles.topRow}>
           <Text style={styles.dateText}>{formatDate()}</Text>
-          <TouchableOpacity
-            onPress={() => setDrawerOpen(true)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            style={styles.menuBtn}
-          >
-            <Text style={styles.menuBtnIcon}>≡</Text>
-          </TouchableOpacity>
+          <View style={styles.topActions}>
+            <TouchableOpacity
+              onPress={() => router.push('/ask')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={styles.menuBtn}
+            >
+              <Text style={styles.menuBtnIcon}>⌕</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setDrawerOpen(true)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={styles.menuBtn}
+            >
+              <Text style={styles.menuBtnIcon}>≡</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* 輸入框 */}
@@ -410,6 +419,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     letterSpacing: 2,
     fontWeight: '300',
+  },
+  topActions: {
+    flexDirection: 'row',
+    gap: 10,
   },
   menuBtn: {
     width: 32,

@@ -5,6 +5,7 @@ import {
   getBudgetsForMonth,
   getExpenseByCategory,
 } from './financeService';
+import { getEventStream, UnifiedEvent } from './eventStreamService';
 
 export type ApiProvider = 'gemini' | 'openrouter' | 'openai';
 
@@ -231,6 +232,45 @@ export async function chatWithFinanceAdvisor(
   const config = await ensureConfig();
   const financeContext = await buildFinanceContext(month);
   return callAI(config, SYSTEM_PROMPT, history, userMessage, financeContext);
+}
+
+// ───────────────────────── D：問 Lumi 任何事（記憶檢索）─────────────────────────
+
+const ASK_LUMI_SYSTEM = `你是 Lumi 的個人記憶助手。使用者把生活中的任務、消費、筆記、隨手記都交給 Lumi，現在他要回頭問這些紀錄。
+
+你的職責：
+- 只根據下方「記憶資料」回答，逐筆都是使用者的真實紀錄。
+- 回答時引用具體日期與數字（例：「5/12 你花了 350 在交通」）。
+- 若多筆相關，整理重點後簡潔作答；若是金額問題，主動加總。
+- 找不到相關紀錄時，直接說「找不到相關紀錄」，不要編造。
+- 用繁體中文，語氣像懂你的夥伴，簡潔直接。`;
+
+function formatEventForContext(e: UnifiedEvent): string {
+  const d = new Date(e.timestamp);
+  const date = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+  switch (e.type) {
+    case 'task':
+      return `[${date}] 任務：${e.title}${e.completed ? '（已完成）' : '（未完成）'}${e.dueDate ? ` 到期 ${e.dueDate}` : ''}`;
+    case 'finance':
+      return `[${date}] ${e.financeType === 'income' ? '收入' : '支出'}：${e.title} ${e.amount ?? 0}${e.category ? ` (${e.category})` : ''}`;
+    case 'note':
+      return `[${date}] 筆記：${e.raw}`;
+    case 'entry':
+      return `[${date}] 紀錄：${e.raw}`;
+  }
+}
+
+export async function askLumi(question: string, history: ChatMessage[] = []): Promise<string> {
+  const config = await ensureConfig();
+  const events = await getEventStream({ limit: 250 });
+
+  const context =
+    events.length === 0
+      ? '=== 記憶資料 ===\n（目前沒有任何紀錄）'
+      : `=== 記憶資料（共 ${events.length} 筆，由新到舊）===\n` +
+        events.map(formatEventForContext).join('\n');
+
+  return callAI(config, ASK_LUMI_SYSTEM, history, question, context, 0.3, 1024);
 }
 
 export async function getQuickAnalysis(month: string): Promise<string> {

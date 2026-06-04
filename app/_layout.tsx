@@ -19,6 +19,16 @@ export default function RootLayout() {
             presentation: 'card',
           }}
         />
+        <Stack.Screen
+          name="ask"
+          options={{
+            headerShown: true,
+            headerTitle: '問 Lumi',
+            headerStyle: { backgroundColor: '#0F0F0F' },
+            headerTintColor: '#FFFFFF',
+            presentation: 'card',
+          }}
+        />
       </Stack>
     </CalendarProvider>
   );

@@ -4,9 +4,19 @@
 
 ---
 
-## 當前狀態 (2026-06-01)
+## 當前狀態 (2026-06-04)
 
-**版號：0.4.55**
+**版號：0.4.56**
+
+### 0.4.56 — 問 Lumi（ABD 差異化路線 D：記憶檢索）(2026-06-04)
+ABD 三條差異化路線（見 `project_status.md` / auto-memory `project_differentiation_vision`）正式起步，先做 D。
+- **共用基建** `services/eventStreamService.ts`：`getEventStream({start,end,types,query,limit})` → `UnifiedEvent[]`，攤平 tasks/transactions/notes/entries 成統一事件流。timestamp = created_at，task 另存 dueDate。A / B / D 三路線都吃這個，避免重複 SQL。
+- **D 問 Lumi** `services/geminiService.ts` 新增 `askLumi(question, history)`：拉 eventStream（limit 250）→ 格式化成「記憶 context」→ 餵 AI 只根據紀錄回答（複用既有多 provider `callAI`，temp 0.3）。
+- **UI** `app/ask.tsx`：聊天頁（建議問句 chips + 對話氣泡 + KeyboardAvoidingView）。`app/_layout.tsx` 註冊 `ask` Stack screen。首頁 (`app/(tabs)/index.tsx`) topRow 加放大鏡 `⌕` → `/ask`。
+- **更新日誌補齊**：`SidebarDrawer` RELEASES 之前卡在 0.4.53、VERSION 卡 0.4.54，本次補上 0.4.54 / 0.4.55 / 0.4.56，VERSION → 0.4.56。
+- 已本地 Gradle build（39s, APK 90 MB）+ `adb install -r` 推上實機（device 42231JEKB12273）。
+- **v1 檢索限制**：目前抓最新 250 筆讓 AI 過濾。資料量大時「兩個月前的冷氣」可能落在窗外 → 之後改 query 關鍵字 + 日期窗。
+- **下一步**：D 實機測 → A 個人時間軸敘事（吃同一 eventStream）→ B 行為迴路偵測。
 
 ### 0.4.55 — API 設定搬進 Sidebar (2026-06-01)
 - 新元件：`components/ApiSettings.tsx`。供應商選擇（Gemini / OpenRouter / OpenAI）+ API key 輸入 + 更換 / 移除按鈕 + 取得 key 連結提示。Gemini 列為推薦。
