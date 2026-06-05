@@ -25,6 +25,11 @@ interface ReleaseEntry {
 
 const RELEASES: ReleaseEntry[] = [
   {
+    version: '0.4.57',
+    date: '2026-06-05',
+    notes: ['修「問 Lumi」鍵盤蓋住輸入框（Android）'],
+  },
+  {
     version: '0.4.56',
     date: '2026-06-04',
     notes: [
@@ -94,7 +99,7 @@ const RELEASES: ReleaseEntry[] = [
   },
 ];
 
-const VERSION = '0.4.56';
+const VERSION = '0.4.57';
 const GITHUB_URL = 'https://github.com/Bbskiz0405/Lumi';
 
 interface Props {

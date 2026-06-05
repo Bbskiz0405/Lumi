@@ -3,7 +3,7 @@
     "name": "Lumi",
     "slug": "lumi",
     "scheme": "lumi",
-    "version": "0.4.56",
+    "version": "0.4.57",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "ios": {

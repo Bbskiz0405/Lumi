@@ -4,9 +4,15 @@
 
 ---
 
-## 當前狀態 (2026-06-04)
+## 當前狀態 (2026-06-05)
 
-**版號：0.4.56**
+**版號：0.4.57**
+
+### 0.4.57 — 問 Lumi 鍵盤修正 (2026-06-05)
+- 問題：「問 Lumi」(`app/ask.tsx`) 點輸入框後，Android 鍵盤蓋住輸入框，看不到打的字。
+- 根因：`KeyboardAvoidingView` 的 `behavior` 只設了 iOS（`'padding'`），Android 給 `undefined` → 失效。
+- 修：對齊 `FinanceAdvisor` 可動的寫法 `behavior={ios?'padding':'height'}`、`keyboardVerticalOffset={0}`。
+- 備註：本次只 commit/push，**還沒重 build 推使用者本人手機**（之前那台 42231 是產學測試機，剛好插著被我裝了 Lumi，產學 app `com.chuanen.penpredswitcher` 未受影響）。
 
 ### 0.4.56 — 問 Lumi（ABD 差異化路線 D：記憶檢索）(2026-06-04)
 ABD 三條差異化路線（見 `project_status.md` / auto-memory `project_differentiation_vision`）正式起步，先做 D。
