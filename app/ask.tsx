@@ -99,6 +99,27 @@ export default function AskScreen() {
           )}
         </ScrollView>
 
+        {!empty && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.strip}
+            contentContainerStyle={styles.stripContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            {SUGGESTIONS.map((s) => (
+              <TouchableOpacity
+                key={s}
+                style={styles.stripChip}
+                onPress={() => send(s)}
+                disabled={loading}
+              >
+                <Text style={styles.stripChipText}>{s}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+
         <View style={styles.inputBar}>
           <TextInput
             style={styles.input}
@@ -147,6 +168,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#161616',
   },
   chipText: { color: '#AAAAAA', fontSize: 14, fontWeight: '300' },
+  strip: { maxHeight: 44, borderTopWidth: 1, borderTopColor: '#1A1A1A' },
+  stripContent: { paddingHorizontal: 12, paddingVertical: 8, gap: 8, alignItems: 'center' },
+  stripChip: {
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+    borderRadius: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: '#161616',
+  },
+  stripChipText: { color: '#999999', fontSize: 13, fontWeight: '300' },
   bubbleRow: { marginBottom: 12, flexDirection: 'row' },
   rowRight: { justifyContent: 'flex-end' },
   rowLeft: { justifyContent: 'flex-start' },

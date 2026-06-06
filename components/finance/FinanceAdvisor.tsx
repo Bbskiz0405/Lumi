@@ -24,6 +24,13 @@ const PROVIDERS: { value: ApiProvider; label: string; hint: string }[] = [
   { value: 'openai', label: 'OpenAI', hint: 'GPT 系列' },
 ];
 
+const SUGGESTIONS = [
+  '這個月花最多的是什麼？',
+  '有什麼可以省的？',
+  '消費有異常嗎？',
+  '給我一個省錢建議',
+];
+
 export default function FinanceAdvisor({ month, onClose }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -50,17 +57,18 @@ export default function FinanceAdvisor({ month, onClose }: Props) {
     setKeyInput('');
   }
 
-  async function handleSend() {
-    const trimmed = input.trim();
+  async function send(text: string) {
+    const trimmed = text.trim();
     if (!trimmed || loading) return;
 
+    const history = messages;
     const userMsg: ChatMessage = { role: 'user', text: trimmed };
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setLoading(true);
 
     try {
-      const reply = await chatWithFinanceAdvisor(trimmed, messages, month);
+      const reply = await chatWithFinanceAdvisor(trimmed, history, month);
       setMessages(prev => [...prev, { role: 'model', text: reply }]);
     } catch (e: any) {
       setMessages(prev => [...prev, { role: 'model', text: `錯誤：${e.message}` }]);
@@ -68,6 +76,10 @@ export default function FinanceAdvisor({ month, onClose }: Props) {
       setLoading(false);
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
     }
+  }
+
+  function handleSend() {
+    send(input);
   }
 
   async function handleQuickAnalysis() {
@@ -213,6 +225,27 @@ export default function FinanceAdvisor({ month, onClose }: Props) {
         )}
       </ScrollView>
 
+      {messages.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.strip}
+          contentContainerStyle={styles.stripContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          {SUGGESTIONS.map(s => (
+            <TouchableOpacity
+              key={s}
+              style={styles.stripChip}
+              onPress={() => send(s)}
+              disabled={loading}
+            >
+              <Text style={styles.stripChipText}>{s}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
+
       <View style={styles.inputRow}>
         <TextInput
           style={styles.chatInput}
@@ -279,6 +312,13 @@ const styles = StyleSheet.create({
   loadingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12 },
   loadingText: { color: '#666', fontSize: 13 },
 
+  strip: { maxHeight: 44, borderTopWidth: 1, borderTopColor: '#1A1A1A' },
+  stripContent: { paddingHorizontal: 12, paddingVertical: 8, gap: 8, alignItems: 'center' },
+  stripChip: {
+    borderWidth: 1, borderColor: '#55DDAA40', borderRadius: 16,
+    paddingVertical: 6, paddingHorizontal: 12, backgroundColor: '#161616',
+  },
+  stripChipText: { color: '#55DDAA', fontSize: 13, fontWeight: '300' },
   inputRow: {
     flexDirection: 'row', alignItems: 'flex-end',
     paddingHorizontal: 16, paddingVertical: 12,

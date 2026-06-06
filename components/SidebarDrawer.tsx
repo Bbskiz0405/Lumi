@@ -25,6 +25,11 @@ interface ReleaseEntry {
 
 const RELEASES: ReleaseEntry[] = [
   {
+    version: '0.4.58',
+    date: '2026-06-06',
+    notes: ['問 Lumi / AI 財務分析：對話開始後輸入欄上方保留建議問句，隨時可點選'],
+  },
+  {
     version: '0.4.57',
     date: '2026-06-05',
     notes: ['修「問 Lumi」鍵盤蓋住輸入框（Android）'],
@@ -99,7 +104,7 @@ const RELEASES: ReleaseEntry[] = [
   },
 ];
 
-const VERSION = '0.4.57';
+const VERSION = '0.4.58';
 const GITHUB_URL = 'https://github.com/Bbskiz0405/Lumi';
 
 interface Props {
