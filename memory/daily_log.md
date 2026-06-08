@@ -4,9 +4,15 @@
 
 ---
 
-## 當前狀態 (2026-06-06)
+## 當前狀態 (2026-06-08)
 
-**版號：0.4.58**
+**版號：0.4.59**
+
+### 0.4.59 — 問 Lumi 鍵盤再修 (header 偏移) (2026-06-08)
+- 問題：0.4.57 的 `behavior:'height'` 在 ask.tsx 仍擋住輸入框。
+- 根因：ask.tsx 有 **native Stack header**（FinanceAdvisor 是自繪 header 所以沒事），`'height'` 計算未含 header 高度 → KAV 偏移錯。Expo 55 edge-to-edge 強制開啟，加劇。
+- 修：`@react-navigation/elements` 的 `useHeaderHeight()` 取精確 header 高度當 `keyboardVerticalOffset`，`behavior` 改 `'padding'`（含 header 場景最穩）。移除沒用到的 `Platform` import。
+- APK build 到桌面，走 Discord 傳手機測。
 
 ### 0.4.58 — AI 對話頁建議問句常駐 (2026-06-06)
 - 需求：問 Lumi / AI 財務分析，一開始有建議選項，開始對話後就消失 → 不知道能問什麼。

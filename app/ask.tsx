@@ -8,9 +8,9 @@ import {
   ScrollView,
   ActivityIndicator,
   KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useHeaderHeight } from '@react-navigation/elements';
 import { askLumi, ChatMessage } from '../services/geminiService';
 
 const SUGGESTIONS = [
@@ -25,6 +25,7 @@ export default function AskScreen() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
+  const headerHeight = useHeaderHeight();
 
   async function send(question: string) {
     const q = question.trim();
@@ -54,8 +55,8 @@ export default function AskScreen() {
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={0}
+        behavior="padding"
+        keyboardVerticalOffset={headerHeight}
       >
         <ScrollView
           ref={scrollRef}
