@@ -4,9 +4,18 @@
 
 ---
 
-## 當前狀態 (2026-06-08)
+## 當前狀態 (2026-06-10)
 
-**版號：0.4.59**
+**版號：0.4.60**
+
+### 0.4.60 — 時間軸 (ABD 路線 A v1：Personal Lifeline UI) (2026-06-10)
+- ABD 路線 D（問 Lumi）鍵盤 + 建議條已實機驗過，收工。開始 A。
+- 決策：入口走「首頁右上加鈕」（不擠 tab）；v1 只做時間軸 UI，月底 LLM 敘事總結下一輪再加。
+- `app/timeline.tsx`：吃 `getEventStream({types:['task','finance','note'], limit:300})`，按日分組（今天/昨天/M月D日）垂直 lifeline：左側 rail（dot + line）+ 卡片（type tag + 時間 + 標題；finance 顯示金額 +/- 與類別；完成任務刪除線）。
+- **刻意排除 entry 類**：entries 是原始輸入，每筆衍生 task/note/transaction，全顯示會重複。
+- `app/_layout.tsx`：註冊 `timeline` Stack screen。
+- `app/(tabs)/index.tsx`：topRow 加 `≣` 鈕 → `/timeline`（排在 `⌕` 左邊）。
+- 下一步（A 的下半）：月底 LLM narrative summary（"這個月你過得怎樣"），跨類關聯。之後做 B 行為迴路偵測。
 
 ### 0.4.59 — 問 Lumi 鍵盤再修 (header 偏移) (2026-06-08)
 - 問題：0.4.57 的 `behavior:'height'` 在 ask.tsx 仍擋住輸入框。

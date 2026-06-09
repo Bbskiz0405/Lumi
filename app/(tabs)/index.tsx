@@ -238,6 +238,13 @@ export default function HomeScreen() {
           <Text style={styles.dateText}>{formatDate()}</Text>
           <View style={styles.topActions}>
             <TouchableOpacity
+              onPress={() => router.push('/timeline')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={styles.menuBtn}
+            >
+              <Text style={styles.menuBtnIcon}>≣</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
               onPress={() => router.push('/ask')}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               style={styles.menuBtn}

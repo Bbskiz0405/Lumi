@@ -29,6 +29,16 @@ export default function RootLayout() {
             presentation: 'card',
           }}
         />
+        <Stack.Screen
+          name="timeline"
+          options={{
+            headerShown: true,
+            headerTitle: '時間軸',
+            headerStyle: { backgroundColor: '#0F0F0F' },
+            headerTintColor: '#FFFFFF',
+            presentation: 'card',
+          }}
+        />
       </Stack>
     </CalendarProvider>
   );

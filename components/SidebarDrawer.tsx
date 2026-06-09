@@ -25,6 +25,11 @@ interface ReleaseEntry {
 
 const RELEASES: ReleaseEntry[] = [
   {
+    version: '0.4.60',
+    date: '2026-06-10',
+    notes: ['新功能「時間軸」：首頁右上 ≣，把任務／消費／筆記按時序串成一條 lifeline'],
+  },
+  {
     version: '0.4.59',
     date: '2026-06-08',
     notes: ['再修「問 Lumi」鍵盤蓋輸入框（用 header 高度精算偏移）'],
@@ -109,7 +114,7 @@ const RELEASES: ReleaseEntry[] = [
   },
 ];
 
-const VERSION = '0.4.59';
+const VERSION = '0.4.60';
 const GITHUB_URL = 'https://github.com/Bbskiz0405/Lumi';
 
 interface Props {

@@ -1,0 +1,184 @@
+import React, { useState, useCallback } from 'react';
+import { View, StyleSheet, Text, ScrollView, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from 'expo-router';
+import { getEventStream, UnifiedEvent } from '../services/eventStreamService';
+
+const TYPE_META: Record<string, { icon: string; color: string; label: string }> = {
+  task: { icon: '[v]', color: '#FF9944', label: '任務' },
+  note: { icon: '!', color: '#88AAFF', label: '筆記' },
+  income: { icon: '$', color: '#55DDAA', label: '收入' },
+  expense: { icon: '$', color: '#FF6655', label: '支出' },
+};
+
+function metaFor(e: UnifiedEvent) {
+  if (e.type === 'finance') return TYPE_META[e.financeType === 'income' ? 'income' : 'expense'];
+  return TYPE_META[e.type] ?? TYPE_META.note;
+}
+
+function dayKey(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+}
+
+function dayLabel(iso: string): string {
+  const d = new Date(iso);
+  const today = new Date();
+  const yest = new Date();
+  yest.setDate(today.getDate() - 1);
+  const same = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  if (same(d, today)) return '今天';
+  if (same(d, yest)) return '昨天';
+  const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+  return `${d.getMonth() + 1}月${d.getDate()}日 · 星期${weekdays[d.getDay()]}`;
+}
+
+function timeLabel(iso: string): string {
+  const d = new Date(iso);
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
+}
+
+interface DayGroup {
+  key: string;
+  label: string;
+  events: UnifiedEvent[];
+}
+
+function groupByDay(events: UnifiedEvent[]): DayGroup[] {
+  const groups: DayGroup[] = [];
+  let current: DayGroup | null = null;
+  for (const e of events) {
+    const key = dayKey(e.timestamp);
+    if (!current || current.key !== key) {
+      current = { key, label: dayLabel(e.timestamp), events: [] };
+      groups.push(current);
+    }
+    current.events.push(e);
+  }
+  return groups;
+}
+
+export default function TimelineScreen() {
+  const [groups, setGroups] = useState<DayGroup[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      setLoading(true);
+      getEventStream({ types: ['task', 'finance', 'note'], limit: 300 }).then((events) => {
+        if (!active) return;
+        setGroups(groupByDay(events));
+        setLoading(false);
+      });
+      return () => {
+        active = false;
+      };
+    }, [])
+  );
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <View style={styles.center}>
+          <ActivityIndicator color="#88AAFF" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (groups.length === 0) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <View style={styles.center}>
+          <Text style={styles.emptyTitle}>還沒有任何紀錄</Text>
+          <Text style={styles.emptySub}>記下任務、消費、筆記後，這裡會串成你的時間軸。</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.safe} edges={['bottom']}>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        {groups.map((g) => (
+          <View key={g.key} style={styles.dayBlock}>
+            <Text style={styles.dayLabel}>{g.label}</Text>
+            {g.events.map((e) => {
+              const m = metaFor(e);
+              return (
+                <View key={e.id} style={styles.row}>
+                  <View style={styles.rail}>
+                    <View style={[styles.dot, { backgroundColor: m.color }]} />
+                    <View style={styles.line} />
+                  </View>
+                  <View style={styles.card}>
+                    <View style={styles.cardHead}>
+                      <Text style={[styles.typeTag, { color: m.color }]}>{m.icon} {m.label}</Text>
+                      <Text style={styles.time}>{timeLabel(e.timestamp)}</Text>
+                    </View>
+                    <Text
+                      style={[
+                        styles.title,
+                        e.type === 'task' && e.completed && styles.titleDone,
+                      ]}
+                      numberOfLines={2}
+                    >
+                      {e.title}
+                    </Text>
+                    {e.type === 'finance' && (
+                      <Text style={[styles.amount, { color: m.color }]}>
+                        {e.financeType === 'income' ? '+' : '-'}{e.amount ?? 0}
+                        {e.category ? `  ·  ${e.category}` : ''}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        ))}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: '#0F0F0F' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 },
+  emptyTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: '300', marginBottom: 8 },
+  emptySub: { color: '#555555', fontSize: 13, fontWeight: '300', textAlign: 'center', lineHeight: 20 },
+  scroll: { padding: 16, paddingBottom: 32 },
+  dayBlock: { marginBottom: 8 },
+  dayLabel: {
+    color: '#666666',
+    fontSize: 12,
+    letterSpacing: 1,
+    fontWeight: '300',
+    marginBottom: 8,
+    marginTop: 12,
+  },
+  row: { flexDirection: 'row' },
+  rail: { width: 24, alignItems: 'center' },
+  dot: { width: 9, height: 9, borderRadius: 5, marginTop: 16 },
+  line: { flex: 1, width: 1, backgroundColor: '#1F1F1F', marginTop: 4 },
+  card: {
+    flex: 1,
+    backgroundColor: '#111111',
+    borderWidth: 1,
+    borderColor: '#1A1A1A',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+    marginLeft: 4,
+  },
+  cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  typeTag: { fontSize: 11, fontWeight: '500', letterSpacing: 0.5 },
+  time: { color: '#444444', fontSize: 11 },
+  title: { color: '#DDDDDD', fontSize: 14, fontWeight: '300', lineHeight: 21 },
+  titleDone: { color: '#555555', textDecorationLine: 'line-through' },
+  amount: { fontSize: 13, fontWeight: '400', marginTop: 6 },
+});
