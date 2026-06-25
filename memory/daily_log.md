@@ -4,6 +4,28 @@
 
 ---
 
+## 當前狀態 (2026-06-26)
+
+**版號：0.4.60（工作目錄有未 build 的記帳修正，預計 0.4.61）**
+
+### 記帳「跑到隔天」hotfix (2026-06-26) — 待 build → 0.4.61
+- **問題**：記帳後交易顯示在下一天（使用者回報）。下午/晚上記帳（當地 16:00 後）才會發生。
+- **根因**：0.4.51 的「fake-UTC」修法把本地時間組成 ISO 但**結尾仍留 `Z`**（宣告為 UTC）。`TransactionCard.tsx` 的 `formatDate` 用 `new Date(isoStr)` 解析 → 當成 UTC 再轉回本地（+8）→ 日期 +1 天。
+- **修**：移除那個假的 `Z`，存純本地時間字串（`new Date()` 解析時當本地）：
+  - `services/financeService.ts` `nowISO()`：去掉結尾 `Z`。
+  - `app/(tabs)/(calendar-finance)/finance.tsx` `handleSubmit` 的 `timeStr`：去掉結尾 `Z`。
+- **注意**：舊資料（已存帶 `Z`）顯示仍會偏一天，需一次性 migration 才修得到（尚未做）。
+- **連帶**：CLAUDE.md 寫「時間用 `new Date().toISOString()`」與此衝突（toISOString 帶 Z），財務這塊已改本地時間字串，未來勿再用 toISOString 存財務時間。
+
+### 規劃：桌面 widget + 通知記帳 + Google 整合 (2026-06-26)
+- 完整實作計畫見 **`memory/widget_plan.md`**（自包含，實驗室電腦接手用）。
+- 順序：Phase 1 桌面 widget（`react-native-android-widget`）→ Phase 2 常駐通知行內記帳（自動分類，重用 `classificationService`）→ Phase 3 Google 整合（Calendar/Tasks 雙向同步＝免費跨裝置同步）。
+- 不做：Quick Settings 磚（磚內無法打字）、鎖屏 widget（Android 手機限制）。
+- 產品方向定調：**與 Google 整合**而非取代；記帳→Sheets 暫緩。
+- 尚未寫任何 widget/通知/整合的 code，僅規劃。
+
+---
+
 ## 當前狀態 (2026-06-10)
 
 **版號：0.4.60**

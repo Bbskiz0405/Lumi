@@ -175,7 +175,7 @@ export default function FinanceScreen() {
     const now = new Date();
     const pad = (n: number) => String(n).padStart(2, '0');
     const pad3 = (n: number) => String(n).padStart(3, '0');
-    const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}.${pad3(now.getMilliseconds())}Z`;
+    const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}.${pad3(now.getMilliseconds())}`;
     const useDate = `${selectedDate}T${timeStr}`;
     await createTransaction({
       type: formType,
