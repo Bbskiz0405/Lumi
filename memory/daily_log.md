@@ -4,11 +4,20 @@
 
 ---
 
-## 當前狀態 (2026-06-26)
+## 當前狀態 (2026-07-09)
 
-**版號：0.4.60（工作目錄有未 build 的記帳修正，預計 0.4.61）**
+**版號：0.4.61（已 commit + push，local = GitHub `c6fab49`）**
 
-### 記帳「跑到隔天」hotfix (2026-06-26) — 待 build → 0.4.61
+### 0.4.61 — 本月回顧敘事 + 智慧分流來源標示 (2026-07-09)
+- 先 sync GitHub：remote 有 `a812575`（記帳去 Z hotfix，未 bump 版號）比 local 新，fast-forward pull 進來（無衝突，改檔不重疊）。
+- 本地未 commit 改動一併 commit 成 0.4.61，push 上 GitHub。
+- **時間軸「本月回顧」**：新增 `services/narrativeService.ts`，依當月紀錄生成月度敘事，放時間軸頂部（0.4.60 A 下半的 LLM narrative summary，這輪落地）。
+- **智慧分流來源標示**：`app/(tabs)/index.tsx` 分類結果顯示「AI 判斷 / 本地判斷」badge；feedback 文字帶來源 tag。用 `sourceRef`（同步）+ `classifySource` state。
+- **修「存款」誤記支出**：`services/classificationService.ts` 關鍵字調整。
+- `geminiService.ts` 加敘事相關呼叫；`SidebarDrawer.tsx` release notes + VERSION → 0.4.61。
+- 下一步：接續 B 行為迴路偵測；widget_plan.md 的 widget/通知/Google 整合仍未動工。
+
+### 記帳「跑到隔天」hotfix (2026-06-26) — 已上 GitHub（`a812575`）
 - **問題**：記帳後交易顯示在下一天（使用者回報）。下午/晚上記帳（當地 16:00 後）才會發生。
 - **根因**：0.4.51 的「fake-UTC」修法把本地時間組成 ISO 但**結尾仍留 `Z`**（宣告為 UTC）。`TransactionCard.tsx` 的 `formatDate` 用 `new Date(isoStr)` 解析 → 當成 UTC 再轉回本地（+8）→ 日期 +1 天。
 - **修**：移除那個假的 `Z`，存純本地時間字串（`new Date()` 解析時當本地）：
