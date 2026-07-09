@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -78,6 +78,8 @@ export default function HomeScreen() {
   const [feedbackOpacity] = useState(new Animated.Value(0));
   const [recentItems, setRecentItems] = useState<RecentItem[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [classifySource, setClassifySource] = useState<'ai' | 'local'>('local');
+  const sourceRef = useRef<'ai' | 'local'>('local');
 
   useFocusEffect(
     useCallback(() => {
@@ -120,6 +122,10 @@ export default function HomeScreen() {
       if (!result) {
         result = await classifyWithHabits(trimmed);
       }
+
+      const source: 'ai' | 'local' = ai ? 'ai' : 'local';
+      sourceRef.current = source;
+      setClassifySource(source);
     } finally {
       setClassifying(false);
     }
@@ -216,7 +222,8 @@ export default function HomeScreen() {
   }
 
   function showFeedback(msg: string) {
-    setFeedbackText(msg);
+    const tag = sourceRef.current === 'ai' ? 'AI' : '本地';
+    setFeedbackText(`${msg} · ${tag}判斷`);
     feedbackOpacity.setValue(1);
     Animated.timing(feedbackOpacity, {
       toValue: 0,
@@ -296,7 +303,17 @@ export default function HomeScreen() {
         {showClassification && classification && (
           <View style={styles.classificationCard}>
             <View style={styles.classRow}>
-              <Text style={styles.classLabel}>分類為</Text>
+              <View style={styles.classHeadRow}>
+                <Text style={styles.classLabel}>分類為</Text>
+                <Text
+                  style={[
+                    styles.sourceBadge,
+                    classifySource === 'ai' ? styles.sourceAi : styles.sourceLocal,
+                  ]}
+                >
+                  {classifySource === 'ai' ? 'AI 判斷' : '本地判斷'}
+                </Text>
+              </View>
               <View style={styles.typePills}>
                 {SELECTABLE_TYPES.map(t => {
                   const config = TYPE_CONFIG[t];
@@ -493,11 +510,32 @@ const styles = StyleSheet.create({
   classRow: {
     marginBottom: 10,
   },
+  classHeadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
   classLabel: {
     color: '#444',
     fontSize: 11,
     letterSpacing: 1,
-    marginBottom: 8,
+  },
+  sourceBadge: {
+    fontSize: 10,
+    fontWeight: '400',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  sourceAi: {
+    color: '#88AAFF',
+    backgroundColor: '#88AAFF15',
+  },
+  sourceLocal: {
+    color: '#666',
+    backgroundColor: '#1A1A1A',
   },
   typePills: {
     flexDirection: 'row',

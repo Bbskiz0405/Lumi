@@ -25,6 +25,15 @@ interface ReleaseEntry {
 
 const RELEASES: ReleaseEntry[] = [
   {
+    version: '0.4.61',
+    date: '2026-06-11',
+    notes: [
+      '時間軸頂部加「本月回顧」：Lumi 根據當月紀錄寫一段月度敘事',
+      '智慧分流顯示「AI 判斷 / 本地判斷」來源標示',
+      '修正「存款」被誤記成支出',
+    ],
+  },
+  {
     version: '0.4.60',
     date: '2026-06-10',
     notes: ['新功能「時間軸」：首頁右上 ≣，把任務／消費／筆記按時序串成一條 lifeline'],
@@ -114,7 +123,7 @@ const RELEASES: ReleaseEntry[] = [
   },
 ];
 
-const VERSION = '0.4.60';
+const VERSION = '0.4.61';
 const GITHUB_URL = 'https://github.com/Bbskiz0405/Lumi';
 
 interface Props {

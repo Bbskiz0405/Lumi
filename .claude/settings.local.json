@@ -159,7 +159,18 @@
       "Bash(git stash *)",
       "Bash(git ls-remote *)",
       "PowerShell($adb = \"C:\\\\Users\\\\Brayden\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\"; & $adb install -r \"$env:USERPROFILE\\\\Desktop\\\\Lumi-0.4.52.apk\")",
-      "PowerShell($adb = \"C:\\\\Users\\\\Brayden\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\"; & $adb devices; & $adb install -r \"$env:USERPROFILE\\\\Desktop\\\\Lumi-0.4.54.apk\")"
+      "PowerShell($adb = \"C:\\\\Users\\\\Brayden\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\"; & $adb devices; & $adb install -r \"$env:USERPROFILE\\\\Desktop\\\\Lumi-0.4.54.apk\")",
+      "Bash(npx eas-cli *)",
+      "Bash(/c/Users/Brayden/AppData/Local/Android/Sdk/platform-tools/adb.exe devices *)",
+      "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:ANDROID_HOME = \"C:\\\\Users\\\\Brayden\\\\AppData\\\\Local\\\\Android\\\\Sdk\"; if \\(Test-Path .expo\\) { Remove-Item -Recurse -Force .expo }; Set-Location android; .\\\\gradlew.bat assembleRelease --console=plain 2>&1 | Out-String)",
+      "Bash($ADB install *)",
+      "Bash(/c/Users/Brayden/AppData/Local/Android/Sdk/platform-tools/adb.exe shell *)",
+      "Bash(cp android/app/build/outputs/apk/release/app-release.apk /c/Users/Brayden/Desktop/Lumi-v0.4.59.apk)",
+      "Read(//c/Users/Brayden/Desktop/**)",
+      "Bash(rm -f /c/Users/Brayden/Desktop/Lumi-v0.4.58.apk)",
+      "Bash(cp android/app/build/outputs/apk/release/app-release.apk /c/Users/Brayden/Desktop/Lumi-v0.4.60.apk)",
+      "Bash(rm -f /c/Users/Brayden/Desktop/Lumi-v0.4.59.apk)",
+      "Bash(git pull *)"
     ]
   }
 }

@@ -1,8 +1,14 @@
 import React, { useState, useCallback } from 'react';
-import { View, StyleSheet, Text, ScrollView, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, Text, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { getEventStream, UnifiedEvent } from '../services/eventStreamService';
+import {
+  getCachedNarrative,
+  regenerateNarrative,
+  currentMonth,
+  MonthNarrative,
+} from '../services/narrativeService';
 
 const TYPE_META: Record<string, { icon: string; color: string; label: string }> = {
   task: { icon: '[v]', color: '#FF9944', label: '任務' },
@@ -61,9 +67,21 @@ function groupByDay(events: UnifiedEvent[]): DayGroup[] {
   return groups;
 }
 
+function monthTitle(month: string): string {
+  return `${Number(month.split('-')[1])}月回顧`;
+}
+
+function genDateLabel(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
 export default function TimelineScreen() {
   const [groups, setGroups] = useState<DayGroup[]>([]);
   const [loading, setLoading] = useState(true);
+  const [narrative, setNarrative] = useState<MonthNarrative | null>(null);
+  const [genLoading, setGenLoading] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -74,11 +92,63 @@ export default function TimelineScreen() {
         setGroups(groupByDay(events));
         setLoading(false);
       });
+      getCachedNarrative(currentMonth()).then((n) => {
+        if (active) setNarrative(n);
+      });
       return () => {
         active = false;
       };
     }, [])
   );
+
+  async function handleGenerate() {
+    setGenLoading(true);
+    setGenError(null);
+    try {
+      const data = await regenerateNarrative(currentMonth());
+      setNarrative(data);
+    } catch (e: any) {
+      setGenError(e?.message ?? '生成失敗，請確認已設定 API key。');
+    } finally {
+      setGenLoading(false);
+    }
+  }
+
+  function renderNarrative() {
+    return (
+      <View style={styles.narrativeCard}>
+        <View style={styles.narrativeHead}>
+          <Text style={styles.narrativeTitle}>{monthTitle(currentMonth())}</Text>
+          {(narrative || genError) && !genLoading && (
+            <TouchableOpacity onPress={handleGenerate} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={styles.narrativeAction}>↻ 重新生成</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {genLoading ? (
+          <View style={styles.narrativeLoading}>
+            <ActivityIndicator color="#88AAFF" size="small" />
+            <Text style={styles.narrativeLoadingText}>Lumi 正在回顧這個月…</Text>
+          </View>
+        ) : narrative ? (
+          <>
+            <Text style={styles.narrativeText}>{narrative.text}</Text>
+            <Text style={styles.narrativeMeta}>生成於 {genDateLabel(narrative.generatedAt)}</Text>
+          </>
+        ) : (
+          <>
+            <Text style={styles.narrativeEmpty}>讓 Lumi 把這個月的紀錄串成一段回顧。</Text>
+            <TouchableOpacity style={styles.genBtn} onPress={handleGenerate}>
+              <Text style={styles.genBtnText}>生成本月回顧</Text>
+            </TouchableOpacity>
+          </>
+        )}
+
+        {genError && !genLoading && <Text style={styles.narrativeError}>{genError}</Text>}
+      </View>
+    );
+  }
 
   if (loading) {
     return (
@@ -104,6 +174,7 @@ export default function TimelineScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        {renderNarrative()}
         {groups.map((g) => (
           <View key={g.key} style={styles.dayBlock}>
             <Text style={styles.dayLabel}>{g.label}</Text>
@@ -181,4 +252,36 @@ const styles = StyleSheet.create({
   title: { color: '#DDDDDD', fontSize: 14, fontWeight: '300', lineHeight: 21 },
   titleDone: { color: '#555555', textDecorationLine: 'line-through' },
   amount: { fontSize: 13, fontWeight: '400', marginTop: 6 },
+
+  narrativeCard: {
+    backgroundColor: '#111111',
+    borderWidth: 1,
+    borderColor: '#23262F',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 16,
+  },
+  narrativeHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  narrativeTitle: { color: '#88AAFF', fontSize: 14, fontWeight: '400', letterSpacing: 1 },
+  narrativeAction: { color: '#555555', fontSize: 12, fontWeight: '300' },
+  narrativeText: { color: '#CCCCCC', fontSize: 14, fontWeight: '300', lineHeight: 23 },
+  narrativeMeta: { color: '#3A3A3A', fontSize: 10, marginTop: 12 },
+  narrativeEmpty: { color: '#666666', fontSize: 13, fontWeight: '300', lineHeight: 20, marginBottom: 14 },
+  narrativeLoading: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6 },
+  narrativeLoadingText: { color: '#666666', fontSize: 13, fontWeight: '300', marginLeft: 10 },
+  narrativeError: { color: '#FF6655', fontSize: 12, fontWeight: '300', marginTop: 10 },
+  genBtn: {
+    backgroundColor: '#1A1D26',
+    borderWidth: 1,
+    borderColor: '#2E3340',
+    borderRadius: 10,
+    paddingVertical: 11,
+    alignItems: 'center',
+  },
+  genBtnText: { color: '#88AAFF', fontSize: 13, fontWeight: '400' },
 });

@@ -22,7 +22,7 @@ const FINANCE_KEYWORDS = [
   '欠', '還錢', '還款', '借', '貸',
 ];
 
-const INCOME_KEYWORDS = ['收入', '薪水', '薪資', '獎金', '入帳', '進帳', '賺', '還我', '收到'];
+const INCOME_KEYWORDS = ['收入', '薪水', '薪資', '獎金', '入帳', '進帳', '賺', '還我', '收到', '存款', '存進', '儲蓄'];
 const DEBT_EXPENSE_KEYWORDS = ['欠', '還錢', '還款', '借', '貸'];
 
 const TASK_KEYWORDS = [

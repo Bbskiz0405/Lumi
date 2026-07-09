@@ -286,6 +286,64 @@ export async function getQuickAnalysis(month: string): Promise<string> {
   return callAI(config, SYSTEM_PROMPT, [], prompt, financeContext, 0.5, 512);
 }
 
+// ───────────────────────── A：個人時間軸敘事（月底回顧）─────────────────────────
+
+const MONTH_NARRATIVE_SYSTEM = `你是 Lumi，使用者的生活敘事者。根據使用者這個月的任務、消費、筆記紀錄，寫一段溫暖、具體的月度回顧。
+
+要求：
+- 用第二人稱「你」，像懂他的朋友在回顧這個月。
+- 點出具體事件、數字、模式（例：完成了幾件任務、最常花錢的地方、反覆出現的主題）。
+- 串連不同類別找關聯（例：忙碌期的消費變化、某個主題反覆出現）。
+- 3-4 段，每段 2-3 句，繁體中文，溫暖但不浮誇。
+- 只根據提供的紀錄，不要編造沒出現的事。`;
+
+function monthRange(month: string): { start: string; end: string } {
+  const [y, m] = month.split('-').map(Number);
+  const lastDay = new Date(y, m, 0).getDate();
+  return {
+    start: `${month}-01T00:00:00.000Z`,
+    end: `${month}-${String(lastDay).padStart(2, '0')}T23:59:59.999Z`,
+  };
+}
+
+export async function generateMonthNarrative(month: string): Promise<string> {
+  const config = await ensureConfig();
+  const { start, end } = monthRange(month);
+  const events = await getEventStream({ types: ['task', 'finance', 'note'], start, end });
+  if (events.length === 0) return '這個月還沒有任何紀錄，記下任務、消費、筆記後再回來看看吧。';
+
+  const taskTotal = events.filter(e => e.type === 'task').length;
+  const taskDone = events.filter(e => e.type === 'task' && e.completed).length;
+  let income = 0, expense = 0;
+  const catTotals: Record<string, number> = {};
+  for (const e of events) {
+    if (e.type !== 'finance') continue;
+    if (e.financeType === 'income') income += e.amount ?? 0;
+    else {
+      expense += e.amount ?? 0;
+      const c = e.category ?? 'other';
+      catTotals[c] = (catTotals[c] ?? 0) + (e.amount ?? 0);
+    }
+  }
+  const topCats = Object.entries(catTotals)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([c, v]) => `${c} ${v}`)
+    .join('、');
+
+  const stats = [
+    `本月統計：任務 ${taskDone}/${taskTotal} 完成`,
+    `收入 ${income}、支出 ${expense}、結餘 ${income - expense}`,
+    topCats ? `支出最多：${topCats}` : '',
+  ].filter(Boolean).join('；');
+
+  const context =
+    `=== 本月紀錄（共 ${events.length} 筆，由新到舊）===\n${stats}\n\n` +
+    events.map(formatEventForContext).join('\n');
+
+  return callAI(config, MONTH_NARRATIVE_SYSTEM, [], '請根據以下紀錄，寫這個月的回顧敘事。', context, 0.7, 1024);
+}
+
 export interface AIClassification {
   type: 'TASK' | 'FINANCE' | 'IDEA';
   amount?: number;
@@ -330,6 +388,8 @@ function buildClassifyPrompt(): string {
 - amount：金額數字（若無則省略）
 - category：food / transport / interest / other（收入時省略）
 - transactionType：income 或 expense
+  - 「存款」「存進」「儲蓄」「入帳」「薪水」「獎金」「收到錢」→ income
+  - 「買」「付」「繳」「花」等錢流出 → expense
 
 只回傳 JSON，不要任何額外文字或 markdown 標記。
 
@@ -343,7 +403,8 @@ function buildClassifyPrompt(): string {
 輸入「讀書心得：原子習慣很受用」→ {"type":"IDEA"}
 輸入「今天看到一隻可愛的貓」→ {"type":"IDEA"}
 輸入「想做一個個人管理 app」→ {"type":"IDEA"}
-輸入「薪水 30000 入帳」→ {"type":"FINANCE","amount":30000,"transactionType":"income"}`;
+輸入「薪水 30000 入帳」→ {"type":"FINANCE","amount":30000,"transactionType":"income"}
+輸入「存款 5000」→ {"type":"FINANCE","amount":5000,"transactionType":"income"}`;
 }
 
 export async function classifyTextWithAI(text: string, timeoutMs = 6000): Promise<AIClassification | null> {
