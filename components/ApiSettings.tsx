@@ -38,18 +38,26 @@ export default function ApiSettings() {
 
   async function refresh() {
     setLoading(true);
-    const config = await getApiConfig();
-    if (config) {
-      setHasKey(true);
-      setSavedProvider(config.provider);
-      setSelectedProvider(config.provider);
-      setShowKeyField(false);
-    } else {
+    try {
+      const config = await getApiConfig();
+      if (config) {
+        setHasKey(true);
+        setSavedProvider(config.provider);
+        setSelectedProvider(config.provider);
+        setShowKeyField(false);
+      } else {
+        setHasKey(false);
+        setSavedProvider(null);
+        setShowKeyField(true);
+      }
+    } catch {
       setHasKey(false);
       setSavedProvider(null);
       setShowKeyField(true);
+      Alert.alert('讀取失敗', '無法讀取 API 設定，請稍後再試。');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   async function handleSave() {
@@ -58,9 +66,13 @@ export default function ApiSettings() {
       Alert.alert('提示', '請輸入 API key');
       return;
     }
-    await setApiConfig({ provider: selectedProvider, apiKey: key });
-    setKeyInput('');
-    await refresh();
+    try {
+      await setApiConfig({ provider: selectedProvider, apiKey: key });
+      setKeyInput('');
+      await refresh();
+    } catch {
+      Alert.alert('儲存失敗', '無法安全儲存 API Key，請稍後再試。');
+    }
   }
 
   function handleRemove() {
@@ -73,8 +85,12 @@ export default function ApiSettings() {
           text: '移除',
           style: 'destructive',
           onPress: async () => {
-            await removeApiConfig();
-            await refresh();
+            try {
+              await removeApiConfig();
+              await refresh();
+            } catch {
+              Alert.alert('移除失敗', '請稍後再試。');
+            }
           },
         },
       ]

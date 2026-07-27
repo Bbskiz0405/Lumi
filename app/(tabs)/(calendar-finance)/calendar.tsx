@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View, FlatList, StyleSheet, Text, ActivityIndicator,
   TouchableOpacity, Modal,
@@ -13,24 +13,31 @@ import {
   createTask,
 } from '../../../services/taskService';
 import { Task, CreateTaskInput } from '../../../types/task';
+import { toLocalDateString } from '../../../utils/date';
 
 export default function CalendarScreen() {
   const router = useRouter();
   const { selectedDate, bumpRefresh } = useCalendar();
 
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const hasLoaded = useRef(false);
   const [modalVisible, setModalVisible] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      getTasksForDate(selectedDate).then(data => {
-        if (active) {
+      if (!hasLoaded.current) setLoading(true);
+      getTasksForDate(selectedDate)
+        .then(data => {
+          if (!active) return;
           setTasks(data);
-          setLoading(false);
-        }
-      });
+          hasLoaded.current = true;
+        })
+        .catch(err => console.error('[CalendarScreen] load failed:', err))
+        .finally(() => {
+          if (active) setLoading(false);
+        });
       return () => { active = false; };
     }, [selectedDate])
   );
@@ -55,7 +62,7 @@ export default function CalendarScreen() {
 
   const dateMonth = parseInt(selectedDate.split('-')[1]);
   const dateDay = parseInt(selectedDate.split('-')[2]);
-  const todayStr = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
+  const todayStr = toLocalDateString();
 
   return (
     <View style={styles.safe}>
@@ -147,12 +154,12 @@ const styles = StyleSheet.create({
   emptyAddText: { color: '#888', fontSize: 12 },
   modalOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'flex-start', paddingTop: 48,
+    justifyContent: 'flex-end',
   },
   modal: {
-    backgroundColor: '#111111', borderRadius: 16,
+    backgroundColor: '#111111', borderTopLeftRadius: 16, borderTopRightRadius: 16,
     borderWidth: 1, borderColor: '#3A3A3A',
-    marginHorizontal: 12, maxHeight: 560,
+    maxHeight: '85%',
   },
   modalTitle: {
     padding: 20, paddingBottom: 12,

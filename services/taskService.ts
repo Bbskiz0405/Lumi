@@ -1,13 +1,10 @@
 import { getDb } from './db';
 import { Task, CreateTaskInput } from '../types/task';
 import * as Crypto from 'expo-crypto';
+import { toLocalDateString } from '../utils/date';
 
 function nowISO(): string {
   return new Date().toISOString();
-}
-
-async function generateId(): Promise<string> {
-  return Crypto.randomUUID();
 }
 
 export async function getAllTasks(): Promise<Task[]> {
@@ -25,7 +22,7 @@ export async function getTasksForDate(dateStr: string): Promise<Task[]> {
 
 export async function getTodayTasks(): Promise<Task[]> {
   const db = await getDb();
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateString();
   // 今天到期 + 逾期 + 沒設日期，依優先度和建立時間排序
   return db.getAllAsync<Task>(
     `SELECT * FROM tasks
@@ -45,13 +42,16 @@ export async function getTaskById(id: string): Promise<Task | null> {
 }
 
 export async function createTask(input: CreateTaskInput): Promise<Task> {
+  const title = input.title.trim();
+  if (!title) throw new Error('任務名稱不可空白');
+
   const db = await getDb();
-  const id = await generateId();
+  const id = Crypto.randomUUID();
   const now = nowISO();
   const task: Task = {
     id,
     entry_id: input.entry_id,
-    title: input.title,
+    title,
     due_date: input.due_date,
     priority: input.priority,
     tag: input.tag,
@@ -68,11 +68,17 @@ export async function createTask(input: CreateTaskInput): Promise<Task> {
 }
 
 export async function updateTask(id: string, updates: Partial<Omit<Task, 'id' | 'created_at'>>): Promise<void> {
+  const sanitized = { ...updates };
+  if (sanitized.title !== undefined) {
+    sanitized.title = sanitized.title.trim();
+    if (!sanitized.title) throw new Error('任務名稱不可空白');
+  }
+
   const db = await getDb();
-  const fields = Object.keys(updates) as (keyof typeof updates)[];
+  const fields = Object.keys(sanitized) as (keyof typeof sanitized)[];
   if (fields.length === 0) return;
   const setClause = fields.map((f) => `${f} = ?`).join(', ');
-  const values = fields.map((f) => updates[f] as string | number | null);
+  const values = fields.map((f) => sanitized[f] as string | number | null);
   await db.runAsync(`UPDATE tasks SET ${setClause} WHERE id = ?`, [...values, id]);
 }
 

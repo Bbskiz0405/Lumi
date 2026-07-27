@@ -15,19 +15,26 @@ export default function FinanceModule({ onPress, refreshKey }: Props) {
 
   useFocusEffect(
     useCallback(() => {
+      let active = true;
       const now = new Date();
       const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-      getMonthSummary(month).then(s => {
-        setIncome(s.income);
-        setExpense(s.expense);
-      });
+      getMonthSummary(month)
+        .then(s => {
+          if (!active) return;
+          setIncome(s.income);
+          setExpense(s.expense);
+        })
+        .catch(err => console.error('[FinanceModule] load failed:', err));
+      return () => {
+        active = false;
+      };
     }, [refreshKey])
   );
 
   const balance = income - expense;
 
   return (
-    <ModuleCard title="財務" icon="wallet-outline" onPress={onPress} accent="#55DDAA">
+    <ModuleCard title="財務" icon="$" onPress={onPress} accent="#55DDAA">
       <Text style={[styles.balance, { color: balance >= 0 ? '#FFFFFF' : '#FF4444' }]}>
         {balance >= 0 ? '+' : ''}{balance.toLocaleString()}
       </Text>

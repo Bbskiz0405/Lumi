@@ -1,10 +1,9 @@
 import React from 'react';
 import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 interface Props {
   title: string;
-  icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+  icon: string;
   onPress: () => void;
   children?: React.ReactNode;
   accent?: string;
@@ -14,7 +13,7 @@ export default function ModuleCard({ title, icon, onPress, children, accent = '#
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.header}>
-        <MaterialCommunityIcons name={icon} size={16} color={accent} style={{ marginRight: 6 }} />
+        <Text style={[styles.icon, { color: accent }]}>{icon}</Text>
         <Text style={[styles.title, { color: accent }]}>{title}</Text>
       </View>
       <View style={styles.content}>{children}</View>
@@ -36,6 +35,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
+  },
+  icon: {
+    width: 24,
+    marginRight: 2,
+    fontSize: 14,
+    fontWeight: '500',
   },
   title: {
     fontSize: 11,

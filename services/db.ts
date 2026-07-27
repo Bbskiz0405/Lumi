@@ -15,6 +15,7 @@ export function getDb(): Promise<SQLite.SQLiteDatabase> {
 async function initDb(database: SQLite.SQLiteDatabase): Promise<void> {
   await database.execAsync(`
     PRAGMA journal_mode = WAL;
+    PRAGMA foreign_keys = ON;
 
     CREATE TABLE IF NOT EXISTS entries (
       id TEXT PRIMARY KEY,
@@ -89,5 +90,17 @@ async function initDb(database: SQLite.SQLiteDatabase): Promise<void> {
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
     );
+
+    CREATE INDEX IF NOT EXISTS idx_entries_created_at ON entries(created_at);
+    CREATE INDEX IF NOT EXISTS idx_entries_raw_input ON entries(raw_input);
+    CREATE INDEX IF NOT EXISTS idx_tasks_due_completed ON tasks(due_date, completed);
+    CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON tasks(created_at);
+    CREATE INDEX IF NOT EXISTS idx_tasks_entry_id ON tasks(entry_id);
+    CREATE INDEX IF NOT EXISTS idx_notes_created_at ON notes(created_at);
+    CREATE INDEX IF NOT EXISTS idx_notes_entry_id ON notes(entry_id);
+    CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_at);
+    CREATE INDEX IF NOT EXISTS idx_transactions_entry_id ON transactions(entry_id);
+
+    PRAGMA user_version = 1;
   `);
 }

@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, View, TouchableOpacity, Text } from 'react-native';
 import { Task } from '../../types/task';
 import PriorityBadge from './PriorityBadge';
+import { calendarDaysFromToday } from '../../utils/date';
 
 interface Props {
   task: Task;
@@ -10,11 +11,7 @@ interface Props {
 }
 
 function getDaysUntil(dueDateStr: string): number {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const due = new Date(dueDateStr);
-  due.setHours(0, 0, 0, 0);
-  return Math.round((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  return calendarDaysFromToday(dueDateStr);
 }
 
 function DeadlineLabel({ dueDate }: { dueDate: string }) {

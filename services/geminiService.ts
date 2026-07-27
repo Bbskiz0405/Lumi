@@ -1,4 +1,5 @@
 import { getDb } from './db';
+import * as SecureStore from 'expo-secure-store';
 import {
   getTransactionsForMonth,
   getMonthSummary,
@@ -17,38 +18,98 @@ interface ApiConfig {
 
 const DEFAULT_MODELS: Record<ApiProvider, string> = {
   gemini: 'gemini-2.5-flash-lite',
-  openrouter: 'google/gemma-7b-it:free',
+  openrouter: 'openrouter/free',
   openai: 'gpt-4o-mini',
 };
 
 let configCache: ApiConfig | null = null;
+const AI_CONFIG_KEY = 'ai_config';
+
+function parseApiConfig(value: string): ApiConfig | null {
+  try {
+    const parsed = JSON.parse(value) as Partial<ApiConfig>;
+    if (
+      (parsed.provider === 'gemini' ||
+        parsed.provider === 'openrouter' ||
+        parsed.provider === 'openai') &&
+      typeof parsed.apiKey === 'string' &&
+      parsed.apiKey.trim()
+    ) {
+      return {
+        provider: parsed.provider,
+        apiKey: parsed.apiKey.trim(),
+        model: typeof parsed.model === 'string' ? parsed.model : undefined,
+      };
+    }
+  } catch {
+    // Corrupted config is treated as unset.
+  }
+  return null;
+}
+
+async function canUseSecureStore(): Promise<boolean> {
+  try {
+    return await SecureStore.isAvailableAsync();
+  } catch {
+    return false;
+  }
+}
 
 export async function setApiConfig(config: ApiConfig): Promise<void> {
-  configCache = config;
+  const normalized: ApiConfig = { ...config, apiKey: config.apiKey.trim() };
+  if (!normalized.apiKey) throw new Error('API Key 不可空白');
+
+  const serialized = JSON.stringify(normalized);
   const db = await getDb();
-  await db.runAsync(
-    'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
-    ['ai_config', JSON.stringify(config)]
-  );
+  if (await canUseSecureStore()) {
+    await SecureStore.setItemAsync(AI_CONFIG_KEY, serialized);
+    await db.runAsync('DELETE FROM settings WHERE key = ?', [AI_CONFIG_KEY]);
+  } else {
+    await db.runAsync(
+      'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
+      [AI_CONFIG_KEY, serialized]
+    );
+  }
+  configCache = normalized;
 }
 
 export async function getApiConfig(): Promise<ApiConfig | null> {
   if (configCache) return configCache;
+
+  if (await canUseSecureStore()) {
+    const secureValue = await SecureStore.getItemAsync(AI_CONFIG_KEY);
+    if (secureValue) {
+      configCache = parseApiConfig(secureValue);
+      if (configCache) return configCache;
+      await SecureStore.deleteItemAsync(AI_CONFIG_KEY);
+    }
+  }
+
   const db = await getDb();
-  const row = await db.getFirstAsync<{ value: string }>('SELECT value FROM settings WHERE key = ?', ['ai_config']);
+  const row = await db.getFirstAsync<{ value: string }>(
+    'SELECT value FROM settings WHERE key = ?',
+    [AI_CONFIG_KEY]
+  );
   if (row) {
-    try {
-      configCache = JSON.parse(row.value);
+    configCache = parseApiConfig(row.value);
+    if (configCache) {
+      if (await canUseSecureStore()) {
+        await SecureStore.setItemAsync(AI_CONFIG_KEY, JSON.stringify(configCache));
+        await db.runAsync('DELETE FROM settings WHERE key = ?', [AI_CONFIG_KEY]);
+      }
       return configCache;
-    } catch { return null; }
+    }
   }
   return null;
 }
 
 export async function removeApiConfig(): Promise<void> {
   configCache = null;
+  if (await canUseSecureStore()) {
+    await SecureStore.deleteItemAsync(AI_CONFIG_KEY);
+  }
   const db = await getDb();
-  await db.runAsync('DELETE FROM settings WHERE key = ?', ['ai_config']);
+  await db.runAsync('DELETE FROM settings WHERE key = ?', [AI_CONFIG_KEY]);
 }
 
 // Keep old functions for backward compatibility
@@ -262,7 +323,7 @@ function formatEventForContext(e: UnifiedEvent): string {
 
 export async function askLumi(question: string, history: ChatMessage[] = []): Promise<string> {
   const config = await ensureConfig();
-  const events = await getEventStream({ limit: 250 });
+  const events = await getEventStream({ types: ['task', 'finance', 'note'], limit: 250 });
 
   const context =
     events.length === 0
@@ -301,8 +362,8 @@ function monthRange(month: string): { start: string; end: string } {
   const [y, m] = month.split('-').map(Number);
   const lastDay = new Date(y, m, 0).getDate();
   return {
-    start: `${month}-01T00:00:00.000Z`,
-    end: `${month}-${String(lastDay).padStart(2, '0')}T23:59:59.999Z`,
+    start: `${month}-01T00:00:00.000`,
+    end: `${month}-${String(lastDay).padStart(2, '0')}T23:59:59.999`,
   };
 }
 

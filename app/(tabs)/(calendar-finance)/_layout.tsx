@@ -1,14 +1,17 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
-import { withLayoutContext, useRouter, usePathname } from 'expo-router';
-import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
+import { withLayoutContext } from 'expo-router';
+import {
+  createMaterialTopTabNavigator,
+  MaterialTopTabBarProps,
+} from '@react-navigation/material-top-tabs';
 import { useCalendar } from '../../../contexts/CalendarContext';
 import CalendarGrid from '../../../components/shared/CalendarGrid';
 import { getDatesWithTasks, getTaskDatesByPriority } from '../../../services/taskService';
 import { getTransactionsForMonth } from '../../../services/financeService';
 
 const { Navigator } = createMaterialTopTabNavigator();
-const MaterialTopTabs = withLayoutContext<any, any, any, any>(Navigator);
+const MaterialTopTabs = withLayoutContext(Navigator);
 
 function PersistentCalendar() {
   const [taskDates, setTaskDates] = useState<Set<string>>(new Set());
@@ -17,13 +20,19 @@ function PersistentCalendar() {
   const { year, month, refreshKey } = useCalendar();
 
   const loadDates = useCallback(async () => {
-    const taskList = await getDatesWithTasks();
-    setTaskDates(new Set(taskList));
-    const priorityMap = await getTaskDatesByPriority();
-    setTaskPriorityMap(priorityMap);
     const m = `${year}-${String(month + 1).padStart(2, '0')}`;
-    const txs = await getTransactionsForMonth(m);
-    setFinanceDates(new Set(txs.map(t => t.created_at.split('T')[0])));
+    try {
+      const [taskList, priorityMap, txs] = await Promise.all([
+        getDatesWithTasks(),
+        getTaskDatesByPriority(),
+        getTransactionsForMonth(m),
+      ]);
+      setTaskDates(new Set(taskList));
+      setTaskPriorityMap(priorityMap);
+      setFinanceDates(new Set(txs.map(t => t.created_at.split('T')[0])));
+    } catch (err) {
+      console.error('[PersistentCalendar] load failed:', err);
+    }
   }, [year, month, refreshKey]);
 
   useEffect(() => {
@@ -44,10 +53,10 @@ function PersistentCalendar() {
   );
 }
 
-function SubTabBar({ state, descriptors, navigation }: any) {
+function SubTabBar({ state, descriptors, navigation }: MaterialTopTabBarProps) {
   return (
     <View style={styles.subTabBar}>
-      {state.routes.map((route: any, index: number) => {
+      {state.routes.map((route, index) => {
         const { options } = descriptors[route.key];
         const label = options.title || route.name;
         const isFocused = state.index === index;
@@ -77,7 +86,7 @@ export default function CalendarFinanceLayout() {
     <View style={{ flex: 1, backgroundColor: '#0F0F0F' }}>
       <PersistentCalendar />
       <MaterialTopTabs
-        tabBar={(props) => <SubTabBar {...props} />}
+        tabBar={(props: MaterialTopTabBarProps) => <SubTabBar {...props} />}
         screenOptions={{
           swipeEnabled: true,
           animationEnabled: true,

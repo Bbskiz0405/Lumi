@@ -79,6 +79,7 @@ function genDateLabel(iso: string): string {
 export default function TimelineScreen() {
   const [groups, setGroups] = useState<DayGroup[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [narrative, setNarrative] = useState<MonthNarrative | null>(null);
   const [genLoading, setGenLoading] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
@@ -87,14 +88,22 @@ export default function TimelineScreen() {
     useCallback(() => {
       let active = true;
       setLoading(true);
-      getEventStream({ types: ['task', 'finance', 'note'], limit: 300 }).then((events) => {
-        if (!active) return;
-        setGroups(groupByDay(events));
-        setLoading(false);
-      });
-      getCachedNarrative(currentMonth()).then((n) => {
-        if (active) setNarrative(n);
-      });
+      setLoadError(false);
+      Promise.all([
+        getEventStream({ types: ['task', 'finance', 'note'], limit: 300 }),
+        getCachedNarrative(currentMonth()),
+      ])
+        .then(([events, cachedNarrative]) => {
+          if (!active) return;
+          setGroups(groupByDay(events));
+          setNarrative(cachedNarrative);
+        })
+        .catch(() => {
+          if (active) setLoadError(true);
+        })
+        .finally(() => {
+          if (active) setLoading(false);
+        });
       return () => {
         active = false;
       };
@@ -107,8 +116,8 @@ export default function TimelineScreen() {
     try {
       const data = await regenerateNarrative(currentMonth());
       setNarrative(data);
-    } catch (e: any) {
-      setGenError(e?.message ?? '生成失敗，請確認已設定 API key。');
+    } catch (error: unknown) {
+      setGenError(error instanceof Error ? error.message : '生成失敗，請確認已設定 API key。');
     } finally {
       setGenLoading(false);
     }
@@ -164,8 +173,10 @@ export default function TimelineScreen() {
     return (
       <SafeAreaView style={styles.safe} edges={['bottom']}>
         <View style={styles.center}>
-          <Text style={styles.emptyTitle}>還沒有任何紀錄</Text>
-          <Text style={styles.emptySub}>記下任務、消費、筆記後，這裡會串成你的時間軸。</Text>
+          <Text style={styles.emptyTitle}>{loadError ? '讀取時間軸失敗' : '還沒有任何紀錄'}</Text>
+          <Text style={styles.emptySub}>
+            {loadError ? '請稍後重新開啟此頁。' : '記下任務、消費、筆記後，這裡會串成你的時間軸。'}
+          </Text>
         </View>
       </SafeAreaView>
     );

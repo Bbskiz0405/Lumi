@@ -8,7 +8,7 @@ interface Props {
 
 export default function GoalsModule({ onPress }: Props) {
   return (
-    <ModuleCard title="目標" icon="target" onPress={onPress} accent="#FF88BB">
+    <ModuleCard title="目標" icon="◎" onPress={onPress} accent="#FF88BB">
       <Text style={styles.soon}>Phase 5</Text>
       <Text style={styles.sub}>即將開放</Text>
     </ModuleCard>

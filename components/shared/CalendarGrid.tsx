@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useCalendar } from '../../contexts/CalendarContext';
+import { toLocalDateString } from '../../utils/date';
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
 const MONTHS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
@@ -23,11 +23,9 @@ function toDateStr(year: number, month: number, day: number): string {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
-const today = new Date();
-const todayStr = toDateStr(today.getFullYear(), today.getMonth(), today.getDate());
-
 export default function CalendarGrid({ taskDates, financeDates, taskPriorityMap, onDayPress }: Props) {
   const { year, month, selectedDate, setSelectedDate, prevMonth, nextMonth } = useCalendar();
+  const todayStr = toLocalDateString();
 
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();

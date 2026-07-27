@@ -42,19 +42,25 @@ export default function FinanceAdvisor({ month, onClose }: Props) {
   const scrollRef = useRef<ScrollView>(null);
 
   React.useEffect(() => {
-    getApiConfig().then(config => {
-      setNeedsKey(!config);
-      if (config) setSelectedProvider(config.provider);
-      setCheckingKey(false);
-    });
+    getApiConfig()
+      .then(config => {
+        setNeedsKey(!config);
+        if (config) setSelectedProvider(config.provider);
+      })
+      .catch(() => setNeedsKey(true))
+      .finally(() => setCheckingKey(false));
   }, []);
 
   async function handleSetKey() {
     const key = keyInput.trim();
     if (!key) return;
-    await setApiConfig({ provider: selectedProvider, apiKey: key });
-    setNeedsKey(false);
-    setKeyInput('');
+    try {
+      await setApiConfig({ provider: selectedProvider, apiKey: key });
+      setNeedsKey(false);
+      setKeyInput('');
+    } catch {
+      setMessages([{ role: 'model', text: 'API Key 儲存失敗，請稍後再試。' }]);
+    }
   }
 
   async function send(text: string) {
@@ -70,8 +76,9 @@ export default function FinanceAdvisor({ month, onClose }: Props) {
     try {
       const reply = await chatWithFinanceAdvisor(trimmed, history, month);
       setMessages(prev => [...prev, { role: 'model', text: reply }]);
-    } catch (e: any) {
-      setMessages(prev => [...prev, { role: 'model', text: `錯誤：${e.message}` }]);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : '未知錯誤';
+      setMessages(prev => [...prev, { role: 'model', text: `錯誤：${message}` }]);
     } finally {
       setLoading(false);
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
@@ -90,8 +97,9 @@ export default function FinanceAdvisor({ month, onClose }: Props) {
     try {
       const reply = await getQuickAnalysis(month);
       setMessages(prev => [...prev, { role: 'model', text: reply }]);
-    } catch (e: any) {
-      setMessages(prev => [...prev, { role: 'model', text: `錯誤：${e.message}` }]);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : '未知錯誤';
+      setMessages(prev => [...prev, { role: 'model', text: `錯誤：${message}` }]);
     } finally {
       setLoading(false);
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);

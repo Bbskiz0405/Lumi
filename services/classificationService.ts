@@ -263,17 +263,25 @@ function buildResult(type: ClassifiedType, text: string): ClassificationResult {
 }
 
 export async function saveEntry(rawInput: string, classifiedType: ClassifiedType): Promise<string> {
+  const normalizedInput = rawInput.trim();
+  if (!normalizedInput) throw new Error('輸入內容不可空白');
+
   const db = await getDb();
   const id = Crypto.randomUUID();
   const now = new Date().toISOString();
   await db.runAsync(
     'INSERT INTO entries (id, raw_input, classified_type, created_at) VALUES (?, ?, ?, ?)',
-    [id, rawInput, classifiedType, now]
+    [id, normalizedInput, classifiedType, now]
   );
   return id;
 }
 
-export async function updateEntryType(id: string, newType: ClassifiedType): Promise<void> {
+export async function rollbackEntry(id: string): Promise<void> {
   const db = await getDb();
-  await db.runAsync('UPDATE entries SET classified_type = ? WHERE id = ?', [newType, id]);
+  await db.withTransactionAsync(async () => {
+    await db.runAsync('DELETE FROM tasks WHERE entry_id = ?', [id]);
+    await db.runAsync('DELETE FROM transactions WHERE entry_id = ?', [id]);
+    await db.runAsync('DELETE FROM notes WHERE entry_id = ?', [id]);
+    await db.runAsync('DELETE FROM entries WHERE id = ?', [id]);
+  });
 }

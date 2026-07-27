@@ -24,6 +24,7 @@ export default function BudgetMeter({ category, spent, limit, onUpdateLimit }: P
   const ratio = hasLimit ? Math.min(spent / limit, 1) : 0;
   const isOver = hasLimit && spent > limit;
   const barColor = isOver ? '#FF4444' : ratio > 0.8 ? '#FF8844' : '#55DDAA';
+  const barWidth = `${ratio * 100}%` as `${number}%`;
 
   function openEdit() {
     setInputVal(limit > 0 ? String(limit) : '');
@@ -51,7 +52,7 @@ export default function BudgetMeter({ category, spent, limit, onUpdateLimit }: P
         </View>
         {hasLimit && (
           <View style={styles.track}>
-            <View style={[styles.bar, { width: `${ratio * 100}%` as any, backgroundColor: barColor }]} />
+            <View style={[styles.bar, { width: barWidth, backgroundColor: barColor }]} />
           </View>
         )}
       </TouchableOpacity>
@@ -118,14 +119,13 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.7)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
   },
   dialog: {
     backgroundColor: '#161616',
-    borderRadius: 12,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
     padding: 20,
-    width: 260,
     borderWidth: 1,
     borderColor: '#3A3A3A',
   },

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View, FlatList, StyleSheet, TouchableOpacity, Text,
   Modal, ActivityIndicator,
@@ -18,27 +18,27 @@ export default function TasksScreen() {
   const [completedTasks, setCompletedTasks] = useState<Task[]>([]);
   const [showCompleted, setShowCompleted] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [hasLoaded, setHasLoaded] = useState(false);
+  const hasLoaded = useRef(false);
   const [modalVisible, setModalVisible] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      if (!hasLoaded) setLoading(true);
+      if (!hasLoaded.current) setLoading(true);
       
       getAllTasks()
         .then(data => {
           if (!active) return;
           setTasks(data.filter(t => t.completed === 0));
           setCompletedTasks(data.filter(t => t.completed === 1));
-          setHasLoaded(true);
+          hasLoaded.current = true;
         })
         .catch(err => console.error('[TasksScreen] getAllTasks failed:', err))
         .finally(() => {
           if (active) setLoading(false);
         });
       return () => { active = false; };
-    }, [hasLoaded])
+    }, [])
   );
 
   async function handleToggle(id: string, completed: boolean) {

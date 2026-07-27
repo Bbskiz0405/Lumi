@@ -4,13 +4,11 @@ import {
   Modal, TextInput, ActivityIndicator, Alert,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import TransactionCard from '../../../components/finance/TransactionCard';
 import ExpensePieChart from '../../../components/finance/ExpensePieChart';
 import FinanceAdvisor from '../../../components/finance/FinanceAdvisor';
 import Calculator from '../../../components/finance/Calculator';
 import { useCalendar } from '../../../contexts/CalendarContext';
-import { getDatesWithTasks } from '../../../services/taskService';
 import {
   getTransactionsForMonth,
   getTransactionsForYear,
@@ -46,8 +44,6 @@ export default function FinanceScreen() {
   const [categoryExpense, setCategoryExpense] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('month');
-  const [taskDates, setTaskDates] = useState<Set<string>>(new Set());
-  const [financeDates, setFinanceDates] = useState<Set<string>>(new Set());
   const [expenseCategories, setExpenseCategories] = useState<{ value: string; label: string }[]>([]);
   const [addingCat, setAddingCat] = useState(false);
   const [newCatLabel, setNewCatLabel] = useState('');
@@ -72,16 +68,23 @@ export default function FinanceScreen() {
   async function handleSaveEdit() {
     if (!editTx) return;
     const amt = parseFloat(editAmount);
-    if (isNaN(amt) || amt <= 0) return;
-    await updateTransaction(editTx.id, {
-      item: editItem.trim(),
-      amount: amt,
-      type: editType,
-      category: editType === 'expense' ? editCategory : null,
-    });
-    setEditTx(null);
-    loadAll(viewMode);
-    bumpRefresh();
+    if (!editItem.trim() || isNaN(amt) || amt <= 0) {
+      Alert.alert('無法儲存', '請輸入項目名稱與有效金額。');
+      return;
+    }
+    try {
+      await updateTransaction(editTx.id, {
+        item: editItem.trim(),
+        amount: amt,
+        type: editType,
+        category: editType === 'expense' ? editCategory : null,
+      });
+      setEditTx(null);
+      await loadAll(viewMode);
+      bumpRefresh();
+    } catch {
+      Alert.alert('儲存失敗', '請稍後再試。');
+    }
   }
 
   // Add modal
@@ -100,44 +103,45 @@ export default function FinanceScreen() {
 
   async function loadAll(mode: ViewMode, silent = false) {
     if (!silent) setLoading(true);
-    let txs: Transaction[];
-    let sum: { income: number; expense: number };
-    let catExp: Record<string, number>;
+    try {
+      let txs: Transaction[];
+      let sum: { income: number; expense: number };
+      let catExp: Record<string, number>;
 
-    if (mode === 'year') {
-      [txs, sum, catExp] = await Promise.all([
-        getTransactionsForYear(String(year)),
-        getYearSummary(String(year)),
-        getExpenseByCategoryForYear(String(year)),
-      ]);
-    } else if (mode === 'all') {
-      [txs, sum, catExp] = await Promise.all([
-        getAllTransactions(),
-        getAllTimeSummary(),
-        getExpenseByCategoryAllTime(),
-      ]);
-    } else {
-      [txs, sum, catExp] = await Promise.all([
-        getTransactionsForMonth(currentMonth),
-        getMonthSummary(currentMonth),
-        getExpenseByCategory(currentMonth),
-      ]);
+      if (mode === 'year') {
+        [txs, sum, catExp] = await Promise.all([
+          getTransactionsForYear(String(year)),
+          getYearSummary(String(year)),
+          getExpenseByCategoryForYear(String(year)),
+        ]);
+      } else if (mode === 'all') {
+        [txs, sum, catExp] = await Promise.all([
+          getAllTransactions(),
+          getAllTimeSummary(),
+          getExpenseByCategoryAllTime(),
+        ]);
+      } else {
+        [txs, sum, catExp] = await Promise.all([
+          getTransactionsForMonth(currentMonth),
+          getMonthSummary(currentMonth),
+          getExpenseByCategory(currentMonth),
+        ]);
+      }
+
+      setTransactions(txs);
+      setSummary(sum);
+      setCategoryExpense(catExp);
+    } finally {
+      setLoading(false);
     }
-
-    setTransactions(txs);
-    setSummary(sum);
-    setCategoryExpense(catExp);
-    setLoading(false);
   }
 
   useFocusEffect(
     useCallback(() => {
-      loadAll(viewMode, true);
-      getExpenseCategories().then(setExpenseCategories);
-      getDatesWithTasks().then(dates => setTaskDates(new Set(dates)));
-      getTransactionsForMonth(currentMonth).then(txs => {
-        setFinanceDates(new Set(txs.map(t => t.created_at.split('T')[0])));
-      });
+      loadAll(viewMode, true).catch(err => console.error('[FinanceScreen] load failed:', err));
+      getExpenseCategories()
+        .then(setExpenseCategories)
+        .catch(err => console.error('[FinanceScreen] categories failed:', err));
     }, [currentMonth, viewMode])
   );
 
@@ -177,17 +181,22 @@ export default function FinanceScreen() {
     const pad3 = (n: number) => String(n).padStart(3, '0');
     const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}.${pad3(now.getMilliseconds())}`;
     const useDate = `${selectedDate}T${timeStr}`;
-    await createTransaction({
-      type: formType,
-      item: formItem.trim(),
-      amount: amt,
-      category: formType === 'expense' ? formCategory : null,
-      created_at: useDate,
-    });
-    setFormSubmitting(false);
-    setModalVisible(false);
-    loadAll(viewMode);
-    bumpRefresh();
+    try {
+      await createTransaction({
+        type: formType,
+        item: formItem.trim(),
+        amount: amt,
+        category: formType === 'expense' ? formCategory : null,
+        created_at: useDate,
+      });
+      setModalVisible(false);
+      await loadAll(viewMode);
+      bumpRefresh();
+    } catch {
+      setFormItemError('儲存失敗，請稍後再試');
+    } finally {
+      setFormSubmitting(false);
+    }
   }
 
   async function handleDelete(id: string) {
@@ -197,9 +206,13 @@ export default function FinanceScreen() {
         text: '刪除',
         style: 'destructive',
         onPress: async () => {
-          await deleteTransaction(id);
-          loadAll(viewMode);
-          bumpRefresh();
+          try {
+            await deleteTransaction(id);
+            await loadAll(viewMode);
+            bumpRefresh();
+          } catch {
+            Alert.alert('刪除失敗', '請稍後再試。');
+          }
         },
       },
     ]);
@@ -216,8 +229,13 @@ export default function FinanceScreen() {
           text: '確認重置',
           style: 'destructive',
           onPress: async () => {
-            await resetAllFinance();
-            loadAll(viewMode);
+            try {
+              await resetAllFinance();
+              await loadAll(viewMode);
+              bumpRefresh();
+            } catch {
+              Alert.alert('重置失敗', '請稍後再試。');
+            }
           },
         },
       ]
@@ -355,7 +373,7 @@ export default function FinanceScreen() {
                   style={styles.calcBtn}
                   onPress={() => { setCalcTarget('edit'); setShowCalc(true); }}
                 >
-                  <MaterialCommunityIcons name="calculator" size={20} color="#55DDAA" />
+                  <Text style={styles.calcBtnText}>[=]</Text>
                 </TouchableOpacity>
               </View>
               {editType === 'expense' && (
@@ -471,7 +489,7 @@ export default function FinanceScreen() {
                   style={styles.calcBtn}
                   onPress={() => { setCalcTarget('add'); setShowCalc(true); }}
                 >
-                  <MaterialCommunityIcons name="calculator" size={20} color="#55DDAA" />
+                  <Text style={styles.calcBtnText}>[=]</Text>
                 </TouchableOpacity>
               </View>
               {!!formAmountError && <Text style={styles.errorText}>{formAmountError}</Text>}
@@ -614,16 +632,15 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'flex-start',
-    paddingTop: 48,
+    justifyContent: 'flex-end',
   },
   modal: {
     backgroundColor: '#111111',
-    borderRadius: 16,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
     borderWidth: 1,
     borderColor: '#3A3A3A',
-    maxHeight: 520,
-    marginHorizontal: 12,
+    maxHeight: '85%',
   },
   modalTitle: {
     padding: 20,
@@ -697,6 +714,7 @@ const styles = StyleSheet.create({
     width: 44, height: 44, borderRadius: 10, borderWidth: 1, borderColor: '#3A3A3A',
     backgroundColor: '#1A1A1A', alignItems: 'center', justifyContent: 'center',
   },
+  calcBtnText: { color: '#55DDAA', fontSize: 14, fontWeight: '500' },
   calcOverlay: { flex: 1, justifyContent: 'flex-end' },
   calcDismiss: { flex: 1 },
 });

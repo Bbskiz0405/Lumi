@@ -41,8 +41,9 @@ export default function AskScreen() {
     try {
       const answer = await askLumi(q, history);
       setMessages([...next, { role: 'model', text: answer }]);
-    } catch (e: any) {
-      setMessages([...next, { role: 'model', text: `出錯了：${e?.message ?? '未知錯誤'}` }]);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : '未知錯誤';
+      setMessages([...next, { role: 'model', text: `出錯了：${message}` }]);
     } finally {
       setLoading(false);
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50);

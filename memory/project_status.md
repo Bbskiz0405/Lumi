@@ -65,7 +65,7 @@
 
 ### Phase 2 — 智慧分流 & AI 財務顧問 ✅
 - `services/geminiService.ts` 負責處理 AI 邏輯。
-- 支援 Gemini (`gemini-2.0-flash`，預設) 與 OpenRouter (`google/gemma-7b-it:free`)。
+- 支援 Gemini (`gemini-2.5-flash-lite`，預設) 與 OpenRouter (`openrouter/free` 自動選可用免費模型)。
 - **Gemini model 注意**：`gemini-1.5-flash` 已於 2025/09 下架，v1beta API 會回 404。現以 `gemini-2.0-flash` 為穩定免費預設。若再失效，改用 `gemini-flash-latest`。
 - AI 財務顧問 (`FinanceAdvisor.tsx`) 實作了鍵盤防擋 (`KeyboardAvoidingView`) 與 API Key 儲存機制。
 

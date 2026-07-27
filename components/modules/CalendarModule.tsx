@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import ModuleCard from './ModuleCard';
 import { getTasksForDate } from '../../services/taskService';
+import { toLocalDateString } from '../../utils/date';
 
 interface Props {
   onPress: () => void;
@@ -14,18 +15,24 @@ const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
 export default function CalendarModule({ onPress, refreshKey }: Props) {
   const [todayCount, setTodayCount] = useState(0);
   const now = new Date();
-  const today = now.toISOString().split('T')[0];
 
   useFocusEffect(
     useCallback(() => {
-      getTasksForDate(today).then(tasks =>
-        setTodayCount(tasks.filter(t => t.completed === 0).length)
-      );
+      let active = true;
+      const currentDate = toLocalDateString();
+      getTasksForDate(currentDate)
+        .then(tasks => {
+          if (active) setTodayCount(tasks.filter(t => t.completed === 0).length);
+        })
+        .catch(err => console.error('[CalendarModule] load failed:', err));
+      return () => {
+        active = false;
+      };
     }, [refreshKey])
   );
 
   return (
-    <ModuleCard title="月曆" icon="calendar-month-outline" onPress={onPress} accent="#88AAFF">
+    <ModuleCard title="月曆" icon="[ ]" onPress={onPress} accent="#88AAFF">
       <Text style={styles.day}>{now.getDate()}</Text>
       <Text style={styles.weekday}>星期{WEEKDAYS[now.getDay()]}</Text>
       {todayCount > 0 ? (

@@ -18,6 +18,12 @@ export async function getTransactionsForMonth(month: string): Promise<Transactio
 }
 
 export async function createTransaction(input: CreateTransactionInput): Promise<Transaction> {
+  const item = input.item.trim();
+  if (!item) throw new Error('記帳項目不可空白');
+  if (!Number.isFinite(input.amount) || input.amount <= 0) {
+    throw new Error('記帳金額必須大於 0');
+  }
+
   const db = await getDb();
   const id = Crypto.randomUUID();
   const now = nowISO();
@@ -25,7 +31,7 @@ export async function createTransaction(input: CreateTransactionInput): Promise<
     id,
     entry_id: input.entry_id ?? null,
     type: input.type,
-    item: input.item,
+    item,
     amount: input.amount,
     category: input.type === 'expense' ? (input.category ?? 'other') : null,
     created_at: input.created_at ?? now,
@@ -41,11 +47,23 @@ export async function updateTransaction(
   id: string,
   updates: Partial<Pick<Transaction, 'type' | 'item' | 'amount' | 'category'>>
 ): Promise<void> {
+  const sanitized = { ...updates };
+  if (sanitized.item !== undefined) {
+    sanitized.item = sanitized.item.trim();
+    if (!sanitized.item) throw new Error('記帳項目不可空白');
+  }
+  if (
+    sanitized.amount !== undefined &&
+    (!Number.isFinite(sanitized.amount) || sanitized.amount <= 0)
+  ) {
+    throw new Error('記帳金額必須大於 0');
+  }
+
   const db = await getDb();
-  const fields = Object.keys(updates) as (keyof typeof updates)[];
+  const fields = Object.keys(sanitized) as (keyof typeof sanitized)[];
   if (fields.length === 0) return;
   const setClause = fields.map(f => `${f} = ?`).join(', ');
-  const values = fields.map(f => updates[f] as string | number | null);
+  const values = fields.map(f => sanitized[f] as string | number | null);
   await db.runAsync(`UPDATE transactions SET ${setClause} WHERE id = ?`, [...values, id]);
 }
 

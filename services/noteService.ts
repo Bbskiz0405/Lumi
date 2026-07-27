@@ -35,13 +35,16 @@ export async function createNote(input: {
   tag?: string | null;
   entry_id?: string | null;
 }): Promise<Note> {
+  const content = input.content.trim();
+  if (!content) throw new Error('筆記內容不可空白');
+
   const db = await getDb();
   const id = Crypto.randomUUID();
   const now = nowISO();
   const note: Note = {
     id,
     entry_id: input.entry_id ?? null,
-    content: input.content,
+    content,
     category: input.category ?? null,
     tag: input.tag ?? null,
     created_at: now,
@@ -54,11 +57,17 @@ export async function createNote(input: {
 }
 
 export async function updateNote(id: string, updates: Partial<Pick<Note, 'content' | 'category' | 'tag'>>): Promise<void> {
+  const sanitized = { ...updates };
+  if (sanitized.content !== undefined) {
+    sanitized.content = sanitized.content.trim();
+    if (!sanitized.content) throw new Error('筆記內容不可空白');
+  }
+
   const db = await getDb();
-  const fields = Object.keys(updates) as (keyof typeof updates)[];
+  const fields = Object.keys(sanitized) as (keyof typeof sanitized)[];
   if (fields.length === 0) return;
   const setClause = fields.map(f => `${f} = ?`).join(', ');
-  const values = fields.map(f => updates[f] as string | null);
+  const values = fields.map(f => sanitized[f] as string | null);
   await db.runAsync(`UPDATE notes SET ${setClause} WHERE id = ?`, [...values, id]);
 }
 

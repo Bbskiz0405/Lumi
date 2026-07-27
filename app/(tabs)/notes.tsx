@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View, FlatList, StyleSheet, Text, TouchableOpacity, Alert,
   ActivityIndicator, Modal, TextInput, ScrollView,
@@ -22,7 +22,7 @@ function formatDate(isoStr: string): string {
 export default function NotesScreen() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
-  const [hasLoaded, setHasLoaded] = useState(false);
+  const hasLoaded = useRef(false);
   const [filter, setFilter] = useState<string | null>(null);
   const [tags, setTags] = useState<string[]>(['目標']);
 
@@ -106,20 +106,21 @@ export default function NotesScreen() {
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      if (!hasLoaded) setLoading(true);
+      if (!hasLoaded.current) setLoading(true);
 
-      getAllNotes().then(data => {
-        if (active) {
+      Promise.all([getAllNotes(), getCustomTags()])
+        .then(([data, customTags]) => {
+          if (!active) return;
           setNotes(data);
-          setLoading(false);
-          setHasLoaded(true);
-        }
-      });
-      getCustomTags().then(tags => {
-        if (active) setTags(tags);
-      });
+          setTags(customTags);
+          hasLoaded.current = true;
+        })
+        .catch(err => console.error('[NotesScreen] load failed:', err))
+        .finally(() => {
+          if (active) setLoading(false);
+        });
       return () => { active = false; };
-    }, [hasLoaded])
+    }, [])
   );
 
   function handleDelete(id: string) {
@@ -338,8 +339,8 @@ const styles = StyleSheet.create({
   emptyText: { color: '#555', fontSize: 14, fontWeight: '300', marginTop: 12 },
   emptyHint: { color: '#444', fontSize: 12, marginTop: 6 },
 
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-start', paddingTop: 48 },
-  modal: { backgroundColor: '#111111', borderRadius: 16, borderWidth: 1, borderColor: '#3A3A3A', marginHorizontal: 12, maxHeight: 500 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
+  modal: { backgroundColor: '#111111', borderTopLeftRadius: 16, borderTopRightRadius: 16, borderWidth: 1, borderColor: '#3A3A3A', maxHeight: '85%' },
   modalTitle: { padding: 20, paddingBottom: 12, color: '#FFFFFF', fontSize: 16, fontWeight: '300', letterSpacing: 1 },
   modalDivider: { height: 1, backgroundColor: '#3A3A3A' },
   modalBody: { padding: 16 },

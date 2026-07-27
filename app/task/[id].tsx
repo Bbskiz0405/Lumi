@@ -24,14 +24,15 @@ export default function TaskDetailScreen() {
   const { bumpRefresh } = useCalendar();
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     if (id) {
-      getTaskById(id).then((t) => {
-        setTask(t);
-        setLoading(false);
-      });
+      getTaskById(id)
+        .then(setTask)
+        .catch(() => setLoadError(true))
+        .finally(() => setLoading(false));
     }
   }, [id]);
 
@@ -84,7 +85,7 @@ export default function TaskDetailScreen() {
   if (!task) {
     return (
       <View style={styles.center}>
-        <Text style={styles.notFound}>找不到任務</Text>
+        <Text style={styles.notFound}>{loadError ? '讀取任務失敗，請稍後再試' : '找不到任務'}</Text>
       </View>
     );
   }
@@ -147,10 +148,10 @@ export default function TaskDetailScreen() {
 
         <View style={styles.actions}>
           <TouchableOpacity
-            style={[styles.completeBtn, task.completed && styles.completeBtnDone]}
+            style={[styles.completeBtn, task.completed === 1 && styles.completeBtnDone]}
             onPress={handleToggleComplete}
           >
-            <Text style={[styles.completeBtnText, task.completed && styles.completeBtnTextDone]}>
+            <Text style={[styles.completeBtnText, task.completed === 1 && styles.completeBtnTextDone]}>
               {task.completed ? '取消完成' : '完成'}
             </Text>
           </TouchableOpacity>

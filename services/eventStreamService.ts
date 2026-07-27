@@ -60,27 +60,12 @@ export async function getEventStream(opts: EventStreamOptions = {}): Promise<Uni
   const db = await getDb();
   const types: EventType[] = opts.types ?? ['task', 'finance', 'note', 'entry'];
   const events: UnifiedEvent[] = [];
-
-  type BindParams = (string | number | null)[];
-
-  const range = (col: string, params: BindParams): string => {
-    const parts: string[] = [];
-    if (opts.start) {
-      parts.push(`${col} >= ?`);
-      params.push(opts.start);
-    }
-    if (opts.end) {
-      parts.push(`${col} <= ?`);
-      params.push(opts.end);
-    }
-    return parts.length ? ' AND ' + parts.join(' AND ') : '';
-  };
+  const perTypeLimit =
+    opts.limit && opts.limit > 0 ? ` ORDER BY created_at DESC LIMIT ${Math.floor(opts.limit)}` : '';
 
   if (types.includes('task')) {
-    const params: BindParams = [];
     const rows = await db.getAllAsync<RawRow>(
-      `SELECT id AS refId, title, due_date, tag, completed, created_at FROM tasks WHERE 1=1${range('created_at', params)}`,
-      params
+      `SELECT id AS refId, title, due_date, tag, completed, created_at FROM tasks${perTypeLimit}`
     );
     for (const r of rows) {
       events.push({
@@ -98,10 +83,8 @@ export async function getEventStream(opts: EventStreamOptions = {}): Promise<Uni
   }
 
   if (types.includes('finance')) {
-    const params: BindParams = [];
     const rows = await db.getAllAsync<RawRow>(
-      `SELECT id AS refId, type AS type_col, item, amount, category, created_at FROM transactions WHERE 1=1${range('created_at', params)}`,
-      params
+      `SELECT id AS refId, type AS type_col, item, amount, category, created_at FROM transactions${perTypeLimit}`
     );
     for (const r of rows) {
       events.push({
@@ -119,10 +102,8 @@ export async function getEventStream(opts: EventStreamOptions = {}): Promise<Uni
   }
 
   if (types.includes('note')) {
-    const params: BindParams = [];
     const rows = await db.getAllAsync<RawRow>(
-      `SELECT id AS refId, content, category, tag, created_at FROM notes WHERE 1=1${range('created_at', params)}`,
-      params
+      `SELECT id AS refId, content, category, tag, created_at FROM notes${perTypeLimit}`
     );
     for (const r of rows) {
       events.push({
@@ -139,10 +120,8 @@ export async function getEventStream(opts: EventStreamOptions = {}): Promise<Uni
   }
 
   if (types.includes('entry')) {
-    const params: BindParams = [];
     const rows = await db.getAllAsync<RawRow>(
-      `SELECT id AS refId, raw_input, classified_type, created_at FROM entries WHERE 1=1${range('created_at', params)}`,
-      params
+      `SELECT id AS refId, raw_input, classified_type, created_at FROM entries${perTypeLimit}`
     );
     for (const r of rows) {
       events.push({
@@ -159,6 +138,15 @@ export async function getEventStream(opts: EventStreamOptions = {}): Promise<Uni
 
   let result = events;
 
+  if (opts.start || opts.end) {
+    const startTime = opts.start ? new Date(opts.start).getTime() : Number.NEGATIVE_INFINITY;
+    const endTime = opts.end ? new Date(opts.end).getTime() : Number.POSITIVE_INFINITY;
+    result = result.filter((event) => {
+      const time = new Date(event.timestamp).getTime();
+      return Number.isFinite(time) && time >= startTime && time <= endTime;
+    });
+  }
+
   if (opts.query && opts.query.trim()) {
     const q = opts.query.trim().toLowerCase();
     result = result.filter(
@@ -167,7 +155,11 @@ export async function getEventStream(opts: EventStreamOptions = {}): Promise<Uni
   }
 
   // 時序由新到舊
-  result.sort((a, b) => (a.timestamp < b.timestamp ? 1 : a.timestamp > b.timestamp ? -1 : 0));
+  result.sort((a, b) => {
+    const aTime = new Date(a.timestamp).getTime();
+    const bTime = new Date(b.timestamp).getTime();
+    return bTime - aTime;
+  });
 
   if (opts.limit && opts.limit > 0) {
     result = result.slice(0, opts.limit);

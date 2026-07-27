@@ -16,8 +16,9 @@ import { createNote } from '../../services/noteService';
 import { createTransaction } from '../../services/financeService';
 import {
   classifyWithHabits,
+  classifyByKeywords,
   saveEntry,
-  updateEntryType,
+  rollbackEntry,
   ClassificationResult,
   parseMultipleTransactions,
 } from '../../services/classificationService';
@@ -53,6 +54,13 @@ const RECENT_TYPE_CONFIG: Record<string, { icon: string; color: string }> = {
 
 const SELECTABLE_TYPES: ClassifiedType[] = ['TASK', 'FINANCE', 'IDEA'];
 
+function canSaveClassification(text: string, result: ClassificationResult): boolean {
+  if (result.type !== 'FINANCE') return true;
+  if (parseMultipleTransactions(text).length >= 2) return true;
+  const amount = result.parsed?.amount;
+  return typeof amount === 'number' && Number.isFinite(amount) && amount > 0;
+}
+
 function timeAgo(isoStr: string): string {
   const diff = Date.now() - new Date(isoStr).getTime();
   const mins = Math.floor(diff / 60000);
@@ -71,7 +79,6 @@ export default function HomeScreen() {
   const [text, setText] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
   const [classification, setClassification] = useState<ClassificationResult | null>(null);
-  const [pendingEntryId, setPendingEntryId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [classifying, setClassifying] = useState(false);
   const [feedbackText, setFeedbackText] = useState('');
@@ -83,8 +90,16 @@ export default function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      let active = true;
       setRefreshKey(k => k + 1);
-      getRecentActivity(5).then(setRecentItems);
+      getRecentActivity(5)
+        .then(items => {
+          if (active) setRecentItems(items);
+        })
+        .catch(err => console.error('[HomeScreen] recent activity failed:', err));
+      return () => {
+        active = false;
+      };
     }, [])
   );
 
@@ -126,31 +141,48 @@ export default function HomeScreen() {
       const source: 'ai' | 'local' = ai ? 'ai' : 'local';
       sourceRef.current = source;
       setClassifySource(source);
+    } catch {
+      showFeedback('分類失敗，請再試一次', false);
+      return;
     } finally {
       setClassifying(false);
     }
 
-    const entryId = await saveEntry(trimmed, result.type);
+    if (!result) {
+      showFeedback('無法判斷內容類型，請再試一次', false);
+      return;
+    }
 
-    if (result.confidence === 'high') {
-      setPendingEntryId(entryId);
-      setClassification(result);
-      await doSave(trimmed, result, entryId);
+    if (result.confidence === 'high' && canSaveClassification(trimmed, result)) {
+      await doSave(trimmed, result);
     } else {
       setClassification(result);
-      setPendingEntryId(entryId);
     }
   }
 
   function handleChangeType(newType: ClassifiedType) {
-    if (!classification || !pendingEntryId) return;
-    setClassification({ ...classification, type: newType, confidence: 'high' });
-    updateEntryType(pendingEntryId, newType);
+    if (!classification) return;
+    let parsed = newType === classification.type ? classification.parsed : undefined;
+    if (newType === 'FINANCE') {
+      const localResult = classifyByKeywords(text.trim());
+      parsed = localResult.type === 'FINANCE' ? localResult.parsed : undefined;
+    }
+    setClassification({ type: newType, confidence: 'high', parsed });
   }
 
-  async function doSave(trimmed: string, result: ClassificationResult, entryId: string) {
+  async function doSave(trimmed: string, result: ClassificationResult) {
+    if (!canSaveClassification(trimmed, result)) {
+      showFeedback('請在輸入內容中補上有效金額', false);
+      return;
+    }
+
     setSubmitting(true);
+    let entryId: string | null = null;
+    let feedback = '已儲存';
+    let succeeded = false;
+
     try {
+      entryId = await saveEntry(trimmed, result.type);
       switch (result.type) {
         case 'TASK':
           await createTask({
@@ -161,7 +193,7 @@ export default function HomeScreen() {
             source: 'manual',
             entry_id: entryId,
           });
-          showFeedback(result.parsed?.dueDate ? `已新增任務（${result.parsed.dueDate}）` : '已新增任務');
+          feedback = result.parsed?.dueDate ? `已新增任務（${result.parsed.dueDate}）` : '已新增任務';
           break;
 
         case 'FINANCE': {
@@ -176,54 +208,64 @@ export default function HomeScreen() {
                 entry_id: entryId,
               });
             }
-            showFeedback(`已記 ${multi.length} 筆`);
+            feedback = `已記 ${multi.length} 筆`;
           } else {
             const p = result.parsed;
+            const amount = p?.amount;
+            if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0) {
+              throw new Error('記帳金額無效');
+            }
             await createTransaction({
               type: p?.transactionType ?? 'expense',
               item: trimmed.replace(/\d+(?:\.\d+)?\s*(?:元|塊|NT\$?|\$)?/g, '').trim() || trimmed,
-              amount: p?.amount ?? 0,
-              category: p?.transactionType === 'income' ? null : (p?.category as any) ?? 'other',
+              amount,
+              category: p?.transactionType === 'income' ? null : p?.category ?? 'other',
               entry_id: entryId,
             });
-            showFeedback('已記帳');
+            feedback = '已記帳';
           }
           break;
         }
 
         case 'IDEA':
           await createNote({ content: trimmed, entry_id: entryId });
-          showFeedback('已儲存筆記');
+          feedback = '已儲存筆記';
           break;
 
         default:
           await createNote({ content: trimmed, entry_id: entryId });
-          showFeedback('已儲存');
           break;
       }
+      succeeded = true;
+      showFeedback(feedback);
+    } catch {
+      if (entryId) {
+        await rollbackEntry(entryId).catch(() => undefined);
+      }
+      showFeedback('儲存失敗，內容已保留，請再試一次', false);
     } finally {
-      setText('');
-      setClassification(null);
-      setPendingEntryId(null);
+      if (succeeded) {
+        setText('');
+        setClassification(null);
+        setRefreshKey(k => k + 1);
+        bumpRefresh();
+      }
       setSubmitting(false);
-      setRefreshKey(k => k + 1);
-      bumpRefresh();
     }
   }
 
   async function handleConfirm() {
-    if (!classification || !pendingEntryId) return;
-    await doSave(text.trim(), classification, pendingEntryId);
+    if (!classification) return;
+    await doSave(text.trim(), classification);
   }
 
   function handleCancel() {
     setClassification(null);
-    setPendingEntryId(null);
   }
 
-  function showFeedback(msg: string) {
+  function showFeedback(msg: string, includeSource = true) {
     const tag = sourceRef.current === 'ai' ? 'AI' : '本地';
-    setFeedbackText(`${msg} · ${tag}判斷`);
+    setFeedbackText(includeSource ? `${msg} · ${tag}判斷` : msg);
     feedbackOpacity.setValue(1);
     Animated.timing(feedbackOpacity, {
       toValue: 0,
@@ -235,6 +277,7 @@ export default function HomeScreen() {
 
   const hasText = text.trim().length > 0;
   const showClassification = classification !== null;
+  const canConfirm = classification !== null && canSaveClassification(text.trim(), classification);
 
   return (
     <SafeAreaView style={styles.safe} edges={[]}>
@@ -360,11 +403,11 @@ export default function HomeScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleConfirm}
-                style={[styles.confirmBtn, submitting && { opacity: 0.5 }]}
-                disabled={submitting}
+                style={[styles.confirmBtn, (!canConfirm || submitting) && { opacity: 0.5 }]}
+                disabled={!canConfirm || submitting}
               >
                 <Text style={styles.confirmText}>
-                  {submitting ? '儲存中...' : '確認'}
+                  {submitting ? '儲存中...' : canConfirm ? '確認' : '請補金額'}
                 </Text>
               </TouchableOpacity>
             </View>

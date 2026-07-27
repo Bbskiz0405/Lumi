@@ -4,6 +4,25 @@
 
 ---
 
+## 當前狀態 (2026-07-27)
+
+**版號：0.4.62（穩定性優化，本地修改尚未 commit / push）**
+
+### 0.4.62 — 穩定性、資料一致性與安全性優化
+- 修正 4 個 TypeScript 錯誤，新增 `npm run typecheck` / `npm run check` 品質檢查。
+- 智慧分流改為成功儲存後才留下 learning entry；取消不再產生孤兒資料，失敗會回滾並保留輸入文字。
+- 記帳無有效金額時禁止確認，服務層拒絕空白任務／筆記與零元交易。
+- 「問 Lumi」排除原始 entries，避免與衍生 task / finance / note 重複。
+- API Key 改用 `expo-secure-store`；舊 SQLite `ai_config` 首次讀取後自動搬移並刪除。
+- OpenRouter 預設由舊 `google/gemma-7b-it:free` 改為 `openrouter/free`，降低單一免費模型下架造成 404 的風險。
+- 統一跨類型事件排序的時間解析，修正 UTC 與本地記帳時間混用造成的錯序／跨月漏資料。
+- 日期-only 計算改成本地日期，修正台灣凌晨「今天」與任務截止日判斷。
+- SQLite 加 schema version 與常用索引；移除重複查詢、未處理載入錯誤與殘留字體 icon。
+- Modal 對齊 bottom sheet 規範；修正筆記刪空仍顯示舊預覽、財務重置後日曆未刷新等小問題。
+- Expo 設定與 Android 原生版本同步為 0.4.62 / versionCode 62。
+
+---
+
 ## 當前狀態 (2026-07-09)
 
 **版號：0.4.61（已 commit + push，local = GitHub `c6fab49`）**

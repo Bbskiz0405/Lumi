@@ -14,19 +14,22 @@ export default function NotesModule({ onPress, refreshKey }: Props) {
   const [lastNote, setLastNote] = useState('');
 
   useFocusEffect(useCallback(() => {
-    getNotesCount().then(setCount);
-    getRecentNotes(1).then(notes => {
-      if (notes.length > 0) {
-        const preview = notes[0].content.length > 20
-          ? notes[0].content.slice(0, 20) + '...'
-          : notes[0].content;
-        setLastNote(preview);
-      }
-    });
+    let active = true;
+    Promise.all([getNotesCount(), getRecentNotes(1)])
+      .then(([noteCount, notes]) => {
+        if (!active) return;
+        setCount(noteCount);
+        const latest = notes[0]?.content ?? '';
+        setLastNote(latest.length > 20 ? latest.slice(0, 20) + '...' : latest);
+      })
+      .catch(err => console.error('[NotesModule] load failed:', err));
+    return () => {
+      active = false;
+    };
   }, [refreshKey]));
 
   return (
-    <ModuleCard title="筆記" icon="lightbulb-outline" onPress={onPress} accent="#88AAFF">
+    <ModuleCard title="筆記" icon="!" onPress={onPress} accent="#88AAFF">
       <Text style={styles.count}>{count}</Text>
       <Text style={styles.label}>則筆記</Text>
       {lastNote ? (

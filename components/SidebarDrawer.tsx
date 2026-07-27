@@ -25,6 +25,15 @@ interface ReleaseEntry {
 
 const RELEASES: ReleaseEntry[] = [
   {
+    version: '0.4.62',
+    date: '2026-07-27',
+    notes: [
+      '穩定性優化：修正取消分類留下髒資料、零元記帳與跨類型時間排序',
+      'API Key 改存系統安全儲存，舊設定會自動遷移',
+      '修正時區、載入卡住、殘留字體圖示與多項小問題',
+    ],
+  },
+  {
     version: '0.4.61',
     date: '2026-06-11',
     notes: [
@@ -123,7 +132,7 @@ const RELEASES: ReleaseEntry[] = [
   },
 ];
 
-const VERSION = '0.4.61';
+const VERSION = '0.4.62';
 const GITHUB_URL = 'https://github.com/Bbskiz0405/Lumi';
 
 interface Props {

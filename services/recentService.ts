@@ -50,7 +50,9 @@ export async function getRecentActivity(limit: number = 8): Promise<RecentItem[]
     })),
   ];
 
-  items.sort((a, b) => b.created_at.localeCompare(a.created_at));
+  items.sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
   return items.slice(0, limit);
 }
 
