@@ -13,15 +13,19 @@ interface Props {
 
 export default function TasksModule({ onPress, refreshKey }: Props) {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [loadError, setLoadError] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
+      setLoadError(false);
       getAllTasks()
         .then(data => {
           if (active) setTasks(data.filter(t => t.completed === 0));
         })
-        .catch(err => console.error('[TasksModule] load failed:', err));
+        .catch(() => {
+          if (active) setLoadError(true);
+        });
       return () => {
         active = false;
       };
@@ -36,9 +40,15 @@ export default function TasksModule({ onPress, refreshKey }: Props) {
 
   return (
     <ModuleCard title="任務" icon="[v]" onPress={onPress} accent="#FF9944">
-      <Text style={styles.count}>{tasks.length}</Text>
-      <Text style={styles.label}>件待辦</Text>
-      {urgent.length > 0 && (
+      {loadError ? (
+        <Text style={styles.error}>暫時無法讀取</Text>
+      ) : (
+        <>
+          <Text style={styles.count}>{tasks.length}</Text>
+          <Text style={styles.label}>件待辦</Text>
+        </>
+      )}
+      {!loadError && urgent.length > 0 && (
         <View style={styles.urgentRow}>
           <View style={[styles.urgentDot, { marginRight: 5 }]} />
           <Text style={styles.urgentText}>{urgent.length} 件即將到期</Text>
@@ -76,4 +86,5 @@ const styles = StyleSheet.create({
     color: '#FF4444',
     fontSize: 11,
   },
+  error: { color: '#AA6666', fontSize: 12, lineHeight: 20, marginTop: 8 },
 });

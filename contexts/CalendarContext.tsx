@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useRef, useState } from 'react';
 import { toLocalDateString } from '../utils/date';
 
 interface CalendarState {
@@ -24,16 +24,28 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
   const [month, setMonth] = useState(today.getMonth());
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [refreshKey, setRefreshKey] = useState(0);
+  const viewMonthRef = useRef({ year: today.getFullYear(), month: today.getMonth() });
 
-  function prevMonth() {
-    if (month === 0) { setYear(y => y - 1); setMonth(11); }
-    else setMonth(m => m - 1);
+  function moveMonth(offset: number) {
+    const current = viewMonthRef.current;
+    const target = new Date(current.year, current.month + offset, 1);
+    const targetYear = target.getFullYear();
+    const targetMonth = target.getMonth();
+    const selectedDay = Number(selectedDate.split('-')[2]) || 1;
+    const lastDay = new Date(targetYear, targetMonth + 1, 0).getDate();
+    const nextDay = Math.min(selectedDay, lastDay);
+
+    viewMonthRef.current = { year: targetYear, month: targetMonth };
+    setYear(targetYear);
+    setMonth(targetMonth);
+    setSelectedDate(
+      `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(nextDay).padStart(2, '0')}`
+    );
   }
 
-  function nextMonth() {
-    if (month === 11) { setYear(y => y + 1); setMonth(0); }
-    else setMonth(m => m + 1);
-  }
+  function prevMonth() { moveMonth(-1); }
+
+  function nextMonth() { moveMonth(1); }
 
   function bumpRefresh() {
     setRefreshKey(k => k + 1);

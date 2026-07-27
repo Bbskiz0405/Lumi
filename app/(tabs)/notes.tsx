@@ -33,17 +33,22 @@ export default function NotesScreen() {
 
   const [addingTag, setAddingTag] = useState(false);
   const [newTagName, setNewTagName] = useState('');
+  const [loadError, setLoadError] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [modalError, setModalError] = useState('');
 
   function openEdit(note: Note) {
     setEditNote(note);
     setEditContent(note.content);
     setEditCategory(note.category);
+    setModalError('');
   }
 
   function openAdd() {
     setAddingNote(true);
     setEditContent('');
     setEditCategory(null);
+    setModalError('');
   }
 
   function closeModal() {
@@ -51,40 +56,54 @@ export default function NotesScreen() {
     setAddingNote(false);
     setEditContent('');
     setEditCategory(null);
+    setModalError('');
   }
 
   async function handleSaveEdit() {
+    if (saving) return;
     const content = editContent.trim();
     if (!content) {
-      closeModal();
+      setModalError('筆記內容不可空白。若要刪除，請回到列表使用刪除按鈕。');
       return;
     }
-    if (addingNote) {
-      const created = await createNote({
-        content,
-        category: editCategory as NoteCategory | null,
-      });
-      setNotes(prev => [created, ...prev]);
-    } else if (editNote) {
-      await updateNote(editNote.id, {
-        content,
-        category: editCategory as NoteCategory | null,
-      });
-      setNotes(prev => prev.map(n =>
-        n.id === editNote.id ? { ...n, content, category: editCategory as NoteCategory | null } : n
-      ));
+    setSaving(true);
+    setModalError('');
+    try {
+      if (addingNote) {
+        const created = await createNote({
+          content,
+          category: editCategory as NoteCategory | null,
+        });
+        setNotes(prev => [created, ...prev]);
+      } else if (editNote) {
+        await updateNote(editNote.id, {
+          content,
+          category: editCategory as NoteCategory | null,
+        });
+        setNotes(prev => prev.map(n =>
+          n.id === editNote.id ? { ...n, content, category: editCategory as NoteCategory | null } : n
+        ));
+      }
+      closeModal();
+    } catch {
+      setModalError('儲存失敗，內容已保留，請再試一次。');
+    } finally {
+      setSaving(false);
     }
-    closeModal();
   }
 
   async function handleAddTag() {
     const name = newTagName.trim();
     if (!name || tags.includes(name)) return;
     const updated = [...tags, name];
-    setTags(updated);
-    await saveCustomTags(updated);
-    setNewTagName('');
-    setAddingTag(false);
+    try {
+      await saveCustomTags(updated);
+      setTags(updated);
+      setNewTagName('');
+      setAddingTag(false);
+    } catch {
+      Alert.alert('新增失敗', '無法儲存標籤，請再試一次。');
+    }
   }
 
   function handleDeleteTag(tag: string) {
@@ -95,9 +114,13 @@ export default function NotesScreen() {
         style: 'destructive',
         onPress: async () => {
           const updated = tags.filter(t => t !== tag);
-          setTags(updated);
-          await saveCustomTags(updated);
-          if (filter === tag) setFilter(null);
+          try {
+            await saveCustomTags(updated);
+            setTags(updated);
+            if (filter === tag) setFilter(null);
+          } catch {
+            Alert.alert('刪除失敗', '標籤沒有變更，請再試一次。');
+          }
         },
       },
     ]);
@@ -107,6 +130,7 @@ export default function NotesScreen() {
     useCallback(() => {
       let active = true;
       if (!hasLoaded.current) setLoading(true);
+      setLoadError(false);
 
       Promise.all([getAllNotes(), getCustomTags()])
         .then(([data, customTags]) => {
@@ -115,7 +139,9 @@ export default function NotesScreen() {
           setTags(customTags);
           hasLoaded.current = true;
         })
-        .catch(err => console.error('[NotesScreen] load failed:', err))
+        .catch(() => {
+          if (active) setLoadError(true);
+        })
         .finally(() => {
           if (active) setLoading(false);
         });
@@ -130,8 +156,12 @@ export default function NotesScreen() {
         text: '刪除',
         style: 'destructive',
         onPress: async () => {
-          await deleteNote(id);
-          setNotes(prev => prev.filter(n => n.id !== id));
+          try {
+            await deleteNote(id);
+            setNotes(prev => prev.filter(n => n.id !== id));
+          } catch {
+            Alert.alert('刪除失敗', '筆記沒有刪除，請再試一次。');
+          }
         },
       },
     ]);
@@ -143,7 +173,13 @@ export default function NotesScreen() {
     <SafeAreaView style={styles.safe} edges={[]}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>筆記</Text>
-        <TouchableOpacity onPress={openAdd} style={styles.headerAddBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <TouchableOpacity
+          onPress={openAdd}
+          style={styles.headerAddBtn}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="新增筆記"
+        >
           <Text style={styles.headerAddText}>+</Text>
         </TouchableOpacity>
       </View>
@@ -209,7 +245,13 @@ export default function NotesScreen() {
             const tagIdx = item.category ? tags.indexOf(item.category) : -1;
             const tagColor = tagIdx >= 0 ? getTagColor(tagIdx) : '#666';
             return (
-              <TouchableOpacity style={styles.noteCard} onPress={() => openEdit(item)} activeOpacity={0.7}>
+              <TouchableOpacity
+                style={styles.noteCard}
+                onPress={() => openEdit(item)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={`編輯筆記：${item.content}`}
+              >
                 <View style={styles.noteBody}>
                   <Text style={styles.noteContent} numberOfLines={4}>{item.content}</Text>
                   <View style={styles.noteMeta}>
@@ -227,6 +269,8 @@ export default function NotesScreen() {
                   onPress={() => handleDelete(item.id)}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   style={styles.deleteBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel="刪除這則筆記"
                 >
                   <Text style={{ color: '#666', fontSize: 16, fontWeight: '200' }}>x</Text>
                 </TouchableOpacity>
@@ -236,8 +280,24 @@ export default function NotesScreen() {
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={{ fontSize: 40, color: '#333', marginBottom: 12 }}>!</Text>
-              <Text style={styles.emptyText}>還沒有筆記</Text>
-              <Text style={styles.emptyHint}>在首頁輸入任何想法，會自動歸類到這裡</Text>
+              <Text style={styles.emptyText}>{loadError ? '無法讀取筆記' : '還沒有筆記'}</Text>
+              {loadError ? (
+                <TouchableOpacity style={styles.retryBtn} onPress={() => {
+                  setLoading(true);
+                  Promise.all([getAllNotes(), getCustomTags()])
+                    .then(([data, customTags]) => {
+                      setNotes(data);
+                      setTags(customTags);
+                      setLoadError(false);
+                    })
+                    .catch(() => setLoadError(true))
+                    .finally(() => setLoading(false));
+                }}>
+                  <Text style={styles.retryText}>重試</Text>
+                </TouchableOpacity>
+              ) : (
+                <Text style={styles.emptyHint}>在首頁輸入任何想法，會自動歸類到這裡</Text>
+              )}
             </View>
           }
         />
@@ -264,6 +324,7 @@ export default function NotesScreen() {
                 placeholder={addingNote ? '寫點什麼...' : undefined}
                 placeholderTextColor="#444"
               />
+              {!!modalError && <Text style={styles.modalError}>{modalError}</Text>}
               <Text style={styles.fieldLabel}>標籤</Text>
               <View style={styles.catRow}>
                 <TouchableOpacity
@@ -288,11 +349,15 @@ export default function NotesScreen() {
                 ))}
               </View>
               <View style={styles.modalActions}>
-                <TouchableOpacity onPress={closeModal} style={styles.cancelBtn}>
+                <TouchableOpacity onPress={closeModal} style={styles.cancelBtn} disabled={saving}>
                   <Text style={styles.cancelText}>取消</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={handleSaveEdit} style={styles.saveBtn}>
-                  <Text style={styles.saveText}>{addingNote ? '新增' : '儲存'}</Text>
+                <TouchableOpacity
+                  onPress={handleSaveEdit}
+                  style={[styles.saveBtn, saving && { opacity: 0.55 }]}
+                  disabled={saving}
+                >
+                  <Text style={styles.saveText}>{saving ? '儲存中…' : addingNote ? '新增' : '儲存'}</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -338,6 +403,8 @@ const styles = StyleSheet.create({
   empty: { alignItems: 'center', paddingTop: 80 },
   emptyText: { color: '#555', fontSize: 14, fontWeight: '300', marginTop: 12 },
   emptyHint: { color: '#444', fontSize: 12, marginTop: 6 },
+  retryBtn: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 18, marginTop: 12, borderWidth: 1, borderColor: '#3A3A3A', borderRadius: 10 },
+  retryText: { color: '#FFFFFF', fontSize: 13 },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
   modal: { backgroundColor: '#111111', borderTopLeftRadius: 16, borderTopRightRadius: 16, borderWidth: 1, borderColor: '#3A3A3A', maxHeight: '85%' },
@@ -345,6 +412,7 @@ const styles = StyleSheet.create({
   modalDivider: { height: 1, backgroundColor: '#3A3A3A' },
   modalBody: { padding: 16 },
   editInput: { borderWidth: 1, borderColor: '#3A3A3A', borderRadius: 8, padding: 12, color: '#FFFFFF', fontSize: 15, fontWeight: '300', backgroundColor: '#161616', minHeight: 100, textAlignVertical: 'top', marginBottom: 12 },
+  modalError: { color: '#FF6655', fontSize: 12, marginBottom: 12 },
   fieldLabel: { color: '#777', fontSize: 12, letterSpacing: 1, marginBottom: 8 },
   catRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
   catPill: { borderWidth: 1, borderColor: '#3A3A3A', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 5 },

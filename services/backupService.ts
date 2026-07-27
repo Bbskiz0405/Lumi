@@ -2,7 +2,7 @@ import { getDb, LATEST_DATABASE_VERSION } from './db';
 
 export const BACKUP_FORMAT = 'lumi-backup';
 export const BACKUP_SCHEMA_VERSION = 1;
-export const BACKUP_APP_VERSION = '0.4.63';
+export const BACKUP_APP_VERSION = '0.4.64';
 
 type SqlValue = string | number | null;
 type BackupRow = Record<string, SqlValue>;

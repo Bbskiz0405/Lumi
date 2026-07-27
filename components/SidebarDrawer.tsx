@@ -26,6 +26,17 @@ interface ReleaseEntry {
 
 const RELEASES: ReleaseEntry[] = [
   {
+    version: '0.4.64',
+    date: '2026-07-27',
+    notes: [
+      'UX 安全修補：換月同步選取日，記帳可修改日期，刪除只確認一次',
+      '智慧輸入新增 8 秒復原，多筆記帳改為先預覽',
+      '任務／筆記／財務新增錯誤與重試狀態，表單防止連點',
+      'AI 功能明確顯示資料傳送範圍，並加入逾時與設定入口',
+      '補齊主要操作的無障礙標籤與觸控範圍',
+    ],
+  },
+  {
     version: '0.4.63',
     date: '2026-07-27',
     notes: [
@@ -142,7 +153,7 @@ const RELEASES: ReleaseEntry[] = [
   },
 ];
 
-const VERSION = '0.4.63';
+const VERSION = '0.4.64';
 const GITHUB_URL = 'https://github.com/Bbskiz0405/Lumi';
 
 interface Props {

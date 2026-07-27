@@ -194,11 +194,30 @@ export interface ChatMessage {
   text: string;
 }
 
+async function fetchWithTimeout(
+  input: string,
+  init: RequestInit,
+  timeoutMs = 20000
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('AI 回應逾時，請檢查網路後再試一次');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function callGemini(config: ApiConfig, messages: any[], temperature: number, maxTokens: number): Promise<string> {
   const model = config.model || DEFAULT_MODELS.gemini;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${config.apiKey}`;
 
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -237,7 +256,7 @@ async function callOpenAICompatible(config: ApiConfig, systemPrompt: string, cha
     headers['X-Title'] = 'Lumi';
   }
 
-  const response = await fetch(`${baseUrl}/chat/completions`, {
+  const response = await fetchWithTimeout(`${baseUrl}/chat/completions`, {
     method: 'POST',
     headers,
     body: JSON.stringify({

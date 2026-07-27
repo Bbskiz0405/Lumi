@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import {
   View, FlatList, StyleSheet, Text, ActivityIndicator,
-  TouchableOpacity, Modal,
+  TouchableOpacity, Modal, Alert,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import TaskCard from '../../../components/tasks/TaskCard';
@@ -23,18 +23,34 @@ export default function CalendarScreen() {
   const [loading, setLoading] = useState(true);
   const hasLoaded = useRef(false);
   const [modalVisible, setModalVisible] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+
+  async function retryLoad() {
+    setLoading(true);
+    setLoadError(false);
+    try {
+      await loadDayTasks(selectedDate);
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
       if (!hasLoaded.current) setLoading(true);
+      setLoadError(false);
       getTasksForDate(selectedDate)
         .then(data => {
           if (!active) return;
           setTasks(data);
           hasLoaded.current = true;
         })
-        .catch(err => console.error('[CalendarScreen] load failed:', err))
+        .catch(() => {
+          if (active) setLoadError(true);
+        })
         .finally(() => {
           if (active) setLoading(false);
         });
@@ -48,16 +64,20 @@ export default function CalendarScreen() {
   }
 
   async function handleToggle(id: string, completed: boolean) {
-    await toggleTaskComplete(id, completed);
-    setTasks(prev => prev.map(t => (t.id === id ? { ...t, completed: completed ? 1 : 0 } : t)));
-    bumpRefresh();
+    try {
+      await toggleTaskComplete(id, completed);
+      setTasks(prev => prev.map(t => (t.id === id ? { ...t, completed: completed ? 1 : 0 } : t)));
+      bumpRefresh();
+    } catch {
+      Alert.alert('更新失敗', '任務狀態沒有變更，請再試一次。');
+    }
   }
 
   async function handleCreate(input: CreateTaskInput) {
     await createTask({ ...input, due_date: input.due_date ?? selectedDate });
     setModalVisible(false);
-    loadDayTasks(selectedDate);
     bumpRefresh();
+    await loadDayTasks(selectedDate).catch(() => setLoadError(true));
   }
 
   const dateMonth = parseInt(selectedDate.split('-')[1]);
@@ -71,7 +91,13 @@ export default function CalendarScreen() {
           {dateMonth}月{dateDay}日
           {selectedDate === todayStr ? '  今天' : ''}
         </Text>
-        <TouchableOpacity style={styles.addBtn} onPress={() => setModalVisible(true)}>
+        <TouchableOpacity
+          style={styles.addBtn}
+          onPress={() => setModalVisible(true)}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          accessibilityRole="button"
+          accessibilityLabel={`新增 ${dateMonth} 月 ${dateDay} 日的任務`}
+        >
           <Text style={{ color: '#FFFFFF', fontSize: 22, fontWeight: '200', marginTop: -2 }}>+</Text>
         </TouchableOpacity>
       </View>
@@ -95,11 +121,17 @@ export default function CalendarScreen() {
           )}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyText}>這天沒有任務</Text>
-              <TouchableOpacity style={styles.emptyAddBtn} onPress={() => setModalVisible(true)}>
-                <Text style={{ color: '#888', fontSize: 14, marginRight: 4 }}>+</Text>
-                <Text style={styles.emptyAddText}>新增任務</Text>
-              </TouchableOpacity>
+              <Text style={styles.emptyText}>{loadError ? '無法讀取這天的任務' : '這天沒有任務'}</Text>
+              {loadError ? (
+                <TouchableOpacity style={styles.emptyAddBtn} onPress={() => void retryLoad()}>
+                  <Text style={styles.emptyAddText}>重試</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity style={styles.emptyAddBtn} onPress={() => setModalVisible(true)}>
+                  <Text style={{ color: '#888', fontSize: 14, marginRight: 4 }}>+</Text>
+                  <Text style={styles.emptyAddText}>新增任務</Text>
+                </TouchableOpacity>
+              )}
             </View>
           }
         />

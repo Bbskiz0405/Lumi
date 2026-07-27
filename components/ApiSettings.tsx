@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
@@ -181,11 +182,16 @@ export default function ApiSettings() {
 
             <View style={styles.tipBox}>
               <Text style={styles.tipTitle}>取得 key</Text>
-              <Text style={styles.tipText}>
-                Gemini: aistudio.google.com/apikey{'\n'}
-                OpenRouter: openrouter.ai/keys{'\n'}
-                OpenAI: platform.openai.com/api-keys
-              </Text>
+              <TouchableOpacity onPress={() => void Linking.openURL('https://aistudio.google.com/apikey')}>
+                <Text style={styles.tipLink}>Gemini · 開啟 AI Studio</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => void Linking.openURL('https://openrouter.ai/keys')}>
+                <Text style={styles.tipLink}>OpenRouter · 開啟 Keys</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => void Linking.openURL('https://platform.openai.com/api-keys')}>
+                <Text style={styles.tipLink}>OpenAI · 開啟 API Keys</Text>
+              </TouchableOpacity>
+              <Text style={styles.tipText}>不同供應商可能產生費用，請查看各平台方案。</Text>
             </View>
           </>
         )}
@@ -276,4 +282,5 @@ const styles = StyleSheet.create({
   },
   tipTitle: { color: '#888', fontSize: 11, letterSpacing: 1, marginBottom: 6, textTransform: 'uppercase' },
   tipText: { color: '#666', fontSize: 12, lineHeight: 22, fontWeight: '300' },
+  tipLink: { color: '#88AAFF', fontSize: 13, lineHeight: 28, fontWeight: '300' },
 });

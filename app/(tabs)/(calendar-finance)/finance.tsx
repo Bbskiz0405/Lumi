@@ -27,6 +27,7 @@ import {
   saveExpenseCategories,
 } from '../../../services/financeService';
 import { Transaction, ExpenseCategory } from '../../../types/finance';
+import { isValidLocalDateString } from '../../../utils/date';
 
 type ViewMode = 'month' | 'year' | 'all';
 
@@ -43,6 +44,7 @@ export default function FinanceScreen() {
   const [summary, setSummary] = useState({ income: 0, expense: 0 });
   const [categoryExpense, setCategoryExpense] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [expenseCategories, setExpenseCategories] = useState<{ value: string; label: string }[]>([]);
   const [addingCat, setAddingCat] = useState(false);
@@ -56,6 +58,7 @@ export default function FinanceScreen() {
   const [editAmount, setEditAmount] = useState('');
   const [editType, setEditType] = useState<'income' | 'expense'>('expense');
   const [editCategory, setEditCategory] = useState<ExpenseCategory>('food');
+  const [editDate, setEditDate] = useState('');
 
   function openEditTx(tx: Transaction) {
     setEditTx(tx);
@@ -63,28 +66,34 @@ export default function FinanceScreen() {
     setEditAmount(String(tx.amount));
     setEditType(tx.type);
     setEditCategory((tx.category as ExpenseCategory) ?? 'other');
+    setEditDate(tx.created_at.split('T')[0]);
   }
 
   async function handleSaveEdit() {
     if (!editTx) return;
     const amt = parseFloat(editAmount);
-    if (!editItem.trim() || isNaN(amt) || amt <= 0) {
-      Alert.alert('無法儲存', '請輸入項目名稱與有效金額。');
+    if (!editItem.trim() || isNaN(amt) || amt <= 0 || !isValidLocalDateString(editDate)) {
+      Alert.alert('無法儲存', '請輸入項目名稱、有效金額與日期。');
       return;
     }
+    const originalTime = editTx.created_at.includes('T')
+      ? editTx.created_at.slice(editTx.created_at.indexOf('T'))
+      : 'T12:00:00.000';
     try {
       await updateTransaction(editTx.id, {
         item: editItem.trim(),
         amount: amt,
         type: editType,
         category: editType === 'expense' ? editCategory : null,
+        created_at: `${editDate}${originalTime}`,
       });
-      setEditTx(null);
-      await loadAll(viewMode);
-      bumpRefresh();
     } catch {
       Alert.alert('儲存失敗', '請稍後再試。');
+      return;
     }
+    setEditTx(null);
+    bumpRefresh();
+    await loadAll(viewMode).catch(() => undefined);
   }
 
   // Add modal
@@ -93,8 +102,10 @@ export default function FinanceScreen() {
   const [formItem, setFormItem] = useState('');
   const [formAmount, setFormAmount] = useState('');
   const [formCategory, setFormCategory] = useState<ExpenseCategory>('food');
+  const [formDate, setFormDate] = useState(selectedDate);
   const [formItemError, setFormItemError] = useState('');
   const [formAmountError, setFormAmountError] = useState('');
+  const [formDateError, setFormDateError] = useState('');
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [showCalc, setShowCalc] = useState(false);
   const [calcTarget, setCalcTarget] = useState<'add' | 'edit'>('add');
@@ -103,6 +114,7 @@ export default function FinanceScreen() {
 
   async function loadAll(mode: ViewMode, silent = false) {
     if (!silent) setLoading(true);
+    setLoadError(false);
     try {
       let txs: Transaction[];
       let sum: { income: number; expense: number };
@@ -131,6 +143,9 @@ export default function FinanceScreen() {
       setTransactions(txs);
       setSummary(sum);
       setCategoryExpense(catExp);
+    } catch (error) {
+      setLoadError(true);
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -162,8 +177,10 @@ export default function FinanceScreen() {
     setFormItem('');
     setFormAmount('');
     setFormCategory('food');
+    setFormDate(selectedDate);
     setFormItemError('');
     setFormAmountError('');
+    setFormDateError('');
     setModalVisible(true);
   }
 
@@ -174,13 +191,15 @@ export default function FinanceScreen() {
     const amt = parseFloat(formAmount);
     if (isNaN(amt) || amt <= 0) { setFormAmountError('請輸入有效金額'); valid = false; }
     else setFormAmountError('');
+    if (!isValidLocalDateString(formDate)) { setFormDateError('請輸入有效日期（YYYY-MM-DD）'); valid = false; }
+    else setFormDateError('');
     if (!valid) return;
     setFormSubmitting(true);
     const now = new Date();
     const pad = (n: number) => String(n).padStart(2, '0');
     const pad3 = (n: number) => String(n).padStart(3, '0');
     const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}.${pad3(now.getMilliseconds())}`;
-    const useDate = `${selectedDate}T${timeStr}`;
+    const useDate = `${formDate}T${timeStr}`;
     try {
       await createTransaction({
         type: formType,
@@ -189,17 +208,18 @@ export default function FinanceScreen() {
         category: formType === 'expense' ? formCategory : null,
         created_at: useDate,
       });
-      setModalVisible(false);
-      await loadAll(viewMode);
-      bumpRefresh();
     } catch {
       setFormItemError('儲存失敗，請稍後再試');
+      return;
     } finally {
       setFormSubmitting(false);
     }
+    setModalVisible(false);
+    bumpRefresh();
+    await loadAll(viewMode).catch(() => undefined);
   }
 
-  async function handleDelete(id: string) {
+  async function handleDelete(id: string, closeEdit = false) {
     Alert.alert('刪除記錄', '確定要刪除這筆記帳嗎？', [
       { text: '取消', style: 'cancel' },
       {
@@ -207,12 +227,14 @@ export default function FinanceScreen() {
         style: 'destructive',
         onPress: async () => {
           try {
+            if (closeEdit) setEditTx(null);
             await deleteTransaction(id);
-            await loadAll(viewMode);
-            bumpRefresh();
           } catch {
             Alert.alert('刪除失敗', '請稍後再試。');
+            return;
           }
+          bumpRefresh();
+          await loadAll(viewMode).catch(() => undefined);
         },
       },
     ]);
@@ -231,11 +253,12 @@ export default function FinanceScreen() {
           onPress: async () => {
             try {
               await resetAllFinance();
-              await loadAll(viewMode);
-              bumpRefresh();
             } catch {
               Alert.alert('重置失敗', '請稍後再試。');
+              return;
             }
+            bumpRefresh();
+            await loadAll(viewMode).catch(() => undefined);
           },
         },
       ]
@@ -266,17 +289,44 @@ export default function FinanceScreen() {
               ))}
             </View>
             <View style={{ flexDirection: 'row', gap: 8 }}>
-              <TouchableOpacity onPress={() => setAdvisorVisible(true)} style={styles.addBtn}>
+              <TouchableOpacity
+                onPress={() => setAdvisorVisible(true)}
+                style={styles.addBtn}
+                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                accessibilityRole="button"
+                accessibilityLabel="開啟 AI 財務顧問"
+              >
                 <Text style={{ color: '#55DDAA', fontSize: 18, fontWeight: '200' }}>✧</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={handleReset} style={styles.addBtn}>
+              <TouchableOpacity
+                onPress={handleReset}
+                style={styles.addBtn}
+                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                accessibilityRole="button"
+                accessibilityLabel="重置所有記帳資料"
+              >
                 <Text style={{ color: '#666', fontSize: 22, fontWeight: '200', marginTop: -2 }}>↻</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={openModal} style={styles.addBtn}>
+              <TouchableOpacity
+                onPress={openModal}
+                style={styles.addBtn}
+                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                accessibilityRole="button"
+                accessibilityLabel="新增記帳"
+              >
                 <Text style={{ color: '#FFFFFF', fontSize: 24, fontWeight: '200', marginTop: -2 }}>+</Text>
               </TouchableOpacity>
             </View>
           </View>
+
+          {loadError && (
+            <View style={styles.loadErrorBanner}>
+              <Text style={styles.loadErrorText}>資料可能不是最新，讀取失敗。</Text>
+              <TouchableOpacity onPress={() => void loadAll(viewMode)}>
+                <Text style={styles.loadErrorRetry}>重試</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* Summary */}
           <View style={styles.summaryRow}>
@@ -360,6 +410,15 @@ export default function FinanceScreen() {
                 placeholder="項目名稱"
                 placeholderTextColor="#444"
               />
+              <Text style={styles.fieldLabel}>日期</Text>
+              <TextInput
+                style={styles.input}
+                value={editDate}
+                onChangeText={setEditDate}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor="#444"
+                keyboardType="numeric"
+              />
               <View style={styles.amountRow}>
                 <TextInput
                   style={[styles.input, { flex: 1, marginBottom: 0 }]}
@@ -396,18 +455,7 @@ export default function FinanceScreen() {
                   style={styles.deleteBtn}
                   onPress={() => {
                     if (!editTx) return;
-                    const id = editTx.id;
-                    Alert.alert('刪除記錄', '確定要刪除這筆記帳嗎？', [
-                      { text: '取消', style: 'cancel' },
-                      {
-                        text: '刪除',
-                        style: 'destructive',
-                        onPress: async () => {
-                          setEditTx(null);
-                          await handleDelete(id);
-                        },
-                      },
-                    ]);
+                    void handleDelete(editTx.id, true);
                   }}
                 >
                   <Text style={styles.deleteText}>刪除</Text>
@@ -442,7 +490,7 @@ export default function FinanceScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modal}>
-            <Text style={styles.modalTitle}>新增記錄（{parseInt(selectedDate.split('-')[1])}月{parseInt(selectedDate.split('-')[2])}日）</Text>
+            <Text style={styles.modalTitle}>新增記錄</Text>
             <View style={styles.modalDivider} />
 
             <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
@@ -475,6 +523,17 @@ export default function FinanceScreen() {
                 autoFocus
               />
               {!!formItemError && <Text style={styles.errorText}>{formItemError}</Text>}
+
+              <Text style={styles.fieldLabel}>日期</Text>
+              <TextInput
+                style={[styles.input, !!formDateError && styles.inputError]}
+                value={formDate}
+                onChangeText={setFormDate}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor="#444"
+                keyboardType="numeric"
+              />
+              {!!formDateError && <Text style={styles.errorText}>{formDateError}</Text>}
 
               <View style={styles.amountRow}>
                 <TextInput
@@ -585,6 +644,19 @@ const styles = StyleSheet.create({
   },
   modePillText: { color: '#444', fontSize: 12 },
   modePillTextActive: { color: '#FFFFFF' },
+  loadErrorBanner: {
+    minHeight: 44,
+    marginHorizontal: 16,
+    marginBottom: 10,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#4A2626',
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  loadErrorText: { flex: 1, color: '#CC7777', fontSize: 12 },
+  loadErrorRetry: { color: '#FFFFFF', fontSize: 13, padding: 10 },
 
   monthNav: {
     flexDirection: 'row',

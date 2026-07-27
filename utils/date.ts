@@ -13,6 +13,12 @@ export function parseLocalDate(dateString: string): Date {
   return new Date(year, month - 1, day);
 }
 
+export function isValidLocalDateString(dateString: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return false;
+  const parsed = parseLocalDate(dateString);
+  return !Number.isNaN(parsed.getTime()) && toLocalDateString(parsed) === dateString;
+}
+
 export function calendarDaysFromToday(dateString: string, today: Date = new Date()): number {
   const target = parseLocalDate(dateString);
   if (Number.isNaN(target.getTime())) return Number.POSITIVE_INFINITY;

@@ -278,10 +278,10 @@ export async function saveEntry(rawInput: string, classifiedType: ClassifiedType
 
 export async function rollbackEntry(id: string): Promise<void> {
   const db = await getDb();
-  await db.withTransactionAsync(async () => {
-    await db.runAsync('DELETE FROM tasks WHERE entry_id = ?', [id]);
-    await db.runAsync('DELETE FROM transactions WHERE entry_id = ?', [id]);
-    await db.runAsync('DELETE FROM notes WHERE entry_id = ?', [id]);
-    await db.runAsync('DELETE FROM entries WHERE id = ?', [id]);
+  await db.withExclusiveTransactionAsync(async tx => {
+    await tx.runAsync('DELETE FROM tasks WHERE entry_id = ?', [id]);
+    await tx.runAsync('DELETE FROM transactions WHERE entry_id = ?', [id]);
+    await tx.runAsync('DELETE FROM notes WHERE entry_id = ?', [id]);
+    await tx.runAsync('DELETE FROM entries WHERE id = ?', [id]);
   });
 }

@@ -139,6 +139,9 @@ export default function FinanceAdvisor({ month, onClose }: Props) {
           <ScrollView contentContainerStyle={styles.keySetup} keyboardShouldPersistTaps="handled">
             <Text style={{ color: '#55DDAA', fontSize: 40, marginBottom: 10, fontWeight: '100' }}>✧</Text>
             <Text style={styles.keyTitle}>選擇 AI 模型來源</Text>
+            <Text style={styles.privacyText}>
+              使用財務顧問時，本月交易與預算摘要會傳送到你選擇的 AI 供應商。
+            </Text>
 
             <View style={styles.providerRow}>
               {PROVIDERS.map(p => (
@@ -203,6 +206,9 @@ export default function FinanceAdvisor({ month, onClose }: Props) {
             <Text style={{ color: '#55DDAA', fontSize: 48, marginBottom: 16, fontWeight: '100' }}>✧</Text>
             <Text style={styles.welcomeText}>
               我是你的財務分析助手{'\n'}問我關於本月消費的任何問題
+            </Text>
+            <Text style={styles.welcomePrivacy}>
+              分析時會把本月交易與預算摘要傳送到目前的 AI 供應商。
             </Text>
             <TouchableOpacity style={styles.quickBtn} onPress={handleQuickAnalysis}>
               <Text style={{ color: '#55DDAA', fontSize: 14, marginRight: 8 }}>→</Text>
@@ -289,6 +295,7 @@ const styles = StyleSheet.create({
 
   keySetup: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, paddingTop: 60 },
   keyTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: '300', marginTop: 10, marginBottom: 24 },
+  privacyText: { color: '#7F8AA3', fontSize: 12, lineHeight: 18, textAlign: 'center', marginBottom: 18 },
   providerRow: { width: '100%', gap: 10, marginBottom: 24 },
   providerBtn: {
     borderWidth: 1, borderColor: '#333', borderRadius: 12,
@@ -309,6 +316,7 @@ const styles = StyleSheet.create({
   chatContent: { padding: 16, paddingBottom: 8 },
   welcome: { alignItems: 'center', paddingTop: 60, paddingBottom: 20 },
   welcomeText: { color: '#666', fontSize: 14, fontWeight: '300', textAlign: 'center', lineHeight: 24, marginTop: 4, marginBottom: 24 },
+  welcomePrivacy: { color: '#4F596D', fontSize: 11, lineHeight: 17, textAlign: 'center', marginBottom: 18, paddingHorizontal: 20 },
   quickBtn: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#55DDAA60', borderRadius: 24, paddingHorizontal: 20, paddingVertical: 10 },
   quickBtnText: { color: '#55DDAA', fontSize: 14, fontWeight: '500' },
 

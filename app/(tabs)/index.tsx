@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -87,6 +87,15 @@ export default function HomeScreen() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [classifySource, setClassifySource] = useState<'ai' | 'local'>('local');
   const sourceRef = useRef<'ai' | 'local'>('local');
+  const [lastSaved, setLastSaved] = useState<{ entryId: string; message: string } | null>(null);
+  const [undoing, setUndoing] = useState(false);
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    };
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -153,7 +162,12 @@ export default function HomeScreen() {
       return;
     }
 
-    if (result.confidence === 'high' && canSaveClassification(trimmed, result)) {
+    const multiCount = result.type === 'FINANCE' ? parseMultipleTransactions(trimmed).length : 0;
+    if (
+      result.confidence === 'high' &&
+      canSaveClassification(trimmed, result) &&
+      multiCount < 2
+    ) {
       await doSave(trimmed, result);
     } else {
       setClassification(result);
@@ -238,6 +252,14 @@ export default function HomeScreen() {
       }
       succeeded = true;
       showFeedback(feedback);
+      if (entryId) {
+        if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+        setLastSaved({ entryId, message: feedback });
+        undoTimerRef.current = setTimeout(() => {
+          setLastSaved(null);
+          undoTimerRef.current = null;
+        }, 8000);
+      }
     } catch {
       if (entryId) {
         await rollbackEntry(entryId).catch(() => undefined);
@@ -261,6 +283,25 @@ export default function HomeScreen() {
 
   function handleCancel() {
     setClassification(null);
+  }
+
+  async function handleUndo() {
+    if (!lastSaved || undoing) return;
+    const saved = lastSaved;
+    setUndoing(true);
+    try {
+      await rollbackEntry(saved.entryId);
+      if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+      undoTimerRef.current = null;
+      setLastSaved(null);
+      setRefreshKey(k => k + 1);
+      bumpRefresh();
+      showFeedback('已復原上一筆儲存', false);
+    } catch {
+      showFeedback('復原失敗，請到對應頁面確認', false);
+    } finally {
+      setUndoing(false);
+    }
   }
 
   function showFeedback(msg: string, includeSource = true) {
@@ -291,6 +332,8 @@ export default function HomeScreen() {
               onPress={() => router.push('/timeline')}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               style={styles.menuBtn}
+              accessibilityRole="button"
+              accessibilityLabel="開啟時間軸"
             >
               <Text style={styles.menuBtnIcon}>≣</Text>
             </TouchableOpacity>
@@ -298,6 +341,8 @@ export default function HomeScreen() {
               onPress={() => router.push('/ask')}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               style={styles.menuBtn}
+              accessibilityRole="button"
+              accessibilityLabel="開啟問 Lumi"
             >
               <Text style={styles.menuBtnIcon}>⌕</Text>
             </TouchableOpacity>
@@ -305,6 +350,8 @@ export default function HomeScreen() {
               onPress={() => setDrawerOpen(true)}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               style={styles.menuBtn}
+              accessibilityRole="button"
+              accessibilityLabel="開啟設定選單"
             >
               <Text style={styles.menuBtnIcon}>≡</Text>
             </TouchableOpacity>
@@ -332,6 +379,9 @@ export default function HomeScreen() {
               onPress={handleClassify}
               style={[styles.submitBtn, classifying && { opacity: 0.7 }]}
               disabled={classifying}
+              accessibilityRole="button"
+              accessibilityLabel="分類並儲存輸入內容"
+              accessibilityState={{ busy: classifying, disabled: classifying }}
             >
               {classifying ? (
                 <ActivityIndicator size="small" color="#0F0F0F" />
@@ -369,6 +419,9 @@ export default function HomeScreen() {
                         isActive && { borderColor: config.color, backgroundColor: config.color + '15' },
                       ]}
                       onPress={() => handleChangeType(t)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`改為${config.label}`}
+                      accessibilityState={{ selected: isActive }}
                     >
                       <Text
                         style={[
@@ -390,9 +443,22 @@ export default function HomeScreen() {
             {classification.type === 'FINANCE' && classification.parsed && (
               <View style={styles.parsePreview}>
                 <Text style={styles.parseText}>
-                  {classification.parsed.transactionType === 'income' ? '收入' : '支出'}
-                  {classification.parsed.amount ? ` $${classification.parsed.amount}` : ' (請確認金額)'}
-                  {classification.parsed.category ? ` · ${classification.parsed.category}` : ''}
+                  {parseMultipleTransactions(text.trim()).length >= 2
+                    ? `將建立 ${parseMultipleTransactions(text.trim()).length} 筆記帳，確認後一次儲存`
+                    : `${classification.parsed.transactionType === 'income' ? '收入' : '支出'}${
+                        classification.parsed.amount ? ` $${classification.parsed.amount}` : '（請確認金額）'
+                      }${
+                        classification.parsed.category
+                          ? ` · ${
+                              {
+                                food: '餐飲',
+                                transport: '交通',
+                                interest: '興趣',
+                                other: '其他',
+                              }[classification.parsed.category] ?? classification.parsed.category
+                            }`
+                          : ''
+                      }`}
                 </Text>
               </View>
             )}
@@ -405,6 +471,9 @@ export default function HomeScreen() {
                 onPress={handleConfirm}
                 style={[styles.confirmBtn, (!canConfirm || submitting) && { opacity: 0.5 }]}
                 disabled={!canConfirm || submitting}
+                accessibilityRole="button"
+                accessibilityLabel="確認儲存分類結果"
+                accessibilityState={{ disabled: !canConfirm || submitting, busy: submitting }}
               >
                 <Text style={styles.confirmText}>
                   {submitting ? '儲存中...' : canConfirm ? '確認' : '請補金額'}
@@ -418,6 +487,21 @@ export default function HomeScreen() {
         <Animated.View style={[styles.feedback, { opacity: feedbackOpacity }]} pointerEvents="none">
           <Text style={styles.feedbackText}>{feedbackText}</Text>
         </Animated.View>
+
+        {lastSaved && (
+          <View style={styles.undoBar}>
+            <Text style={styles.undoText}>{lastSaved.message}</Text>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="復原上一筆儲存"
+              onPress={() => void handleUndo()}
+              disabled={undoing}
+              style={styles.undoButton}
+            >
+              <Text style={styles.undoButtonText}>{undoing ? '復原中…' : '復原'}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* 模組格 */}
         <View style={styles.grid}>
@@ -530,15 +614,15 @@ const styles = StyleSheet.create({
   submitBtn: {
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
-    width: 28,
-    height: 28,
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 8,
   },
   submitBtnArrow: {
     color: '#0F0F0F',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     lineHeight: 18,
   },
@@ -650,6 +734,21 @@ const styles = StyleSheet.create({
     fontWeight: '300',
     letterSpacing: 1,
   },
+  undoBar: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1,
+    borderColor: '#333333',
+    borderRadius: 10,
+    paddingLeft: 14,
+    marginBottom: 12,
+  },
+  undoText: { flex: 1, color: '#CCCCCC', fontSize: 12, fontWeight: '300' },
+  undoButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 14 },
+  undoButtonText: { color: '#55DDAA', fontSize: 13, fontWeight: '500' },
   grid: {},
   row: {
     flexDirection: 'row',

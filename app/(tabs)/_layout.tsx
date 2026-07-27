@@ -33,9 +33,12 @@ function CustomTabBar({ insets }: { insets: EdgeInsets }) {
         return (
           <TouchableOpacity
             key={tab.name}
-            onPress={() => router.push(tab.route as never)}
+            onPress={() => router.navigate(tab.route as never)}
             style={styles.tabItem}
             activeOpacity={0.7}
+            accessibilityRole="tab"
+            accessibilityLabel={tab.label}
+            accessibilityState={{ selected: isActive }}
           >
             <View style={styles.iconContainer}>
               <Text style={{ fontSize: 18, color, fontWeight: '400' }}>{tab.icon}</Text>

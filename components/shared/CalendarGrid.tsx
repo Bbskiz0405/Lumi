@@ -44,11 +44,23 @@ export default function CalendarGrid({ taskDates, financeDates, taskPriorityMap,
     <View>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={prevMonth} style={styles.navBtn} hitSlop={{top:20, bottom:20, left:20, right:20}}>
+        <TouchableOpacity
+          onPress={prevMonth}
+          style={styles.navBtn}
+          hitSlop={{top:20, bottom:20, left:20, right:20}}
+          accessibilityRole="button"
+          accessibilityLabel="上一個月"
+        >
           <Text style={{ color: '#55DDAA', fontSize: 24, fontWeight: 'bold' }}>{' < '}</Text>
         </TouchableOpacity>
         <Text style={styles.monthTitle}>{year}年 {MONTHS[month]}</Text>
-        <TouchableOpacity onPress={nextMonth} style={styles.navBtn} hitSlop={{top:20, bottom:20, left:20, right:20}}>
+        <TouchableOpacity
+          onPress={nextMonth}
+          style={styles.navBtn}
+          hitSlop={{top:20, bottom:20, left:20, right:20}}
+          accessibilityRole="button"
+          accessibilityLabel="下一個月"
+        >
           <Text style={{ color: '#55DDAA', fontSize: 24, fontWeight: 'bold' }}>{' > '}</Text>
         </TouchableOpacity>
       </View>
@@ -70,7 +82,14 @@ export default function CalendarGrid({ taskDates, financeDates, taskPriorityMap,
           const hasTask = taskDates?.has(dateStr);
           const hasFinance = financeDates?.has(dateStr);
           return (
-            <TouchableOpacity key={idx} style={styles.cell} onPress={() => handleDayPress(day)}>
+            <TouchableOpacity
+              key={idx}
+              style={styles.cell}
+              onPress={() => handleDayPress(day)}
+              accessibilityRole="button"
+              accessibilityLabel={`${year}年${month + 1}月${day}日${hasTask ? '，有任務' : ''}${hasFinance ? '，有記帳' : ''}`}
+              accessibilityState={{ selected: isSelected }}
+            >
               <View style={[
                 styles.dayCircle,
                 isSelected && styles.selectedCircle,

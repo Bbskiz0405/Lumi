@@ -39,6 +39,16 @@ export default function RootLayout() {
             presentation: 'card',
           }}
         />
+        <Stack.Screen
+          name="settings"
+          options={{
+            headerShown: true,
+            headerTitle: 'AI 設定',
+            headerStyle: { backgroundColor: '#0F0F0F' },
+            headerTintColor: '#FFFFFF',
+            presentation: 'card',
+          }}
+        />
       </Stack>
     </CalendarProvider>
   );

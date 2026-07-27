@@ -15,7 +15,9 @@ export async function getAllTasks(): Promise<Task[]> {
 export async function getTasksForDate(dateStr: string): Promise<Task[]> {
   const db = await getDb();
   return db.getAllAsync<Task>(
-    'SELECT * FROM tasks WHERE due_date = ? ORDER BY priority DESC, created_at DESC',
+    `SELECT * FROM tasks WHERE due_date = ?
+     ORDER BY CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,
+              created_at DESC`,
     [dateStr]
   );
 }

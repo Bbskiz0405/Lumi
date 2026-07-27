@@ -45,7 +45,7 @@ export async function createTransaction(input: CreateTransactionInput): Promise<
 
 export async function updateTransaction(
   id: string,
-  updates: Partial<Pick<Transaction, 'type' | 'item' | 'amount' | 'category'>>
+  updates: Partial<Pick<Transaction, 'type' | 'item' | 'amount' | 'category' | 'created_at'>>
 ): Promise<void> {
   const sanitized = { ...updates };
   if (sanitized.item !== undefined) {
@@ -147,8 +147,12 @@ export async function saveExpenseCategories(categories: { value: string; label: 
 
 export async function resetAllFinance(): Promise<void> {
   const db = await getDb();
-  await db.runAsync('DELETE FROM transactions');
-  await db.runAsync('DELETE FROM budgets');
+  await db.withExclusiveTransactionAsync(async tx => {
+    await tx.execAsync(`
+      DELETE FROM transactions;
+      DELETE FROM budgets;
+    `);
+  });
 }
 
 export async function getTransactionsForYear(year: string): Promise<Transaction[]> {

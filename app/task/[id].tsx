@@ -44,8 +44,14 @@ export default function TaskDetailScreen() {
       priority: input.priority,
       tag: input.tag,
     });
-    const updated = await getTaskById(task.id);
-    setTask(updated);
+    const updated = await getTaskById(task.id).catch(() => null);
+    setTask(updated ?? {
+      ...task,
+      title: input.title,
+      due_date: input.due_date,
+      priority: input.priority,
+      tag: input.tag,
+    });
     setEditing(false);
     bumpRefresh();
   }
@@ -57,9 +63,13 @@ export default function TaskDetailScreen() {
         text: '刪除',
         style: 'destructive',
         onPress: async () => {
-          await deleteTask(task!.id);
-          bumpRefresh();
-          router.back();
+          try {
+            await deleteTask(task!.id);
+            bumpRefresh();
+            router.back();
+          } catch {
+            Alert.alert('刪除失敗', '任務沒有刪除，請再試一次。');
+          }
         },
       },
     ]);
@@ -68,10 +78,14 @@ export default function TaskDetailScreen() {
   async function handleToggleComplete() {
     if (!task) return;
     const next = !task.completed;
-    await toggleTaskComplete(task.id, next);
-    const updated = await getTaskById(task.id);
-    setTask(updated);
-    bumpRefresh();
+    try {
+      await toggleTaskComplete(task.id, next);
+      const updated = await getTaskById(task.id);
+      setTask(updated ?? { ...task, completed: next ? 1 : 0 });
+      bumpRefresh();
+    } catch {
+      Alert.alert('更新失敗', '任務狀態沒有變更，請再試一次。');
+    }
   }
 
   if (loading) {

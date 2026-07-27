@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, StyleSheet, Text, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { getEventStream, UnifiedEvent } from '../services/eventStreamService';
 import {
   getCachedNarrative,
@@ -77,6 +77,7 @@ function genDateLabel(iso: string): string {
 }
 
 export default function TimelineScreen() {
+  const router = useRouter();
   const [groups, setGroups] = useState<DayGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -148,13 +149,25 @@ export default function TimelineScreen() {
         ) : (
           <>
             <Text style={styles.narrativeEmpty}>讓 Lumi 把這個月的紀錄串成一段回顧。</Text>
+            <Text style={styles.narrativePrivacy}>
+              生成時會把本月任務、記帳與筆記內容傳送到目前的 AI 供應商。
+            </Text>
             <TouchableOpacity style={styles.genBtn} onPress={handleGenerate}>
               <Text style={styles.genBtnText}>生成本月回顧</Text>
             </TouchableOpacity>
           </>
         )}
 
-        {genError && !genLoading && <Text style={styles.narrativeError}>{genError}</Text>}
+        {genError && !genLoading && (
+          <>
+            <Text style={styles.narrativeError}>{genError}</Text>
+            {genError.includes('未設定 API') && (
+              <TouchableOpacity style={styles.settingsBtn} onPress={() => router.push('/settings')}>
+                <Text style={styles.settingsBtnText}>前往 AI 設定</Text>
+              </TouchableOpacity>
+            )}
+          </>
+        )}
       </View>
     );
   }
@@ -283,6 +296,7 @@ const styles = StyleSheet.create({
   narrativeText: { color: '#CCCCCC', fontSize: 14, fontWeight: '300', lineHeight: 23 },
   narrativeMeta: { color: '#3A3A3A', fontSize: 10, marginTop: 12 },
   narrativeEmpty: { color: '#666666', fontSize: 13, fontWeight: '300', lineHeight: 20, marginBottom: 14 },
+  narrativePrivacy: { color: '#4F596D', fontSize: 11, lineHeight: 17, marginBottom: 12 },
   narrativeLoading: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6 },
   narrativeLoadingText: { color: '#666666', fontSize: 13, fontWeight: '300', marginLeft: 10 },
   narrativeError: { color: '#FF6655', fontSize: 12, fontWeight: '300', marginTop: 10 },
@@ -295,4 +309,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   genBtnText: { color: '#88AAFF', fontSize: 13, fontWeight: '400' },
+  settingsBtn: {
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#2E3340',
+    borderRadius: 10,
+  },
+  settingsBtnText: { color: '#88AAFF', fontSize: 13 },
 });

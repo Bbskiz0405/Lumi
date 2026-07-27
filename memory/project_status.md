@@ -4,6 +4,19 @@
 
 ---
 
+## v0.4.64 — UX 安全修補（2026-07-27）
+
+- 換月同步選取日並防快速連按競態；交易新增／編輯可直接修改與驗證日期。
+- 修正記帳雙重刪除確認、任務真實日期驗證與單日優先度排序。
+- 智慧輸入新增 8 秒 Undo，多筆記帳強制先預覽；復原採 exclusive transaction。
+- 任務、行事曆、筆記、財務及首頁模組開始區分讀取錯誤與空資料，主要表單防連點。
+- 問 Lumi 可直達 AI 設定並顯示資料傳送範圍；AI 財務顧問／月度回顧補透明提示，一般 AI 呼叫加入 20 秒 timeout。
+- 底部 tab 改用 navigate，主要操作補 accessibility label／state 與較大觸控範圍。
+- production Hermes export 1240 modules、arm64 release build、typecheck 均通過。
+- 最終 APK 已安裝至 Pixel 8a，確認 `0.4.64 (64)` 冷啟動 339 ms，無 AndroidRuntime／ReactNativeJS／SQLite fatal error。
+
+---
+
 ## v0.4.63 — 信任層（2026-07-27）
 
 - 新增「資料與備份」：JSON 匯出、匯入預覽、合併與完全取代。

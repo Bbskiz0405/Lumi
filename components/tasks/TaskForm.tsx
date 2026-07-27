@@ -9,10 +9,11 @@ import {
   Text,
 } from 'react-native';
 import { Task, Priority, TaskTag, CreateTaskInput } from '../../types/task';
+import { isValidLocalDateString } from '../../utils/date';
 
 interface Props {
   initialValues?: Partial<Task>;
-  onSubmit: (input: CreateTaskInput) => void;
+  onSubmit: (input: CreateTaskInput) => void | Promise<void>;
   onCancel: () => void;
   submitLabel?: string;
 }
@@ -37,27 +38,39 @@ export default function TaskForm({ initialValues, onSubmit, onCancel, submitLabe
   const [tag, setTag] = useState<TaskTag | null>(initialValues?.tag ?? null);
   const [titleError, setTitleError] = useState('');
   const [dateError, setDateError] = useState('');
+  const [submitError, setSubmitError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   function validateDate(value: string): boolean {
     if (!value) return true;
-    return /^\d{4}-\d{2}-\d{2}$/.test(value);
+    return isValidLocalDateString(value);
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
+    if (submitting) return;
     let valid = true;
     if (!title.trim()) { setTitleError('請輸入標題'); valid = false; }
     else setTitleError('');
-    if (dueDate && !validateDate(dueDate)) { setDateError('格式需為 YYYY-MM-DD'); valid = false; }
+    if (dueDate && !validateDate(dueDate)) { setDateError('請輸入有效日期（YYYY-MM-DD）'); valid = false; }
     else setDateError('');
     if (!valid) return;
-    onSubmit({
-      title: title.trim(),
-      due_date: dueDate || null,
-      priority,
-      tag,
-      source: 'manual',
-      entry_id: initialValues?.entry_id ?? null,
-    });
+
+    setSubmitting(true);
+    setSubmitError('');
+    try {
+      await onSubmit({
+        title: title.trim(),
+        due_date: dueDate || null,
+        priority,
+        tag,
+        source: 'manual',
+        entry_id: initialValues?.entry_id ?? null,
+      });
+    } catch {
+      setSubmitError('儲存失敗，請稍後再試。');
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -117,13 +130,18 @@ export default function TaskForm({ initialValues, onSubmit, onCancel, submitLabe
       <View style={styles.divider} />
 
       <View style={styles.actions}>
-        <TouchableOpacity style={styles.cancelBtn} onPress={onCancel}>
+        <TouchableOpacity style={styles.cancelBtn} onPress={onCancel} disabled={submitting}>
           <Text style={styles.cancelText}>取消</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
-          <Text style={styles.submitText}>{submitLabel}</Text>
+        <TouchableOpacity
+          style={[styles.submitBtn, submitting && styles.submitBtnDisabled]}
+          onPress={handleSubmit}
+          disabled={submitting}
+        >
+          <Text style={styles.submitText}>{submitting ? '儲存中…' : submitLabel}</Text>
         </TouchableOpacity>
       </View>
+      {!!submitError && <Text style={styles.submitErrorText}>{submitError}</Text>}
     </ScrollView>
   );
 }
@@ -186,5 +204,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
   },
+  submitBtnDisabled: { opacity: 0.55 },
   submitText: { color: '#0F0F0F', fontSize: 14, fontWeight: '500' },
+  submitErrorText: { color: '#FF6655', fontSize: 12, textAlign: 'right', marginBottom: 24 },
 });

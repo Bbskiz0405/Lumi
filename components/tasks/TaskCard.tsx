@@ -38,11 +38,16 @@ export default function TaskCard({ task, onToggleComplete, onPress }: Props) {
       onPress={() => onPress(task.id)}
       activeOpacity={0.7}
       style={[styles.card, isCompleted && styles.completedCard]}
+      accessibilityRole="button"
+      accessibilityLabel={`開啟任務：${task.title}`}
     >
       <TouchableOpacity
         onPress={() => onToggleComplete(task.id, !isCompleted)}
         style={styles.checkbox}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        accessibilityRole="checkbox"
+        accessibilityLabel={`${isCompleted ? '取消完成' : '完成'}任務：${task.title}`}
+        accessibilityState={{ checked: isCompleted }}
       >
         <View style={[styles.checkBox, isCompleted && styles.checkBoxDone]}>
           {isCompleted && <Text style={styles.checkBoxMark}>✓</Text>}

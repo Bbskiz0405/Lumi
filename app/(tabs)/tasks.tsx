@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import {
   View, FlatList, StyleSheet, TouchableOpacity, Text,
-  Modal, ActivityIndicator,
+  Modal, ActivityIndicator, Alert,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,12 +20,28 @@ export default function TasksScreen() {
   const [loading, setLoading] = useState(true);
   const hasLoaded = useRef(false);
   const [modalVisible, setModalVisible] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+
+  async function loadTasks(showLoader = false) {
+    if (showLoader) setLoading(true);
+    setLoadError(false);
+    try {
+      const data = await getAllTasks();
+      setTasks(data.filter(t => t.completed === 0));
+      setCompletedTasks(data.filter(t => t.completed === 1));
+      hasLoaded.current = true;
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
       if (!hasLoaded.current) setLoading(true);
-      
+      setLoadError(false);
       getAllTasks()
         .then(data => {
           if (!active) return;
@@ -33,7 +49,9 @@ export default function TasksScreen() {
           setCompletedTasks(data.filter(t => t.completed === 1));
           hasLoaded.current = true;
         })
-        .catch(err => console.error('[TasksScreen] getAllTasks failed:', err))
+        .catch(() => {
+          if (active) setLoadError(true);
+        })
         .finally(() => {
           if (active) setLoading(false);
         });
@@ -42,33 +60,41 @@ export default function TasksScreen() {
   );
 
   async function handleToggle(id: string, completed: boolean) {
-    await toggleTaskComplete(id, completed);
-    if (completed) {
-      const task = tasks.find(t => t.id === id);
-      setTasks(prev => prev.filter(t => t.id !== id));
-      if (task) setCompletedTasks(prev => [{ ...task, completed: 1 }, ...prev]);
-    } else {
-      const task = completedTasks.find(t => t.id === id);
-      setCompletedTasks(prev => prev.filter(t => t.id !== id));
-      if (task) setTasks(prev => [{ ...task, completed: 0 }, ...prev]);
+    try {
+      await toggleTaskComplete(id, completed);
+      if (completed) {
+        const task = tasks.find(t => t.id === id);
+        setTasks(prev => prev.filter(t => t.id !== id));
+        if (task) setCompletedTasks(prev => [{ ...task, completed: 1 }, ...prev]);
+      } else {
+        const task = completedTasks.find(t => t.id === id);
+        setCompletedTasks(prev => prev.filter(t => t.id !== id));
+        if (task) setTasks(prev => [{ ...task, completed: 0 }, ...prev]);
+      }
+      bumpRefresh();
+    } catch {
+      Alert.alert('更新失敗', '任務狀態沒有變更，請再試一次。');
     }
-    bumpRefresh();
   }
 
   async function handleCreate(input: CreateTaskInput) {
     await createTask(input);
     setModalVisible(false);
-    const data = await getAllTasks();
-    setTasks(data.filter(t => t.completed === 0));
-    setCompletedTasks(data.filter(t => t.completed === 1));
     bumpRefresh();
+    await loadTasks(false);
   }
 
   return (
     <SafeAreaView style={styles.safe} edges={[]}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>任務</Text>
-        <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.addBtn}>
+        <TouchableOpacity
+          onPress={() => setModalVisible(true)}
+          style={styles.addBtn}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          accessibilityRole="button"
+          accessibilityLabel="新增任務"
+        >
           <Text style={{ color: '#FFFFFF', fontSize: 24, fontWeight: '200', marginTop: -2 }}>+</Text>
         </TouchableOpacity>
       </View>
@@ -92,7 +118,14 @@ export default function TasksScreen() {
           )}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyText}>沒有待辦任務</Text>
+              <Text style={styles.emptyText}>
+                {loadError ? '無法讀取任務' : '沒有待辦任務'}
+              </Text>
+              {loadError && (
+                <TouchableOpacity style={styles.retryBtn} onPress={() => void loadTasks(true)}>
+                  <Text style={styles.retryText}>重試</Text>
+                </TouchableOpacity>
+              )}
             </View>
           }
           ListFooterComponent={
@@ -161,6 +194,16 @@ const styles = StyleSheet.create({
   list: { paddingBottom: 40, paddingTop: 4 },
   empty: { alignItems: 'center', marginTop: 80 },
   emptyText: { color: '#555555', fontSize: 13, letterSpacing: 1 },
+  retryBtn: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#3A3A3A',
+    borderRadius: 10,
+  },
+  retryText: { color: '#FFFFFF', fontSize: 13 },
   completedSection: { marginTop: 20, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#252525' },
   completedHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 8 },
   completedTitle: { color: '#666', fontSize: 13, fontWeight: '300', marginLeft: 4 },

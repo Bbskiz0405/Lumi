@@ -24,7 +24,13 @@ export default function TransactionCard({ transaction: tx, onDelete, onEdit }: P
   const isIncome = tx.type === 'income';
 
   return (
-    <TouchableOpacity style={styles.card} onPress={() => onEdit?.(tx)} activeOpacity={0.7}>
+    <TouchableOpacity
+      style={styles.card}
+      onPress={() => onEdit?.(tx)}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={`編輯${isIncome ? '收入' : '支出'}：${tx.item}，${tx.amount}`}
+    >
       <View style={[styles.indicator, { backgroundColor: isIncome ? '#55DDAA' : '#FF6655' }]} />
       <View style={styles.body}>
         <View style={styles.top}>
@@ -47,6 +53,8 @@ export default function TransactionCard({ transaction: tx, onDelete, onEdit }: P
           onPress={() => onDelete(tx.id)}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           style={styles.deleteBtn}
+          accessibilityRole="button"
+          accessibilityLabel={`刪除記帳：${tx.item}`}
         >
           <Text style={styles.deleteBtnText}>×</Text>
         </TouchableOpacity>

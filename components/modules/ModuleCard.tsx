@@ -11,7 +11,13 @@ interface Props {
 
 export default function ModuleCard({ title, icon, onPress, children, accent = '#FFFFFF' }: Props) {
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity
+      style={styles.card}
+      onPress={onPress}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={`開啟${title}`}
+    >
       <View style={styles.header}>
         <Text style={[styles.icon, { color: accent }]}>{icon}</Text>
         <Text style={[styles.title, { color: accent }]}>{title}</Text>

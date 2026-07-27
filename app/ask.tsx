@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useCallback, useState, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useHeaderHeight } from '@react-navigation/elements';
-import { askLumi, ChatMessage } from '../services/geminiService';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { askLumi, ChatMessage, getApiConfig } from '../services/geminiService';
 
 const SUGGESTIONS = [
   '這個月花最多的是什麼？',
@@ -26,10 +27,32 @@ export default function AskScreen() {
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const headerHeight = useHeaderHeight();
+  const router = useRouter();
+  const [checkingConfig, setCheckingConfig] = useState(true);
+  const [hasApiConfig, setHasApiConfig] = useState(false);
+
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    setCheckingConfig(true);
+    getApiConfig()
+      .then(config => {
+        if (active) setHasApiConfig(Boolean(config));
+      })
+      .catch(() => {
+        if (active) setHasApiConfig(false);
+      })
+      .finally(() => {
+        if (active) setCheckingConfig(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []));
 
   async function send(question: string) {
     const q = question.trim();
     if (!q || loading) return;
+    if (!hasApiConfig) return;
 
     const history = messages;
     const next: ChatMessage[] = [...messages, { role: 'user', text: q }];
@@ -71,9 +94,30 @@ export default function AskScreen() {
               <Text style={styles.introSub}>
                 我會翻你的任務、記帳、筆記紀錄回答你。
               </Text>
+              <View style={styles.privacyNotice}>
+                <Text style={styles.privacyText}>
+                  提問時，最多 250 筆近期任務、記帳與筆記內容會傳送到你選擇的 AI 供應商。
+                </Text>
+              </View>
+              {!checkingConfig && !hasApiConfig && (
+                <View style={styles.setupCard}>
+                  <Text style={styles.setupText}>使用問 Lumi 前，需要先設定 AI API Key。</Text>
+                  <TouchableOpacity
+                    style={styles.setupButton}
+                    onPress={() => router.push('/settings')}
+                  >
+                    <Text style={styles.setupButtonText}>前往 AI 設定</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
               <View style={styles.chips}>
                 {SUGGESTIONS.map((s) => (
-                  <TouchableOpacity key={s} style={styles.chip} onPress={() => send(s)}>
+                  <TouchableOpacity
+                    key={s}
+                    style={[styles.chip, !hasApiConfig && styles.disabled]}
+                    onPress={() => send(s)}
+                    disabled={!hasApiConfig}
+                  >
                     <Text style={styles.chipText}>{s}</Text>
                   </TouchableOpacity>
                 ))}
@@ -134,9 +178,9 @@ export default function AskScreen() {
             onSubmitEditing={() => send(input)}
           />
           <TouchableOpacity
-            style={[styles.sendBtn, (!input.trim() || loading) && { opacity: 0.4 }]}
+            style={[styles.sendBtn, (!input.trim() || loading || !hasApiConfig) && { opacity: 0.4 }]}
             onPress={() => send(input)}
-            disabled={!input.trim() || loading}
+            disabled={!input.trim() || loading || !hasApiConfig}
           >
             <Text style={styles.sendArrow}>↑</Text>
           </TouchableOpacity>
@@ -160,6 +204,34 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     lineHeight: 20,
   },
+  privacyNotice: {
+    width: '100%',
+    borderWidth: 1,
+    borderColor: '#2D3340',
+    backgroundColor: '#151821',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+  },
+  privacyText: { color: '#7F8AA3', fontSize: 12, lineHeight: 18, textAlign: 'center' },
+  setupCard: {
+    width: '100%',
+    borderWidth: 1,
+    borderColor: '#3A3A3A',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
+  },
+  setupText: { color: '#999999', fontSize: 12, textAlign: 'center', marginBottom: 10 },
+  setupButton: {
+    minHeight: 44,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  setupButtonText: { color: '#0F0F0F', fontSize: 13, fontWeight: '500' },
+  disabled: { opacity: 0.45 },
   chips: { gap: 10, width: '100%' },
   chip: {
     borderWidth: 1,
