@@ -7,6 +7,8 @@ import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getAllNotes, createNote, deleteNote, updateNote, getCustomTags, saveCustomTags } from '../../services/noteService';
 import { Note, NoteCategory } from '../../types/note';
+import IconButton from '../../components/ui/IconButton';
+import TechIcon from '../../components/ui/TechIcon';
 
 const TAG_COLORS = ['#FF88BB', '#FF9944', '#88AAFF', '#55DDAA', '#FFCC44', '#AA88FF', '#FF6655', '#66CCCC'];
 
@@ -173,15 +175,11 @@ export default function NotesScreen() {
     <SafeAreaView style={styles.safe} edges={[]}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>筆記</Text>
-        <TouchableOpacity
+        <IconButton
+          icon="plus"
+          label="新增筆記"
           onPress={openAdd}
-          style={styles.headerAddBtn}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          accessibilityRole="button"
-          accessibilityLabel="新增筆記"
-        >
-          <Text style={styles.headerAddText}>+</Text>
-        </TouchableOpacity>
+        />
       </View>
 
       <View style={styles.filterRow}>
@@ -272,14 +270,16 @@ export default function NotesScreen() {
                   accessibilityRole="button"
                   accessibilityLabel="刪除這則筆記"
                 >
-                  <Text style={{ color: '#666', fontSize: 16, fontWeight: '200' }}>x</Text>
+                  <TechIcon name="trash" size={16} color="#666" />
                 </TouchableOpacity>
               </TouchableOpacity>
             );
           }}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={{ fontSize: 40, color: '#333', marginBottom: 12 }}>!</Text>
+              <View style={{ marginBottom: 12 }}>
+                <TechIcon name="file-text" size={34} color="#333" strokeWidth={1.4} />
+              </View>
               <Text style={styles.emptyText}>{loadError ? '無法讀取筆記' : '還沒有筆記'}</Text>
               {loadError ? (
                 <TouchableOpacity style={styles.retryBtn} onPress={() => {
@@ -372,8 +372,6 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#0F0F0F' },
   header: { paddingHorizontal: 24, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '300', letterSpacing: 2 },
-  headerAddBtn: { borderWidth: 1, borderColor: '#3A3A3A', borderRadius: 18, width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  headerAddText: { color: '#FFFFFF', fontSize: 22, fontWeight: '200', lineHeight: 24, marginTop: -2 },
 
   filterRow: { flexDirection: 'row', paddingHorizontal: 16, paddingBottom: 8, gap: 8, flexWrap: 'wrap', alignItems: 'center' },
   filterPill: { borderWidth: 1, borderColor: '#3A3A3A', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 5 },

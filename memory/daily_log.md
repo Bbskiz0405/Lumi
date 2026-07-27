@@ -6,7 +6,17 @@
 
 ## 當前狀態 (2026-07-27)
 
-**版號：0.4.64（UX 安全修補已完成並安裝實機，本輪尚未 push）**
+**版號：0.4.65（深色極簡科技 UI 已完成並安裝實機，準備 push）**
+
+### 0.4.65 — 深色極簡科技 UI
+- 新增 `components/ui/TechIcon.tsx`，直接使用 `react-native-svg` 繪製統一的 1.7px 幾何線框圖示，不依賴容易在 Android 打包失效的 icon font。
+- 新增共用 `IconButton`：36px 方形、8px 低圓角、深色表面與細灰邊框，只有必要的按壓回饋，無裝飾性動畫。
+- 底部導覽改為 grid／calendar／wallet／check-square／file-text，選中狀態只使用頂部細線與亮度差。
+- 首頁快捷鍵改為 activity／command／menu；分類、最近動態與四張模組卡同步套用 SVG 圖示。
+- 財務工具列、計算機入口、任務／筆記新增與刪除、時間軸、AI 財務顧問及側邊選單全面統一。
+- 保留原有深色配色與功能邏輯，卡片與互動元件收斂為低圓角、扁平且偏科技工具的視覺語言。
+- `npm run typecheck`、`git diff --check`、arm64 release APK 均通過；APK 已覆蓋安裝至 Pixel 8a，實機確認首頁 SVG 圖示與導覽正常顯示。
+- 首次建置因終端缺少 `JAVA_HOME` 與 Gradle 外掛快取而較慢；可用 JDK 為 `C:\Program Files\Microsoft\jdk-21.0.11.10-hotspot`，後續應直接編 arm64 release。
 
 ### 0.4.64 — UX 安全修補
 - 換月時同步 `selectedDate` 並處理月底日數；交易新增／編輯可直接修改與驗證日期。

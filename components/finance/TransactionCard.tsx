@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Transaction } from '../../types/finance';
+import TechIcon from '../ui/TechIcon';
 
 interface Props {
   transaction: Transaction;
@@ -56,7 +57,7 @@ export default function TransactionCard({ transaction: tx, onDelete, onEdit }: P
           accessibilityRole="button"
           accessibilityLabel={`刪除記帳：${tx.item}`}
         >
-          <Text style={styles.deleteBtnText}>×</Text>
+          <TechIcon name="trash" size={16} color="#555" />
         </TouchableOpacity>
       )}
     </TouchableOpacity>
@@ -121,11 +122,5 @@ const styles = StyleSheet.create({
   },
   deleteBtn: {
     padding: 12,
-  },
-  deleteBtnText: {
-    color: '#555',
-    fontSize: 18,
-    fontWeight: '300',
-    lineHeight: 18,
   },
 });

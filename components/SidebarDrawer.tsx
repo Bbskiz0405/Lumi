@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import ApiSettings from './ApiSettings';
 import DataSettings from './DataSettings';
+import TechIcon from './ui/TechIcon';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DRAWER_WIDTH = Math.min(320, Math.round(SCREEN_WIDTH * 0.82));
@@ -25,6 +26,16 @@ interface ReleaseEntry {
 }
 
 const RELEASES: ReleaseEntry[] = [
+  {
+    version: '0.4.65',
+    date: '2026-07-27',
+    notes: [
+      '全 App 改用自製 SVG 線框圖示，不再依賴圖示字型或 Unicode 代號',
+      '底部導覽、首頁快捷鍵與模組卡統一為深色極簡科技風',
+      '財務、任務、筆記、時間軸、AI 顧問與側欄操作圖示全面一致',
+      '按鈕改為低圓角幾何造型，保留原本深色配色且不加入裝飾動畫',
+    ],
+  },
   {
     version: '0.4.64',
     date: '2026-07-27',
@@ -66,7 +77,7 @@ const RELEASES: ReleaseEntry[] = [
   {
     version: '0.4.60',
     date: '2026-06-10',
-    notes: ['新功能「時間軸」：首頁右上 ≣，把任務／消費／筆記按時序串成一條 lifeline'],
+    notes: ['新功能「時間軸」：首頁右上快捷鍵，把任務／消費／筆記按時序串成一條 lifeline'],
   },
   {
     version: '0.4.59',
@@ -87,7 +98,7 @@ const RELEASES: ReleaseEntry[] = [
     version: '0.4.56',
     date: '2026-06-04',
     notes: [
-      '新功能「問 Lumi」：首頁右上放大鏡 ⌕，用自然語言問你的任務／記帳／筆記紀錄',
+      '新功能「問 Lumi」：首頁右上快捷鍵，用自然語言問你的任務／記帳／筆記紀錄',
       '新增統一事件流基建（eventStreamService）',
     ],
   },
@@ -153,7 +164,7 @@ const RELEASES: ReleaseEntry[] = [
   },
 ];
 
-const VERSION = '0.4.64';
+const VERSION = '0.4.65';
 const GITHUB_URL = 'https://github.com/Bbskiz0405/Lumi';
 
 interface Props {
@@ -205,7 +216,7 @@ export default function SidebarDrawer({ visible, onClose }: Props) {
           <View style={styles.header}>
             {section !== 'menu' ? (
               <TouchableOpacity onPress={() => setSection('menu')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Text style={styles.backText}>{'<'}</Text>
+                <TechIcon name="chevron-left" size={20} color="#888" />
               </TouchableOpacity>
             ) : (
               <View style={{ width: 24 }} />
@@ -218,7 +229,7 @@ export default function SidebarDrawer({ visible, onClose }: Props) {
               {section === 'about' && '關於'}
             </Text>
             <TouchableOpacity onPress={handleClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={styles.closeText}>×</Text>
+              <TechIcon name="close" size={20} color="#888" />
             </TouchableOpacity>
           </View>
 
@@ -227,24 +238,24 @@ export default function SidebarDrawer({ visible, onClose }: Props) {
           {section === 'menu' && (
             <View style={styles.menuList}>
               <TouchableOpacity style={styles.menuItem} onPress={() => setSection('settings')}>
-                <Text style={styles.menuIcon}>⚙</Text>
+                <View style={styles.menuIcon}><TechIcon name="settings" size={18} color="#888" /></View>
                 <Text style={styles.menuLabel}>AI 設定</Text>
-                <Text style={styles.menuChevron}>{'>'}</Text>
+                <TechIcon name="chevron-right" size={16} color="#444" />
               </TouchableOpacity>
               <TouchableOpacity style={styles.menuItem} onPress={() => setSection('data')}>
-                <Text style={styles.menuIcon}>⇅</Text>
+                <View style={styles.menuIcon}><TechIcon name="database" size={18} color="#888" /></View>
                 <Text style={styles.menuLabel}>資料與備份</Text>
-                <Text style={styles.menuChevron}>{'>'}</Text>
+                <TechIcon name="chevron-right" size={16} color="#444" />
               </TouchableOpacity>
               <TouchableOpacity style={styles.menuItem} onPress={() => setSection('changelog')}>
-                <Text style={styles.menuIcon}>✎</Text>
+                <View style={styles.menuIcon}><TechIcon name="file-text" size={18} color="#888" /></View>
                 <Text style={styles.menuLabel}>更新日誌</Text>
-                <Text style={styles.menuChevron}>{'>'}</Text>
+                <TechIcon name="chevron-right" size={16} color="#444" />
               </TouchableOpacity>
               <TouchableOpacity style={styles.menuItem} onPress={() => setSection('about')}>
-                <Text style={styles.menuIcon}>!</Text>
+                <View style={styles.menuIcon}><TechIcon name="info" size={18} color="#888" /></View>
                 <Text style={styles.menuLabel}>關於 Lumi</Text>
-                <Text style={styles.menuChevron}>{'>'}</Text>
+                <TechIcon name="chevron-right" size={16} color="#444" />
               </TouchableOpacity>
               <View style={{ flex: 1 }} />
               <Text style={styles.footerText}>v{VERSION}</Text>
@@ -291,7 +302,7 @@ export default function SidebarDrawer({ visible, onClose }: Props) {
 
               <TouchableOpacity style={styles.linkBtn} onPress={() => openLink(GITHUB_URL)}>
                 <Text style={styles.linkText}>GitHub 原始碼</Text>
-                <Text style={styles.linkChevron}>{'>'}</Text>
+                <TechIcon name="chevron-right" size={16} color="#444" />
               </TouchableOpacity>
 
               <View style={styles.subDivider} />
@@ -330,8 +341,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   headerTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: '300', letterSpacing: 2 },
-  closeText: { color: '#888', fontSize: 22, fontWeight: '300', lineHeight: 22 },
-  backText: { color: '#888', fontSize: 18, fontWeight: '300', lineHeight: 18 },
   divider: { height: 1, backgroundColor: '#252525' },
 
   menuList: { flex: 1, paddingTop: 12 },
@@ -342,14 +351,10 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   menuIcon: {
-    color: '#888',
-    fontSize: 14,
     width: 24,
-    textAlign: 'center',
-    fontWeight: '500',
+    alignItems: 'center',
   },
   menuLabel: { flex: 1, color: '#FFFFFF', fontSize: 14, fontWeight: '300', marginLeft: 12 },
-  menuChevron: { color: '#444', fontSize: 14, fontWeight: '500' },
   footerText: { color: '#333', fontSize: 11, textAlign: 'center', paddingVertical: 16 },
 
   contentPad: { padding: 20, paddingBottom: 40 },
@@ -379,5 +384,4 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   linkText: { color: '#88AAFF', fontSize: 14, fontWeight: '300' },
-  linkChevron: { color: '#444', fontSize: 14 },
 });

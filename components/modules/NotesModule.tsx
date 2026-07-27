@@ -33,7 +33,7 @@ export default function NotesModule({ onPress, refreshKey }: Props) {
   }, [refreshKey]));
 
   return (
-    <ModuleCard title="筆記" icon="!" onPress={onPress} accent="#88AAFF">
+    <ModuleCard title="筆記" icon="file-text" onPress={onPress} accent="#88AAFF">
       {loadError ? (
         <Text style={styles.error}>暫時無法讀取</Text>
       ) : (

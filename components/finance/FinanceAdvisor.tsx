@@ -12,6 +12,7 @@ import {
   setApiConfig,
   ApiProvider,
 } from '../../services/geminiService';
+import TechIcon from '../ui/TechIcon';
 
 interface Props {
   month: string;
@@ -133,11 +134,13 @@ export default function FinanceAdvisor({ month, onClose }: Props) {
           <View style={styles.header}>
             <Text style={styles.headerTitle}>AI 供應商設定</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Text style={{ color: '#666', fontSize: 20, fontWeight: '200' }}>x</Text>
+              <TechIcon name="close" size={19} color="#666" />
             </TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={styles.keySetup} keyboardShouldPersistTaps="handled">
-            <Text style={{ color: '#55DDAA', fontSize: 40, marginBottom: 10, fontWeight: '100' }}>✧</Text>
+            <View style={styles.aiMark}>
+              <TechIcon name="command" size={25} color="#55DDAA" />
+            </View>
             <Text style={styles.keyTitle}>選擇 AI 模型來源</Text>
             <Text style={styles.privacyText}>
               使用財務顧問時，本月交易與預算摘要會傳送到你選擇的 AI 供應商。
@@ -190,7 +193,7 @@ export default function FinanceAdvisor({ month, onClose }: Props) {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Lumi AI 顧問</Text>
         <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-          <Text style={{ color: '#666', fontSize: 20, fontWeight: '200' }}>x</Text>
+          <TechIcon name="close" size={19} color="#666" />
         </TouchableOpacity>
       </View>
 
@@ -203,7 +206,9 @@ export default function FinanceAdvisor({ month, onClose }: Props) {
       >
         {messages.length === 0 && (
           <View style={styles.welcome}>
-            <Text style={{ color: '#55DDAA', fontSize: 48, marginBottom: 16, fontWeight: '100' }}>✧</Text>
+            <View style={styles.aiMarkLarge}>
+              <TechIcon name="command" size={31} color="#55DDAA" />
+            </View>
             <Text style={styles.welcomeText}>
               我是你的財務分析助手{'\n'}問我關於本月消費的任何問題
             </Text>
@@ -211,7 +216,7 @@ export default function FinanceAdvisor({ month, onClose }: Props) {
               分析時會把本月交易與預算摘要傳送到目前的 AI 供應商。
             </Text>
             <TouchableOpacity style={styles.quickBtn} onPress={handleQuickAnalysis}>
-              <Text style={{ color: '#55DDAA', fontSize: 14, marginRight: 8 }}>→</Text>
+              <TechIcon name="activity" size={16} color="#55DDAA" />
               <Text style={styles.quickBtnText}>快速分析本月消費</Text>
             </TouchableOpacity>
           </View>
@@ -294,11 +299,19 @@ const styles = StyleSheet.create({
   closeBtn: { padding: 4, justifyContent: 'center', alignItems: 'center' },
 
   keySetup: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, paddingTop: 60 },
+  aiMark: {
+    width: 48, height: 48, borderWidth: 1, borderColor: '#2B453D',
+    borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginBottom: 10,
+  },
+  aiMarkLarge: {
+    width: 58, height: 58, borderWidth: 1, borderColor: '#2B453D',
+    borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginBottom: 16,
+  },
   keyTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: '300', marginTop: 10, marginBottom: 24 },
   privacyText: { color: '#7F8AA3', fontSize: 12, lineHeight: 18, textAlign: 'center', marginBottom: 18 },
   providerRow: { width: '100%', gap: 10, marginBottom: 24 },
   providerBtn: {
-    borderWidth: 1, borderColor: '#333', borderRadius: 12,
+    borderWidth: 1, borderColor: '#333', borderRadius: 8,
     padding: 16, width: '100%', backgroundColor: '#111',
   },
   providerBtnActive: { borderColor: '#55DDAA', backgroundColor: '#55DDAA15' },
@@ -317,10 +330,10 @@ const styles = StyleSheet.create({
   welcome: { alignItems: 'center', paddingTop: 60, paddingBottom: 20 },
   welcomeText: { color: '#666', fontSize: 14, fontWeight: '300', textAlign: 'center', lineHeight: 24, marginTop: 4, marginBottom: 24 },
   welcomePrivacy: { color: '#4F596D', fontSize: 11, lineHeight: 17, textAlign: 'center', marginBottom: 18, paddingHorizontal: 20 },
-  quickBtn: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#55DDAA60', borderRadius: 24, paddingHorizontal: 20, paddingVertical: 10 },
+  quickBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#55DDAA60', borderRadius: 8, paddingHorizontal: 20, paddingVertical: 10 },
   quickBtnText: { color: '#55DDAA', fontSize: 14, fontWeight: '500' },
 
-  msgBubble: { maxWidth: '85%', borderRadius: 16, padding: 14, marginBottom: 12 },
+  msgBubble: { maxWidth: '85%', borderRadius: 10, padding: 14, marginBottom: 12 },
   userBubble: { alignSelf: 'flex-end', backgroundColor: '#FFFFFF', borderBottomRightRadius: 4 },
   modelBubble: { alignSelf: 'flex-start', backgroundColor: '#161616', borderWidth: 1, borderColor: '#252525', borderBottomLeftRadius: 4 },
   msgText: { color: '#CCCCCC', fontSize: 14, fontWeight: '300', lineHeight: 24 },
@@ -331,7 +344,7 @@ const styles = StyleSheet.create({
   strip: { maxHeight: 44, borderTopWidth: 1, borderTopColor: '#1A1A1A' },
   stripContent: { paddingHorizontal: 12, paddingVertical: 8, gap: 8, alignItems: 'center' },
   stripChip: {
-    borderWidth: 1, borderColor: '#55DDAA40', borderRadius: 16,
+    borderWidth: 1, borderColor: '#55DDAA40', borderRadius: 7,
     paddingVertical: 6, paddingHorizontal: 12, backgroundColor: '#161616',
   },
   stripChipText: { color: '#55DDAA', fontSize: 13, fontWeight: '300' },
@@ -342,10 +355,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#0F0F0F',
   },
   chatInput: {
-    flex: 1, borderWidth: 1, borderColor: '#333', borderRadius: 20,
+    flex: 1, borderWidth: 1, borderColor: '#333', borderRadius: 8,
     paddingHorizontal: 16, paddingVertical: 10,
     color: '#FFFFFF', fontSize: 14, fontWeight: '300',
     maxHeight: 100, backgroundColor: '#161616',
   },
-  sendBtn: { backgroundColor: '#55DDAA', borderRadius: 20, paddingHorizontal: 16, height: 40, alignItems: 'center', justifyContent: 'center' },
+  sendBtn: { backgroundColor: '#55DDAA', borderRadius: 8, paddingHorizontal: 16, height: 40, alignItems: 'center', justifyContent: 'center' },
 });

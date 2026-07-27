@@ -3,6 +3,7 @@ import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { withLayoutContext, useRouter, usePathname } from 'expo-router';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { useSafeAreaInsets, SafeAreaView, EdgeInsets } from 'react-native-safe-area-context';
+import TechIcon, { TechIconName } from '../../components/ui/TechIcon';
 
 const { Navigator } = createMaterialTopTabNavigator();
 const MaterialTopTabs = withLayoutContext(Navigator);
@@ -10,12 +11,12 @@ const MaterialTopTabs = withLayoutContext(Navigator);
 function CustomTabBar({ insets }: { insets: EdgeInsets }) {
   const router = useRouter();
   const pathname = usePathname();
-  const tabs = [
-    { name: 'index', label: '首頁', icon: '✎', route: '/' },
-    { name: 'calendar', label: '行事曆', icon: '[ ]', route: '/(calendar-finance)/calendar' },
-    { name: 'finance', label: '財務', icon: '$', route: '/(calendar-finance)/finance' },
-    { name: 'tasks', label: '任務', icon: '[v]', route: '/tasks' },
-    { name: 'notes', label: '筆記', icon: '!', route: '/notes' },
+  const tabs: { name: string; label: string; icon: TechIconName; route: string }[] = [
+    { name: 'index', label: '首頁', icon: 'grid', route: '/' },
+    { name: 'calendar', label: '行事曆', icon: 'calendar', route: '/(calendar-finance)/calendar' },
+    { name: 'finance', label: '財務', icon: 'wallet', route: '/(calendar-finance)/finance' },
+    { name: 'tasks', label: '任務', icon: 'check-square', route: '/tasks' },
+    { name: 'notes', label: '筆記', icon: 'file-text', route: '/notes' },
   ];
 
   return (
@@ -28,7 +29,7 @@ function CustomTabBar({ insets }: { insets: EdgeInsets }) {
           (tab.name === 'tasks' && pathname.includes('/tasks')) ||
           (tab.name === 'notes' && pathname.includes('/notes'));
 
-        const color = isActive ? '#FFFFFF' : '#666666';
+        const color = isActive ? '#F1F3F5' : '#555B62';
 
         return (
           <TouchableOpacity
@@ -40,8 +41,8 @@ function CustomTabBar({ insets }: { insets: EdgeInsets }) {
             accessibilityLabel={tab.label}
             accessibilityState={{ selected: isActive }}
           >
-            <View style={styles.iconContainer}>
-              <Text style={{ fontSize: 18, color, fontWeight: '400' }}>{tab.icon}</Text>
+            <View style={[styles.iconContainer, isActive && styles.iconContainerActive]}>
+              <TechIcon name={tab.icon} size={19} color={color} strokeWidth={isActive ? 1.9 : 1.6} />
             </View>
             <Text style={[styles.tabLabel, { color }]}>{tab.label}</Text>
           </TouchableOpacity>
@@ -80,7 +81,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: '#0F0F0F',
     borderTopWidth: 1,
-    borderTopColor: '#252525',
+    borderTopColor: '#23272C',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -89,16 +90,24 @@ const styles = StyleSheet.create({
     height: 50,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingTop: 3,
   },
   iconContainer: {
-    height: 24,
+    width: 34,
+    height: 25,
     justifyContent: 'center',
     alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: 'transparent',
+  },
+  iconContainerActive: {
+    borderTopColor: '#E8EAED',
   },
   tabLabel: {
     fontSize: 10,
-    fontWeight: '500',
+    fontWeight: '400',
     marginTop: 2,
     lineHeight: 12,
+    letterSpacing: 0.3,
   },
 });

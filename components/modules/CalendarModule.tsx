@@ -36,7 +36,7 @@ export default function CalendarModule({ onPress, refreshKey }: Props) {
   );
 
   return (
-    <ModuleCard title="月曆" icon="[ ]" onPress={onPress} accent="#88AAFF">
+    <ModuleCard title="月曆" icon="calendar" onPress={onPress} accent="#88AAFF">
       <Text style={styles.day}>{now.getDate()}</Text>
       <Text style={styles.weekday}>星期{WEEKDAYS[now.getDay()]}</Text>
       {loadError ? (

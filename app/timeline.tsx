@@ -9,12 +9,13 @@ import {
   currentMonth,
   MonthNarrative,
 } from '../services/narrativeService';
+import TechIcon, { TechIconName } from '../components/ui/TechIcon';
 
-const TYPE_META: Record<string, { icon: string; color: string; label: string }> = {
-  task: { icon: '[v]', color: '#FF9944', label: '任務' },
-  note: { icon: '!', color: '#88AAFF', label: '筆記' },
-  income: { icon: '$', color: '#55DDAA', label: '收入' },
-  expense: { icon: '$', color: '#FF6655', label: '支出' },
+const TYPE_META: Record<string, { icon: TechIconName; color: string; label: string }> = {
+  task: { icon: 'check-square', color: '#FF9944', label: '任務' },
+  note: { icon: 'file-text', color: '#88AAFF', label: '筆記' },
+  income: { icon: 'wallet', color: '#55DDAA', label: '收入' },
+  expense: { icon: 'wallet', color: '#FF6655', label: '支出' },
 };
 
 function metaFor(e: UnifiedEvent) {
@@ -130,8 +131,13 @@ export default function TimelineScreen() {
         <View style={styles.narrativeHead}>
           <Text style={styles.narrativeTitle}>{monthTitle(currentMonth())}</Text>
           {(narrative || genError) && !genLoading && (
-            <TouchableOpacity onPress={handleGenerate} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={styles.narrativeAction}>↻ 重新生成</Text>
+            <TouchableOpacity
+              style={styles.narrativeActionButton}
+              onPress={handleGenerate}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <TechIcon name="rotate-ccw" size={13} color="#666" />
+              <Text style={styles.narrativeAction}>重新生成</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -212,7 +218,10 @@ export default function TimelineScreen() {
                   </View>
                   <View style={styles.card}>
                     <View style={styles.cardHead}>
-                      <Text style={[styles.typeTag, { color: m.color }]}>{m.icon} {m.label}</Text>
+                      <View style={styles.typeTag}>
+                        <TechIcon name={m.icon} size={13} color={m.color} />
+                        <Text style={[styles.typeTagText, { color: m.color }]}>{m.label}</Text>
+                      </View>
                       <Text style={styles.time}>{timeLabel(e.timestamp)}</Text>
                     </View>
                     <Text
@@ -271,7 +280,8 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  typeTag: { fontSize: 11, fontWeight: '500', letterSpacing: 0.5 },
+  typeTag: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  typeTagText: { fontSize: 11, fontWeight: '500', letterSpacing: 0.5 },
   time: { color: '#444444', fontSize: 11 },
   title: { color: '#DDDDDD', fontSize: 14, fontWeight: '300', lineHeight: 21 },
   titleDone: { color: '#555555', textDecorationLine: 'line-through' },
@@ -292,6 +302,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   narrativeTitle: { color: '#88AAFF', fontSize: 14, fontWeight: '400', letterSpacing: 1 },
+  narrativeActionButton: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   narrativeAction: { color: '#555555', fontSize: 12, fontWeight: '300' },
   narrativeText: { color: '#CCCCCC', fontSize: 14, fontWeight: '300', lineHeight: 23 },
   narrativeMeta: { color: '#3A3A3A', fontSize: 10, marginTop: 12 },

@@ -31,6 +31,8 @@ import TasksModule from '../../components/modules/TasksModule';
 import CalendarModule from '../../components/modules/CalendarModule';
 import FinanceModule from '../../components/modules/FinanceModule';
 import NotesModule from '../../components/modules/NotesModule';
+import IconButton from '../../components/ui/IconButton';
+import TechIcon, { TechIconName } from '../../components/ui/TechIcon';
 
 function formatDate(): string {
   const now = new Date();
@@ -38,18 +40,18 @@ function formatDate(): string {
   return `${now.getMonth() + 1}月${now.getDate()}日  星期${weekdays[now.getDay()]}`;
 }
 
-const TYPE_CONFIG: Record<string, { label: string; icon: string; color: string }> = {
-  TASK: { label: '任務', icon: '[v]', color: '#FF9944' },
-  FINANCE: { label: '記帳', icon: '$', color: '#55DDAA' },
-  IDEA: { label: '筆記', icon: '!', color: '#88AAFF' },
-  GOAL: { label: '目標', icon: '◎', color: '#FF88BB' },
-  UNCERTAIN: { label: '未分類', icon: '?', color: '#666666' },
+const TYPE_CONFIG: Record<string, { label: string; icon: TechIconName; color: string }> = {
+  TASK: { label: '任務', icon: 'check-square', color: '#FF9944' },
+  FINANCE: { label: '記帳', icon: 'wallet', color: '#55DDAA' },
+  IDEA: { label: '筆記', icon: 'file-text', color: '#88AAFF' },
+  GOAL: { label: '目標', icon: 'activity', color: '#FF88BB' },
+  UNCERTAIN: { label: '未分類', icon: 'info', color: '#666666' },
 };
 
-const RECENT_TYPE_CONFIG: Record<string, { icon: string; color: string }> = {
-  task: { icon: '[v]', color: '#FF9944' },
-  finance: { icon: '$', color: '#55DDAA' },
-  note: { icon: '!', color: '#88AAFF' },
+const RECENT_TYPE_CONFIG: Record<string, { icon: TechIconName; color: string }> = {
+  task: { icon: 'check-square', color: '#FF9944' },
+  finance: { icon: 'wallet', color: '#55DDAA' },
+  note: { icon: 'file-text', color: '#88AAFF' },
 };
 
 const SELECTABLE_TYPES: ClassifiedType[] = ['TASK', 'FINANCE', 'IDEA'];
@@ -328,33 +330,21 @@ export default function HomeScreen() {
         <View style={styles.topRow}>
           <Text style={styles.dateText}>{formatDate()}</Text>
           <View style={styles.topActions}>
-            <TouchableOpacity
+            <IconButton
+              icon="activity"
+              label="開啟時間軸"
               onPress={() => router.push('/timeline')}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              style={styles.menuBtn}
-              accessibilityRole="button"
-              accessibilityLabel="開啟時間軸"
-            >
-              <Text style={styles.menuBtnIcon}>≣</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            />
+            <IconButton
+              icon="command"
+              label="開啟問 Lumi"
               onPress={() => router.push('/ask')}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              style={styles.menuBtn}
-              accessibilityRole="button"
-              accessibilityLabel="開啟問 Lumi"
-            >
-              <Text style={styles.menuBtnIcon}>⌕</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            />
+            <IconButton
+              icon="menu"
+              label="開啟設定選單"
               onPress={() => setDrawerOpen(true)}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              style={styles.menuBtn}
-              accessibilityRole="button"
-              accessibilityLabel="開啟設定選單"
-            >
-              <Text style={styles.menuBtnIcon}>≡</Text>
-            </TouchableOpacity>
+            />
           </View>
         </View>
 
@@ -386,7 +376,7 @@ export default function HomeScreen() {
               {classifying ? (
                 <ActivityIndicator size="small" color="#0F0F0F" />
               ) : (
-                <Text style={styles.submitBtnArrow}>↑</Text>
+                <TechIcon name="send" size={19} color="#0F0F0F" strokeWidth={2} />
               )}
             </TouchableOpacity>
           )}
@@ -423,14 +413,12 @@ export default function HomeScreen() {
                       accessibilityLabel={`改為${config.label}`}
                       accessibilityState={{ selected: isActive }}
                     >
-                      <Text
-                        style={[
-                          styles.typePillIcon,
-                          { color: isActive ? config.color : '#444' },
-                        ]}
-                      >
-                        {config.icon}
-                      </Text>
+                      <TechIcon
+                        name={config.icon}
+                        size={13}
+                        color={isActive ? config.color : '#555B62'}
+                        strokeWidth={1.8}
+                      />
                       <Text style={[styles.typePillText, isActive && { color: config.color }]}>
                         {config.label}
                       </Text>
@@ -530,7 +518,9 @@ export default function HomeScreen() {
               }
               return (
                 <TouchableOpacity key={item.id} style={styles.recentItem} onPress={handleRecentPress} activeOpacity={0.6}>
-                  <Text style={[styles.recentIconText, { color: cfg.color }]}>{cfg.icon}</Text>
+                  <View style={styles.recentIcon}>
+                    <TechIcon name={cfg.icon} size={15} color={cfg.color} />
+                  </View>
                   <Text style={styles.recentText} numberOfLines={1}>{item.title}</Text>
                   {item.subtitle && (
                     <Text style={[styles.recentSub, { color: cfg.color }]}>{item.subtitle}</Text>
@@ -573,28 +563,12 @@ const styles = StyleSheet.create({
   },
   topActions: {
     flexDirection: 'row',
-    gap: 10,
-  },
-  menuBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#3A3A3A',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  menuBtnIcon: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '300',
-    lineHeight: 18,
-    marginTop: -2,
+    gap: 8,
   },
   inputCard: {
     borderWidth: 1,
     borderColor: '#3A3A3A',
-    borderRadius: 16,
+    borderRadius: 12,
     padding: 16,
     backgroundColor: '#161616',
     marginBottom: 12,
@@ -613,18 +587,12 @@ const styles = StyleSheet.create({
   },
   submitBtn: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    borderRadius: 8,
     width: 40,
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 8,
-  },
-  submitBtnArrow: {
-    color: '#0F0F0F',
-    fontSize: 18,
-    fontWeight: '600',
-    lineHeight: 18,
   },
   classificationCard: {
     backgroundColor: '#111111',
@@ -673,14 +641,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#3A3A3A',
-    borderRadius: 20,
+    borderRadius: 7,
     paddingHorizontal: 12,
     paddingVertical: 6,
-  },
-  typePillIcon: {
-    fontSize: 12,
-    marginRight: 4,
-    fontWeight: '500',
+    gap: 5,
   },
   typePillText: {
     color: '#444',
@@ -774,14 +738,8 @@ const styles = StyleSheet.create({
     borderBottomColor: '#111111',
   },
   recentIcon: {
-    marginRight: 10,
-  },
-  recentIconText: {
-    fontSize: 13,
-    marginRight: 10,
-    width: 16,
-    textAlign: 'center',
-    fontWeight: '500',
+    width: 27,
+    alignItems: 'flex-start',
   },
   recentText: {
     flex: 1,

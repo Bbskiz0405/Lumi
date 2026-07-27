@@ -8,6 +8,8 @@ import TransactionCard from '../../../components/finance/TransactionCard';
 import ExpensePieChart from '../../../components/finance/ExpensePieChart';
 import FinanceAdvisor from '../../../components/finance/FinanceAdvisor';
 import Calculator from '../../../components/finance/Calculator';
+import IconButton from '../../../components/ui/IconButton';
+import TechIcon from '../../../components/ui/TechIcon';
 import { useCalendar } from '../../../contexts/CalendarContext';
 import {
   getTransactionsForMonth,
@@ -289,33 +291,23 @@ export default function FinanceScreen() {
               ))}
             </View>
             <View style={{ flexDirection: 'row', gap: 8 }}>
-              <TouchableOpacity
+              <IconButton
+                icon="command"
+                label="開啟 AI 財務顧問"
                 onPress={() => setAdvisorVisible(true)}
-                style={styles.addBtn}
-                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-                accessibilityRole="button"
-                accessibilityLabel="開啟 AI 財務顧問"
-              >
-                <Text style={{ color: '#55DDAA', fontSize: 18, fontWeight: '200' }}>✧</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+                color="#55DDAA"
+              />
+              <IconButton
+                icon="rotate-ccw"
+                label="重置所有記帳資料"
                 onPress={handleReset}
-                style={styles.addBtn}
-                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-                accessibilityRole="button"
-                accessibilityLabel="重置所有記帳資料"
-              >
-                <Text style={{ color: '#666', fontSize: 22, fontWeight: '200', marginTop: -2 }}>↻</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+                color="#6D737A"
+              />
+              <IconButton
+                icon="plus"
+                label="新增記帳"
                 onPress={openModal}
-                style={styles.addBtn}
-                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-                accessibilityRole="button"
-                accessibilityLabel="新增記帳"
-              >
-                <Text style={{ color: '#FFFFFF', fontSize: 24, fontWeight: '200', marginTop: -2 }}>+</Text>
-              </TouchableOpacity>
+              />
             </View>
           </View>
 
@@ -431,8 +423,10 @@ export default function FinanceScreen() {
                 <TouchableOpacity
                   style={styles.calcBtn}
                   onPress={() => { setCalcTarget('edit'); setShowCalc(true); }}
+                  accessibilityRole="button"
+                  accessibilityLabel="開啟計算機"
                 >
-                  <Text style={styles.calcBtnText}>[=]</Text>
+                  <TechIcon name="calculator" size={18} color="#55DDAA" />
                 </TouchableOpacity>
               </View>
               {editType === 'expense' && (
@@ -547,8 +541,10 @@ export default function FinanceScreen() {
                 <TouchableOpacity
                   style={styles.calcBtn}
                   onPress={() => { setCalcTarget('add'); setShowCalc(true); }}
+                  accessibilityRole="button"
+                  accessibilityLabel="開啟計算機"
                 >
-                  <Text style={styles.calcBtnText}>[=]</Text>
+                  <TechIcon name="calculator" size={18} color="#55DDAA" />
                 </TouchableOpacity>
               </View>
               {!!formAmountError && <Text style={styles.errorText}>{formAmountError}</Text>}
@@ -611,11 +607,6 @@ export default function FinanceScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#0F0F0F' },
-  addBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    borderWidth: 1, borderColor: '#3A3A3A',
-    alignItems: 'center', justifyContent: 'center',
-  },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
   scroll: { paddingBottom: 48 },
@@ -634,7 +625,7 @@ const styles = StyleSheet.create({
   modePill: {
     borderWidth: 1,
     borderColor: '#3A3A3A',
-    borderRadius: 16,
+    borderRadius: 7,
     paddingHorizontal: 16,
     paddingVertical: 5,
   },
@@ -756,7 +747,7 @@ const styles = StyleSheet.create({
 
   catRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 },
   catBtn: {
-    borderWidth: 1, borderColor: '#3A3A3A', borderRadius: 20,
+    borderWidth: 1, borderColor: '#3A3A3A', borderRadius: 7,
     paddingHorizontal: 12, paddingVertical: 6, marginRight: 8, marginBottom: 8,
   },
   catBtnActive: { borderColor: '#55DDAA', backgroundColor: '#101A14' },
@@ -783,10 +774,9 @@ const styles = StyleSheet.create({
 
   amountRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   calcBtn: {
-    width: 44, height: 44, borderRadius: 10, borderWidth: 1, borderColor: '#3A3A3A',
-    backgroundColor: '#1A1A1A', alignItems: 'center', justifyContent: 'center',
+    width: 44, height: 44, borderRadius: 8, borderWidth: 1, borderColor: '#2B2F34',
+    backgroundColor: '#121417', alignItems: 'center', justifyContent: 'center',
   },
-  calcBtnText: { color: '#55DDAA', fontSize: 14, fontWeight: '500' },
   calcOverlay: { flex: 1, justifyContent: 'flex-end' },
   calcDismiss: { flex: 1 },
 });

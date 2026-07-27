@@ -10,6 +10,8 @@ import TaskForm from '../../components/tasks/TaskForm';
 import { getAllTasks, createTask, toggleTaskComplete } from '../../services/taskService';
 import { useCalendar } from '../../contexts/CalendarContext';
 import { Task, CreateTaskInput } from '../../types/task';
+import IconButton from '../../components/ui/IconButton';
+import TechIcon from '../../components/ui/TechIcon';
 
 export default function TasksScreen() {
   const router = useRouter();
@@ -88,15 +90,11 @@ export default function TasksScreen() {
     <SafeAreaView style={styles.safe} edges={[]}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>任務</Text>
-        <TouchableOpacity
+        <IconButton
+          icon="plus"
+          label="新增任務"
           onPress={() => setModalVisible(true)}
-          style={styles.addBtn}
-          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-          accessibilityRole="button"
-          accessibilityLabel="新增任務"
-        >
-          <Text style={{ color: '#FFFFFF', fontSize: 24, fontWeight: '200', marginTop: -2 }}>+</Text>
-        </TouchableOpacity>
+        />
       </View>
 
       {loading ? (
@@ -135,9 +133,11 @@ export default function TasksScreen() {
                   style={styles.completedHeader}
                   onPress={() => setShowCompleted(!showCompleted)}
                 >
-                  <Text style={{ color: '#666', fontSize: 14, marginRight: 8, fontWeight: '500' }}>
-                    {showCompleted ? 'v' : '>'}
-                  </Text>
+                  <TechIcon
+                    name={showCompleted ? 'chevron-down' : 'chevron-right'}
+                    size={16}
+                    color="#666"
+                  />
                   <Text style={styles.completedTitle}>已完成 ({completedTasks.length})</Text>
                 </TouchableOpacity>
                 {showCompleted && completedTasks.map(item => (
@@ -185,11 +185,6 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   headerTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '300', letterSpacing: 2 },
-  addBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    borderWidth: 1, borderColor: '#3A3A3A',
-    alignItems: 'center', justifyContent: 'center',
-  },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   list: { paddingBottom: 40, paddingTop: 4 },
   empty: { alignItems: 'center', marginTop: 80 },

@@ -39,7 +39,7 @@ export default function TasksModule({ onPress, refreshKey }: Props) {
   });
 
   return (
-    <ModuleCard title="任務" icon="[v]" onPress={onPress} accent="#FF9944">
+    <ModuleCard title="任務" icon="check-square" onPress={onPress} accent="#FF9944">
       {loadError ? (
         <Text style={styles.error}>暫時無法讀取</Text>
       ) : (

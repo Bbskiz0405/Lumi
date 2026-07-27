@@ -1,9 +1,10 @@
 import React from 'react';
 import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
+import TechIcon, { TechIconName } from '../ui/TechIcon';
 
 interface Props {
   title: string;
-  icon: string;
+  icon: TechIconName;
   onPress: () => void;
   children?: React.ReactNode;
   accent?: string;
@@ -19,7 +20,9 @@ export default function ModuleCard({ title, icon, onPress, children, accent = '#
       accessibilityLabel={`開啟${title}`}
     >
       <View style={styles.header}>
-        <Text style={[styles.icon, { color: accent }]}>{icon}</Text>
+        <View style={styles.iconFrame}>
+          <TechIcon name={icon} size={16} color={accent} strokeWidth={1.7} />
+        </View>
         <Text style={[styles.title, { color: accent }]}>{title}</Text>
       </View>
       <View style={styles.content}>{children}</View>
@@ -30,11 +33,11 @@ export default function ModuleCard({ title, icon, onPress, children, accent = '#
 const styles = StyleSheet.create({
   card: {
     flex: 1,
-    backgroundColor: '#111111',
-    borderRadius: 16,
+    backgroundColor: '#111315',
+    borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#1E1E1E',
+    borderColor: '#22262B',
     minHeight: 120,
   },
   header: {
@@ -42,16 +45,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  icon: {
-    width: 24,
-    marginRight: 2,
-    fontSize: 14,
-    fontWeight: '500',
+  iconFrame: {
+    width: 28,
+    height: 28,
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: '#292D32',
+    backgroundColor: '#15181B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 9,
   },
   title: {
     fontSize: 11,
     fontWeight: '400',
-    letterSpacing: 1.5,
+    letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
   content: {

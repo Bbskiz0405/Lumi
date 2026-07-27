@@ -38,7 +38,7 @@ export default function FinanceModule({ onPress, refreshKey }: Props) {
   const balance = income - expense;
 
   return (
-    <ModuleCard title="財務" icon="$" onPress={onPress} accent="#55DDAA">
+    <ModuleCard title="財務" icon="wallet" onPress={onPress} accent="#55DDAA">
       {loadError ? (
         <Text style={styles.error}>暫時無法讀取</Text>
       ) : (

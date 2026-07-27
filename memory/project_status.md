@@ -4,6 +4,16 @@
 
 ---
 
+## v0.4.65 — 深色極簡科技 UI（2026-07-27）
+
+- 以 `react-native-svg` 自製 `TechIcon` 圖示系統，避開 Android icon font 打包失效問題。
+- 新增共用 `IconButton`，統一 36px、8px 低圓角、細邊框與深色表面。
+- 重整底部導覽、首頁快捷鍵、模組卡、財務工具列、任務、筆記、時間軸、AI 顧問與側欄圖示。
+- 保留原深色配色，不使用可愛元素、霓虹效果或裝飾性動畫；選中狀態只以細線與亮度呈現。
+- typecheck、diff check、arm64 release build 均通過，並已於 Pixel 8a 實機確認 SVG 圖示正常。
+
+---
+
 ## v0.4.64 — UX 安全修補（2026-07-27）
 
 - 換月同步選取日並防快速連按競態；交易新增／編輯可直接修改與驗證日期。
@@ -71,13 +81,12 @@
    - 包含共用的 `PersistentCalendar` (不會因滑動而重繪)。
    - 使用自製 `SubTabBar` 在「行事曆」與「財務」間切換。
 
-### UI 風格 (Minimalist / Kaomoji)
-- **禁用外部 Icon 字體**: 由於 Android 實機打包常出現 `MaterialCommunityIcons` 失效問題，全 App 的控制按鈕皆已改用 **Unicode 純文字符號**。
-- **範例**:
-  - `+` (新增), `x` (關閉/刪除), `^` (發送/提交), `v` / `>` (展開/收合)
-  - `✧` (AI 顧問), `↻` (重置), `[=]` (計算機)
-  - 導覽列：`✎`(首頁), `[ ]`(行事曆), `$`(財務), `[v]`(任務), `!`(筆記)
-- **禁止隨意引入新的字體 Icon 套件，請維持純文字符號策略。**
+### UI 風格（Dark Minimal Tech）
+- **禁用 Icon Font**：Android 實機曾發生 `MaterialCommunityIcons` 字型漏包。圖示一律使用 `components/ui/TechIcon.tsx` 的 `react-native-svg` 幾何線框，不使用 Unicode 假圖示。
+- **圖示規格**：一般 18–22px、線寬約 1.7px、圓角端點；選中時可提高至 1.9px，但不使用填滿、發光或彈跳效果。
+- **按鈕規格**：優先使用共用 `IconButton`，預設 36px、8px 低圓角、`#121417` 表面與 `#2B2F34` 邊框。
+- **視覺原則**：保留深色底與現有語意色；選中狀態只使用細線、邊框或亮度差。不要加入可愛插圖、膠囊化、霓虹漸層或非必要動畫。
+- **新增圖示**：先擴充 `TechIconName` 與對應 SVG path，確保全 App 的線條語言一致，不要臨時塞文字代號。
 
 ### 資料狀態管理
 - **Silent Refresh**: 避免使用 `ActivityIndicator` 造成畫面切換閃爍。在 `useFocusEffect` 中使用 `hasLoaded` 鎖定初始加載，後續切換僅在背景靜默更新 `state`。
