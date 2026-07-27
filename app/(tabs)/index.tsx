@@ -75,7 +75,7 @@ function timeAgo(isoStr: string): string {
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { bumpRefresh } = useCalendar();
+  const { bumpRefresh, refreshKey: globalRefreshKey } = useCalendar();
   const [text, setText] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
   const [classification, setClassification] = useState<ClassificationResult | null>(null);
@@ -100,7 +100,7 @@ export default function HomeScreen() {
       return () => {
         active = false;
       };
-    }, [])
+    }, [globalRefreshKey])
   );
 
   async function handleClassify() {

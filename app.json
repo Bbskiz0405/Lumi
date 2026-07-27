@@ -3,7 +3,7 @@
     "name": "Lumi",
     "slug": "lumi",
     "scheme": "lumi",
-    "version": "0.4.62",
+    "version": "0.4.63",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "ios": {
@@ -16,7 +16,8 @@
     "plugins": [
       "expo-router",
       "expo-sqlite",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-sharing"
     ],
     "extra": {
       "router": {},

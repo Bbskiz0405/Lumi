@@ -6,7 +6,23 @@
 
 ## 當前狀態 (2026-07-27)
 
-**版號：0.4.62（穩定性優化，本地修改尚未 commit / push）**
+**版號：0.4.63（信任層已完成並建立本地版本，尚未 push）**
+
+### 0.4.63 — 備份還原與資料庫 migration
+- 新增 `services/backupService.ts`：版本化 JSON 格式，涵蓋 9 張資料表與非敏感 settings。
+- API Key 不匯出；匯入「完全取代」時也保留 SecureStore 與 SQLite fallback key。
+- 新增「資料與備份」側邊選單：資料筆數、匯出、選檔預覽、合併／取代與二次確認。
+- 匯入包在 exclusive transaction，任何錯誤會整批 rollback。
+- `services/db.ts` 改成循序 migration runner，最新 `user_version = 2`。
+- 安裝 Expo 55 相容的 `expo-file-system`、`expo-document-picker`、`expo-sharing`。
+- 修正 `.gitignore` 不應全面忽略 PNG/JPG，避免正式圖片資產再次漏版控。
+- 新增 `memory/product_roadmap.md`：v0.5 Lumi 觀察、v0.6 Widget、v0.7 retrieval-first 問答、v0.8 週期與同步，以及技術／上架清單。
+- `npm run check`、Expo public config、production Hermes export、arm64 release build 與 `git diff --check` 均通過。
+- 最終 APK 已覆蓋安裝至 Pixel 8a；冷啟動成功（354 ms），確認為 `0.4.63 (63)`，程序持續運行，未命中 AndroidRuntime／ReactNativeJS／SQLite fatal error。
+- 新增 Expo 原生模組後，原本 Gradle `MaxMetaspaceSize=512m` 曾耗盡；已調整為 1024m，最終 arm64 release build 在 56 秒完成。此電腦可用 JDK 位於 `C:\Users\user\.gradle\jdks\eclipse_adoptium-17-amd64-windows.2`。
+- 既有資料庫可正常由舊版啟動至 migration v2；未自動執行「完全取代」，避免測試流程改動手機真實資料。
+- 待手動驗證：匯出分享、合併、完全取代與錯誤檔 rollback。
+- 待使用者明確允許：連線 npm registry 執行 dependency security audit；目前只保留安裝時的風險提示，不繞過權限送出依賴 metadata。
 
 ### 0.4.62 — 穩定性、資料一致性與安全性優化
 - 修正 4 個 TypeScript 錯誤，新增 `npm run typecheck` / `npm run check` 品質檢查。

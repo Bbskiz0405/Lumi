@@ -4,6 +4,20 @@
 
 ---
 
+## v0.4.63 — 信任層（2026-07-27）
+
+- 新增「資料與備份」：JSON 匯出、匯入預覽、合併與完全取代。
+- API Key 永不寫入備份；完全取代時仍保留 SecureStore／SQLite fallback key。
+- 匯入採單一 exclusive transaction，失敗時不留下半套資料。
+- SQLite 初始化改為循序 migration，目前最新 `user_version = 2`。
+- 完整後續規劃見 `memory/product_roadmap.md`。
+- `npm run check`、production Hermes export 與 arm64 release build 已通過。
+- 最終 APK 已安裝至 Pixel 8a，確認 `0.4.63 (63)` 可冷啟動（354 ms）、既有 DB 可升級，且無 AndroidRuntime／ReactNativeJS／SQLite fatal error。
+- Gradle release build 的 Metaspace 已由 512m 調至 1024m，避免新增 Expo 原生模組後建置耗盡。
+- 為避免改動手機真實資料，匯出、合併、完全取代與錯誤檔 rollback 仍列為手動驗證。
+
+---
+
 ## 專案概覽
 
 - **Framework**: Expo 55 + React Native 0.83 + TypeScript + Expo Router

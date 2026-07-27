@@ -13,8 +13,10 @@ web-build/
 npm-debug.*
 yarn-debug.*
 yarn-error.*
-*.png
-*.jpg
+# Local-only screenshots. App image assets should remain trackable.
+/screenshots/
+*.local.png
+*.local.jpg
 .claude/
 .playwright-mcp/
 graphify-out/

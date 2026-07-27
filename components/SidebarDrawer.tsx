@@ -11,11 +11,12 @@ import {
   View,
 } from 'react-native';
 import ApiSettings from './ApiSettings';
+import DataSettings from './DataSettings';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DRAWER_WIDTH = Math.min(320, Math.round(SCREEN_WIDTH * 0.82));
 
-type Section = 'menu' | 'settings' | 'changelog' | 'about';
+type Section = 'menu' | 'settings' | 'data' | 'changelog' | 'about';
 
 interface ReleaseEntry {
   version: string;
@@ -24,6 +25,15 @@ interface ReleaseEntry {
 }
 
 const RELEASES: ReleaseEntry[] = [
+  {
+    version: '0.4.63',
+    date: '2026-07-27',
+    notes: [
+      '新增 JSON 備份與還原：匯入前預覽，可選合併或完全取代',
+      'API Key 不會寫入備份，完全取代時也會保留',
+      '資料庫改為逐版 migration，匯入失敗會整批回滾',
+    ],
+  },
   {
     version: '0.4.62',
     date: '2026-07-27',
@@ -132,7 +142,7 @@ const RELEASES: ReleaseEntry[] = [
   },
 ];
 
-const VERSION = '0.4.62';
+const VERSION = '0.4.63';
 const GITHUB_URL = 'https://github.com/Bbskiz0405/Lumi';
 
 interface Props {
@@ -192,6 +202,7 @@ export default function SidebarDrawer({ visible, onClose }: Props) {
             <Text style={styles.headerTitle}>
               {section === 'menu' && 'Lumi'}
               {section === 'settings' && '設定'}
+              {section === 'data' && '資料與備份'}
               {section === 'changelog' && '更新日誌'}
               {section === 'about' && '關於'}
             </Text>
@@ -206,7 +217,12 @@ export default function SidebarDrawer({ visible, onClose }: Props) {
             <View style={styles.menuList}>
               <TouchableOpacity style={styles.menuItem} onPress={() => setSection('settings')}>
                 <Text style={styles.menuIcon}>⚙</Text>
-                <Text style={styles.menuLabel}>設定</Text>
+                <Text style={styles.menuLabel}>AI 設定</Text>
+                <Text style={styles.menuChevron}>{'>'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.menuItem} onPress={() => setSection('data')}>
+                <Text style={styles.menuIcon}>⇅</Text>
+                <Text style={styles.menuLabel}>資料與備份</Text>
                 <Text style={styles.menuChevron}>{'>'}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.menuItem} onPress={() => setSection('changelog')}>
@@ -227,6 +243,12 @@ export default function SidebarDrawer({ visible, onClose }: Props) {
           {section === 'settings' && (
             <View style={{ flex: 1 }}>
               <ApiSettings />
+            </View>
+          )}
+
+          {section === 'data' && (
+            <View style={{ flex: 1 }}>
+              <DataSettings />
             </View>
           )}
 
