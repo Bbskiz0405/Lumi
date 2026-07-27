@@ -6,7 +6,7 @@
 
 ## 當前狀態 (2026-07-27)
 
-**版號：0.4.65（深色極簡科技 UI 已完成並安裝實機，準備 push）**
+**版號：0.4.65（深色極簡科技 UI 已完成、安裝實機並 push）**
 
 ### 0.4.65 — 深色極簡科技 UI
 - 新增 `components/ui/TechIcon.tsx`，直接使用 `react-native-svg` 繪製統一的 1.7px 幾何線框圖示，不依賴容易在 Android 打包失效的 icon font。
