@@ -2,6 +2,8 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useCalendar } from '../../contexts/CalendarContext';
 import { toLocalDateString } from '../../utils/date';
+import TechIcon from '../ui/TechIcon';
+import { getTaskTagMeta } from '../../utils/taskTags';
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
 const MONTHS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
@@ -9,7 +11,9 @@ const MONTHS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', 
 interface Props {
   taskDates?: Set<string>;
   financeDates?: Set<string>;
+  externalDates?: Set<string>;
   taskPriorityMap?: Map<string, 'high' | 'medium' | 'low'>;
+  taskTagMap?: Map<string, string>;
   onDayPress?: (date: string) => void;
 }
 
@@ -23,8 +27,15 @@ function toDateStr(year: number, month: number, day: number): string {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
-export default function CalendarGrid({ taskDates, financeDates, taskPriorityMap, onDayPress }: Props) {
-  const { year, month, selectedDate, setSelectedDate, prevMonth, nextMonth } = useCalendar();
+export default function CalendarGrid({
+  taskDates,
+  financeDates,
+  externalDates,
+  taskPriorityMap,
+  taskTagMap,
+  onDayPress,
+}: Props) {
+  const { year, month, selectedDate, setSelectedDate, prevMonth, nextMonth, goToday } = useCalendar();
   const todayStr = toLocalDateString();
 
   const firstDay = new Date(year, month, 1).getDay();
@@ -32,7 +43,7 @@ export default function CalendarGrid({ taskDates, financeDates, taskPriorityMap,
   const cells: (number | null)[] = [];
   for (let i = 0; i < firstDay; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-  while (cells.length % 7 !== 0) cells.push(null);
+  while (cells.length < 42) cells.push(null);
 
   function handleDayPress(day: number) {
     const date = toDateStr(year, month, day);
@@ -51,9 +62,19 @@ export default function CalendarGrid({ taskDates, financeDates, taskPriorityMap,
           accessibilityRole="button"
           accessibilityLabel="上一個月"
         >
-          <Text style={{ color: '#55DDAA', fontSize: 24, fontWeight: 'bold' }}>{' < '}</Text>
+          <TechIcon name="chevron-left" size={20} color="#55DDAA" />
         </TouchableOpacity>
-        <Text style={styles.monthTitle}>{year}年 {MONTHS[month]}</Text>
+        <View style={styles.monthHeading}>
+          <Text style={styles.monthTitle}>{year}年 {MONTHS[month]}</Text>
+          <TouchableOpacity
+            onPress={goToday}
+            style={styles.todayButton}
+            accessibilityRole="button"
+            accessibilityLabel="回到今天"
+          >
+            <Text style={styles.todayButtonText}>今天</Text>
+          </TouchableOpacity>
+        </View>
         <TouchableOpacity
           onPress={nextMonth}
           style={styles.navBtn}
@@ -61,7 +82,7 @@ export default function CalendarGrid({ taskDates, financeDates, taskPriorityMap,
           accessibilityRole="button"
           accessibilityLabel="下一個月"
         >
-          <Text style={{ color: '#55DDAA', fontSize: 24, fontWeight: 'bold' }}>{' > '}</Text>
+          <TechIcon name="chevron-right" size={20} color="#55DDAA" />
         </TouchableOpacity>
       </View>
 
@@ -81,13 +102,14 @@ export default function CalendarGrid({ taskDates, financeDates, taskPriorityMap,
           const isSelected = dateStr === selectedDate;
           const hasTask = taskDates?.has(dateStr);
           const hasFinance = financeDates?.has(dateStr);
+          const hasExternal = externalDates?.has(dateStr);
           return (
             <TouchableOpacity
               key={idx}
               style={styles.cell}
               onPress={() => handleDayPress(day)}
               accessibilityRole="button"
-              accessibilityLabel={`${year}年${month + 1}月${day}日${hasTask ? '，有任務' : ''}${hasFinance ? '，有記帳' : ''}`}
+              accessibilityLabel={`${year}年${month + 1}月${day}日${hasTask ? '，有任務' : ''}${hasExternal ? '，有外部行程' : ''}${hasFinance ? '，有記帳' : ''}`}
               accessibilityState={{ selected: isSelected }}
             >
               <View style={[
@@ -107,14 +129,24 @@ export default function CalendarGrid({ taskDates, financeDates, taskPriorityMap,
                 {hasTask && (
                   <View style={[
                     styles.dot,
-                    { backgroundColor: PRIORITY_COLORS[taskPriorityMap?.get(dateStr) ?? 'medium'] },
+                    {
+                      backgroundColor: taskTagMap?.has(dateStr)
+                        ? getTaskTagMeta(taskTagMap.get(dateStr)!).color
+                        : PRIORITY_COLORS[taskPriorityMap?.get(dateStr) ?? 'medium'],
+                    },
                   ]} />
                 )}
+                {hasExternal && <View style={styles.externalDot} />}
                 {hasFinance && <View style={[styles.dot, { backgroundColor: '#55DDAA' }]} />}
               </View>
             </TouchableOpacity>
           );
         })}
+      </View>
+      <View style={styles.legend}>
+        <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: '#FF9944' }]} /><Text style={styles.legendText}>任務</Text></View>
+        <View style={styles.legendItem}><View style={styles.legendExternalDot} /><Text style={styles.legendText}>外部行程</Text></View>
+        <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: '#55DDAA' }]} /><Text style={styles.legendText}>記帳</Text></View>
       </View>
     </View>
   );
@@ -126,7 +158,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, paddingVertical: 12,
   },
   navBtn: { padding: 8 },
+  monthHeading: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   monthTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: '300', letterSpacing: 1 },
+  todayButton: {
+    borderWidth: 1,
+    borderColor: '#33383D',
+    borderRadius: 5,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  todayButtonText: { color: '#8C949C', fontSize: 10, letterSpacing: 0.5 },
   weekRow: { flexDirection: 'row', paddingHorizontal: 8, marginBottom: 4 },
   weekLabel: { flex: 1, textAlign: 'center', color: '#666666', fontSize: 11, fontWeight: '400' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 8 },
@@ -139,4 +180,16 @@ const styles = StyleSheet.create({
   selectedText: { color: '#0F0F0F', fontWeight: '500' },
   dotRow: { flexDirection: 'row', gap: 2, height: 6, marginTop: 1 },
   dot: { width: 4, height: 4, borderRadius: 2 },
+  externalDot: { width: 5, height: 5, borderRadius: 3, borderWidth: 1, borderColor: '#88AAFF' },
+  legend: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 16,
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  legendDot: { width: 4, height: 4, borderRadius: 2 },
+  legendExternalDot: { width: 5, height: 5, borderRadius: 3, borderWidth: 1, borderColor: '#88AAFF' },
+  legendText: { color: '#555D64', fontSize: 9, letterSpacing: 0.3 },
 });

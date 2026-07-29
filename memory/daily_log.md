@@ -6,7 +6,28 @@
 
 ## 當前狀態 (2026-07-29)
 
-**版號：0.4.66（筆記長內容閱讀與安全區修正已驗收並收錄）**
+**版號：0.4.68（外部行程單日修正與任務分類已安裝，待使用者驗收行程內容）**
+
+### 0.4.68 — 外部行程單日修正與任務分類（2026-07-29）
+- 使用者實機回報月曆有外部行程空心標點，但點進當日沒有內容。
+- 根因方向：整月標點與單日議程原本分別查詢；Android Calendar Provider 對窄的一天範圍處理全天、跨日或部分重複事件時可能漏回實例。
+- 修正為單日先讀同月事件，再以 `eventStart < dayEnd && eventEnd > dayStart` 篩選；跨日事件會在涵蓋的每一天顯示標點。
+- 換日期時自動重設來源與任務分類篩選，避免舊篩選讓新日期看似沒有內容。
+- 任務分類從研究／學校／申請／生活擴充為工作、學校、研究、申請、生活、健康、家庭、社交、雜務、重要日。
+- 支援建立自訂分類與長按移除；已使用分類的任務不因移除選項而改變。分類色彩套用任務卡、月曆標點與單日篩選。
+- `npm run typecheck`、`git diff --check`、arm64 release build 通過；v0.4.68 已覆蓋安裝 Pixel 8a，版本、程序與 fatal log 檢查正常。
+
+### 0.4.67 — 手機日曆連動與行事曆 UX（2026-07-29）
+- 產品決策：先使用手機系統日曆橋接 Google 日曆，不建立第二套 Google 登入／token 流程；Google 帳號只要已加入手機並開啟日曆同步即可選擇。
+- 預設規則：選定日曆後，新的有日期任務自動同步；既有未完成任務不擅自批次寫入，必須由使用者點「同步目前未完成任務」。
+- 外部行程只讀顯示，不自動建立 Lumi 任務；Lumi 只更新／刪除自己建立且有 `calendar_event_links` 對應的行程。
+- 新增 `expo-calendar ~55.0.17`、Android `READ_CALENDAR`／`WRITE_CALENDAR` 權限與設定畫面；權限只在使用者點連接時要求。
+- SQLite migration 升為 v3，新增任務／日曆 event link 表避免重複建立；日曆設定和 link 都視為裝置專屬狀態，不進 JSON 備份。
+- 行事曆加入固定六週版面、「今天」快捷鍵、外部行程空心標記、來源圖例，以及全部／任務／行程篩選；外部行程可點回系統日曆。
+- 版號同步為 Expo `0.4.67`、Android `versionCode 67`／`versionName 0.4.67`，側欄更新日誌亦已補齊。
+- `npm run check`、Expo public config、arm64 release build 與 APK manifest 權限檢查通過；APK 為 `android/app/build/outputs/apk/release/app-release.apk`。
+- v0.4.67 APK 已透過 ADB 覆蓋安裝至 Pixel 8a，確認版本為 `0.4.67 (67)`、程序正常運行，冷啟動後未命中 AndroidRuntime／ReactNativeJS／ExpoModulesCore／SQLite fatal error。
+- 首次啟動後 READ_CALENDAR／WRITE_CALENDAR 仍為 `granted=false`，確認不會在啟動時擅自索取權限；待使用者進入「日曆連動」手動驗證 Google 日曆清單、建立／改期／刪除同步及拒絕權限狀態。
 
 ### 筆記長內容閱讀與安全區修正（2026-07-29）
 - 既有筆記改為「先閱讀、再編輯」：打開後顯示純文字閱讀模式，不再自動 focus 輸入框，長內容可由外層 ScrollView 正常上下滑動。

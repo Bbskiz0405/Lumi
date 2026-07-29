@@ -11,13 +11,14 @@ import {
   View,
 } from 'react-native';
 import ApiSettings from './ApiSettings';
+import CalendarSettings from './CalendarSettings';
 import DataSettings from './DataSettings';
 import TechIcon from './ui/TechIcon';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DRAWER_WIDTH = Math.min(320, Math.round(SCREEN_WIDTH * 0.82));
 
-type Section = 'menu' | 'settings' | 'data' | 'changelog' | 'about';
+type Section = 'menu' | 'settings' | 'calendar' | 'data' | 'changelog' | 'about';
 
 interface ReleaseEntry {
   version: string;
@@ -26,6 +27,25 @@ interface ReleaseEntry {
 }
 
 const RELEASES: ReleaseEntry[] = [
+  {
+    version: '0.4.68',
+    date: '2026-07-29',
+    notes: [
+      '修正月曆顯示外部行程標點，但單日議程看不到全天、跨日或重複行程',
+      '任務分類擴充為工作、學校、研究、申請、生活、健康、家庭、社交、雜務與重要日',
+      '支援建立與移除自訂分類，任務卡、月曆標點及單日篩選會沿用分類色彩',
+    ],
+  },
+  {
+    version: '0.4.67',
+    date: '2026-07-29',
+    notes: [
+      '新增手機日曆連動，可選擇 Google 日曆並自動同步有日期的 Lumi 任務',
+      '外部行程可在 Lumi 單日議程中查看，但不會自動轉成任務或送給 AI',
+      '月曆加入今天快捷鍵、固定六週版面、來源圖例與任務／行程篩選',
+      '同步關係獨立記錄，避免重複建立；刪除任務時只移除 Lumi 建立的行程',
+    ],
+  },
   {
     version: '0.4.66',
     date: '2026-07-29',
@@ -174,7 +194,7 @@ const RELEASES: ReleaseEntry[] = [
   },
 ];
 
-const VERSION = '0.4.66';
+const VERSION = '0.4.68';
 const GITHUB_URL = 'https://github.com/Bbskiz0405/Lumi';
 
 interface Props {
@@ -234,6 +254,7 @@ export default function SidebarDrawer({ visible, onClose }: Props) {
             <Text style={styles.headerTitle}>
               {section === 'menu' && 'Lumi'}
               {section === 'settings' && '設定'}
+              {section === 'calendar' && '日曆連動'}
               {section === 'data' && '資料與備份'}
               {section === 'changelog' && '更新日誌'}
               {section === 'about' && '關於'}
@@ -250,6 +271,11 @@ export default function SidebarDrawer({ visible, onClose }: Props) {
               <TouchableOpacity style={styles.menuItem} onPress={() => setSection('settings')}>
                 <View style={styles.menuIcon}><TechIcon name="settings" size={18} color="#888" /></View>
                 <Text style={styles.menuLabel}>AI 設定</Text>
+                <TechIcon name="chevron-right" size={16} color="#444" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.menuItem} onPress={() => setSection('calendar')}>
+                <View style={styles.menuIcon}><TechIcon name="calendar" size={18} color="#888" /></View>
+                <Text style={styles.menuLabel}>日曆連動</Text>
                 <TechIcon name="chevron-right" size={16} color="#444" />
               </TouchableOpacity>
               <TouchableOpacity style={styles.menuItem} onPress={() => setSection('data')}>
@@ -275,6 +301,12 @@ export default function SidebarDrawer({ visible, onClose }: Props) {
           {section === 'settings' && (
             <View style={{ flex: 1 }}>
               <ApiSettings />
+            </View>
+          )}
+
+          {section === 'calendar' && (
+            <View style={{ flex: 1 }}>
+              <CalendarSettings />
             </View>
           )}
 

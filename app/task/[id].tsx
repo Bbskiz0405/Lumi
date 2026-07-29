@@ -10,13 +10,7 @@ import PriorityBadge from '../../components/tasks/PriorityBadge';
 import { getTaskById, updateTask, deleteTask, toggleTaskComplete } from '../../services/taskService';
 import { useCalendar } from '../../contexts/CalendarContext';
 import { Task, CreateTaskInput } from '../../types/task';
-
-const TAG_LABELS: Record<string, string> = {
-  research: '研究',
-  school: '學校',
-  application: '申請',
-  life: '生活',
-};
+import { getTaskTagMeta } from '../../utils/taskTags';
 
 export default function TaskDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -64,9 +58,15 @@ export default function TaskDetailScreen() {
         style: 'destructive',
         onPress: async () => {
           try {
-            await deleteTask(task!.id);
+            const { calendarRemoved } = await deleteTask(task!.id);
             bumpRefresh();
             router.back();
+            if (!calendarRemoved) {
+              Alert.alert(
+                '任務已刪除',
+                'Lumi 任務已刪除，但目前無法移除連動的日曆行程，請稍後到系統日曆確認。'
+              );
+            }
           } catch {
             Alert.alert('刪除失敗', '任務沒有刪除，請再試一次。');
           }
@@ -104,6 +104,8 @@ export default function TaskDetailScreen() {
     );
   }
 
+  const tagMeta = task.tag ? getTaskTagMeta(task.tag) : null;
+
   if (editing) {
     return (
       <SafeAreaView style={styles.safe} edges={['bottom']}>
@@ -130,10 +132,10 @@ export default function TaskDetailScreen() {
           <PriorityBadge priority={task.priority} />
         </View>
 
-        {task.tag && (
+        {tagMeta && (
           <View style={styles.row}>
-            <Text style={styles.rowLabel}>標籤</Text>
-            <Text style={styles.rowValue}>{TAG_LABELS[task.tag] ?? task.tag}</Text>
+            <Text style={styles.rowLabel}>分類</Text>
+            <Text style={[styles.rowValue, { color: tagMeta.color }]}>{tagMeta.label}</Text>
           </View>
         )}
 

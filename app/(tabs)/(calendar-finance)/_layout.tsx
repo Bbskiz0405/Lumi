@@ -7,8 +7,13 @@ import {
 } from '@react-navigation/material-top-tabs';
 import { useCalendar } from '../../../contexts/CalendarContext';
 import CalendarGrid from '../../../components/shared/CalendarGrid';
-import { getDatesWithTasks, getTaskDatesByPriority } from '../../../services/taskService';
+import {
+  getDatesWithTasks,
+  getTaskDatesByPriority,
+  getTaskDatesByTag,
+} from '../../../services/taskService';
 import { getTransactionsForMonth } from '../../../services/financeService';
+import { getCalendarEventsForRange } from '../../../services/calendarIntegrationService';
 
 const { Navigator } = createMaterialTopTabNavigator();
 const MaterialTopTabs = withLayoutContext(Navigator);
@@ -16,20 +21,32 @@ const MaterialTopTabs = withLayoutContext(Navigator);
 function PersistentCalendar() {
   const [taskDates, setTaskDates] = useState<Set<string>>(new Set());
   const [financeDates, setFinanceDates] = useState<Set<string>>(new Set());
+  const [externalDates, setExternalDates] = useState<Set<string>>(new Set());
   const [taskPriorityMap, setTaskPriorityMap] = useState<Map<string, 'high' | 'medium' | 'low'>>(new Map());
+  const [taskTagMap, setTaskTagMap] = useState<Map<string, string>>(new Map());
   const { year, month, refreshKey } = useCalendar();
 
   const loadDates = useCallback(async () => {
     const m = `${year}-${String(month + 1).padStart(2, '0')}`;
     try {
-      const [taskList, priorityMap, txs] = await Promise.all([
+      const rangeStart = new Date(year, month, 1);
+      const rangeEnd = new Date(year, month + 1, 1);
+      const [taskList, priorityMap, tagMap, txs, externalEvents] = await Promise.all([
         getDatesWithTasks(),
         getTaskDatesByPriority(),
+        getTaskDatesByTag(),
         getTransactionsForMonth(m),
+        getCalendarEventsForRange(rangeStart, rangeEnd).catch(() => []),
       ]);
       setTaskDates(new Set(taskList));
       setTaskPriorityMap(priorityMap);
+      setTaskTagMap(tagMap);
       setFinanceDates(new Set(txs.map(t => t.created_at.split('T')[0])));
+      setExternalDates(getExternalEventDates(
+        externalEvents.filter(event => !event.isLinkedToLumi),
+        rangeStart,
+        rangeEnd
+      ));
     } catch (err) {
       console.error('[PersistentCalendar] load failed:', err);
     }
@@ -45,12 +62,43 @@ function PersistentCalendar() {
         <CalendarGrid
           taskDates={taskDates}
           financeDates={financeDates}
+          externalDates={externalDates}
           taskPriorityMap={taskPriorityMap}
+          taskTagMap={taskTagMap}
         />
       </View>
       <View style={{ height: 1, backgroundColor: '#252525', marginTop: 4 }} />
     </View>
   );
+}
+
+function toCalendarDateString(isoDate: string): string {
+  const date = new Date(isoDate);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function getExternalEventDates(
+  events: Awaited<ReturnType<typeof getCalendarEventsForRange>>,
+  rangeStart: Date,
+  rangeEnd: Date
+): Set<string> {
+  const dates = new Set<string>();
+  for (const event of events) {
+    const eventStart = new Date(event.startDate);
+    const rawEventEnd = new Date(event.endDate);
+    const eventEnd = rawEventEnd > eventStart
+      ? rawEventEnd
+      : new Date(eventStart.getTime() + 1);
+    const cursor = new Date(Math.max(eventStart.getTime(), rangeStart.getTime()));
+    cursor.setHours(0, 0, 0, 0);
+    const effectiveEnd = Math.min(eventEnd.getTime(), rangeEnd.getTime());
+
+    while (cursor.getTime() < effectiveEnd) {
+      dates.add(toCalendarDateString(cursor.toISOString()));
+      cursor.setDate(cursor.getDate() + 1);
+    }
+  }
+  return dates;
 }
 
 function SubTabBar({ state, descriptors, navigation }: MaterialTopTabBarProps) {

@@ -195,7 +195,10 @@ export async function getLocalDataCounts(): Promise<BackupCounts> {
   const lengths = {} as Record<keyof BackupData, number>;
 
   for (const table of TABLES) {
-    const condition = table.name === 'settings' ? " WHERE key <> 'ai_config'" : '';
+    const condition =
+      table.name === 'settings'
+        ? " WHERE key <> 'ai_config' AND key NOT LIKE 'calendar_%'"
+        : '';
     const row = await db.getFirstAsync<{ count: number }>(
       `SELECT COUNT(*) AS count FROM ${table.name}${condition}`
     );
@@ -211,7 +214,10 @@ export async function createBackup(): Promise<LumiBackup> {
 
   for (const table of TABLES) {
     const columns = table.columns.join(', ');
-    const condition = table.name === 'settings' ? " WHERE key <> 'ai_config'" : '';
+    const condition =
+      table.name === 'settings'
+        ? " WHERE key <> 'ai_config' AND key NOT LIKE 'calendar_%'"
+        : '';
     data[table.name] = await db.getAllAsync<BackupRow>(
       `SELECT ${columns} FROM ${table.name}${condition}`
     );
@@ -261,7 +267,8 @@ export async function importBackup(
         DELETE FROM notes;
         DELETE FROM tasks;
         DELETE FROM entries;
-        DELETE FROM settings WHERE key <> 'ai_config';
+        DELETE FROM settings
+        WHERE key <> 'ai_config' AND key NOT LIKE 'calendar_%';
       `);
     }
 

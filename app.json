@@ -3,7 +3,7 @@
     "name": "Lumi",
     "slug": "lumi",
     "scheme": "lumi",
-    "version": "0.4.66",
+    "version": "0.4.68",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "ios": {
@@ -11,13 +11,23 @@
     },
     "android": {
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.lumi"
+      "package": "com.anonymous.lumi",
+      "permissions": [
+        "android.permission.READ_CALENDAR",
+        "android.permission.WRITE_CALENDAR"
+      ]
     },
     "plugins": [
       "expo-router",
       "expo-sqlite",
       "expo-secure-store",
-      "expo-sharing"
+      "expo-sharing",
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "允許 Lumi 顯示你的行程，並把有日期的任務同步到你選擇的日曆。"
+        }
+      ]
     ],
     "extra": {
       "router": {},

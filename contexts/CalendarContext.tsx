@@ -11,6 +11,7 @@ interface CalendarState {
   setSelectedDate: (d: string) => void;
   prevMonth: () => void;
   nextMonth: () => void;
+  goToday: () => void;
   bumpRefresh: () => void;
 }
 
@@ -47,12 +48,22 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
 
   function nextMonth() { moveMonth(1); }
 
+  function goToday() {
+    const now = new Date();
+    const nextYear = now.getFullYear();
+    const nextMonth = now.getMonth();
+    viewMonthRef.current = { year: nextYear, month: nextMonth };
+    setYear(nextYear);
+    setMonth(nextMonth);
+    setSelectedDate(toLocalDateString(now));
+  }
+
   function bumpRefresh() {
     setRefreshKey(k => k + 1);
   }
 
   return (
-    <CalendarContext.Provider value={{ year, month, selectedDate, refreshKey, setYear, setMonth, setSelectedDate, prevMonth, nextMonth, bumpRefresh }}>
+    <CalendarContext.Provider value={{ year, month, selectedDate, refreshKey, setYear, setMonth, setSelectedDate, prevMonth, nextMonth, goToday, bumpRefresh }}>
       {children}
     </CalendarContext.Provider>
   );

@@ -49,6 +49,16 @@ export default function RootLayout() {
             presentation: 'card',
           }}
         />
+        <Stack.Screen
+          name="calendar-settings"
+          options={{
+            headerShown: true,
+            headerTitle: '日曆連動',
+            headerStyle: { backgroundColor: '#0F0F0F' },
+            headerTintColor: '#FFFFFF',
+            presentation: 'card',
+          }}
+        />
       </Stack>
     </CalendarProvider>
   );

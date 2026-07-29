@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  Alert,
   StyleSheet,
   View,
   ScrollView,
@@ -10,6 +11,8 @@ import {
 } from 'react-native';
 import { Task, Priority, TaskTag, CreateTaskInput } from '../../types/task';
 import { isValidLocalDateString } from '../../utils/date';
+import { DEFAULT_TASK_TAGS, getTaskTagMeta } from '../../utils/taskTags';
+import { getCustomTaskTags, saveCustomTaskTags } from '../../services/taskTagService';
 
 interface Props {
   initialValues?: Partial<Task>;
@@ -24,13 +27,6 @@ const PRIORITY_OPTIONS: { value: Priority; label: string }[] = [
   { value: 'low', label: '低' },
 ];
 
-const TAG_OPTIONS: { value: TaskTag; label: string }[] = [
-  { value: 'research', label: '研究' },
-  { value: 'school', label: '學校' },
-  { value: 'application', label: '申請' },
-  { value: 'life', label: '生活' },
-];
-
 export default function TaskForm({ initialValues, onSubmit, onCancel, submitLabel = '新增' }: Props) {
   const [title, setTitle] = useState(initialValues?.title ?? '');
   const [dueDate, setDueDate] = useState(initialValues?.due_date ?? '');
@@ -40,6 +36,79 @@ export default function TaskForm({ initialValues, onSubmit, onCancel, submitLabe
   const [dateError, setDateError] = useState('');
   const [submitError, setSubmitError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [customTags, setCustomTags] = useState<string[]>([]);
+  const [addingTag, setAddingTag] = useState(false);
+  const [newTag, setNewTag] = useState('');
+  const [tagError, setTagError] = useState('');
+
+  useEffect(() => {
+    getCustomTaskTags()
+      .then(savedTags => {
+        const initialTag = initialValues?.tag;
+        const isPreset = !!initialTag && DEFAULT_TASK_TAGS.some(option => option.value === initialTag);
+        setCustomTags(
+          initialTag && !isPreset && !savedTags.includes(initialTag)
+            ? [...savedTags, initialTag]
+            : savedTags
+        );
+      })
+      .catch(() => {});
+  }, []);
+
+  const tagOptions = [
+    ...DEFAULT_TASK_TAGS,
+    ...customTags.map(getTaskTagMeta),
+  ];
+
+  async function addCustomTag() {
+    const name = newTag.trim();
+    if (!name) {
+      setTagError('請輸入分類名稱');
+      return;
+    }
+    if (name.length > 12) {
+      setTagError('分類名稱最多 12 個字');
+      return;
+    }
+    const existing = tagOptions.find(
+      option => option.label.toLocaleLowerCase() === name.toLocaleLowerCase()
+    );
+    if (existing) {
+      setTag(existing.value);
+      setNewTag('');
+      setAddingTag(false);
+      setTagError('');
+      return;
+    }
+    const nextTags = [...customTags, name];
+    try {
+      await saveCustomTaskTags(nextTags);
+      setCustomTags(nextTags);
+      setTag(name);
+      setNewTag('');
+      setAddingTag(false);
+      setTagError('');
+    } catch {
+      setTagError('無法儲存自訂分類');
+    }
+  }
+
+  function removeCustomTag(value: string) {
+    if (!customTags.includes(value)) return;
+    Alert.alert('刪除自訂分類', `刪除「${value}」？已使用的任務仍會保留原分類。`, [
+      { text: '取消', style: 'cancel' },
+      {
+        text: '刪除',
+        style: 'destructive',
+        onPress: () => {
+          const nextTags = customTags.filter(item => item !== value);
+          saveCustomTaskTags(nextTags)
+            .then(() => setCustomTags(nextTags))
+            .catch(() => setTagError('無法刪除自訂分類'));
+        },
+      },
+    ]);
+  }
 
   function validateDate(value: string): boolean {
     if (!value) return true;
@@ -112,20 +181,60 @@ export default function TaskForm({ initialValues, onSubmit, onCancel, submitLabe
 
       <View style={styles.divider} />
 
-      <Text style={styles.sectionLabel}>標籤</Text>
+      <Text style={styles.sectionLabel}>分類</Text>
       <View style={styles.tagRow}>
-        {TAG_OPTIONS.map(opt => (
+        {tagOptions.map(opt => (
           <TouchableOpacity
             key={opt.value}
-            style={[styles.tagBtn, tag === opt.value && styles.tagBtnActive]}
+            style={[
+              styles.tagBtn,
+              tag === opt.value && {
+                borderColor: opt.color,
+                backgroundColor: `${opt.color}18`,
+              },
+            ]}
             onPress={() => setTag(tag === opt.value ? null : opt.value)}
+            onLongPress={() => removeCustomTag(opt.value)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: tag === opt.value }}
           >
-            <Text style={[styles.tagBtnText, tag === opt.value && styles.tagBtnTextActive]}>
+            <View style={[styles.tagDot, { backgroundColor: opt.color }]} />
+            <Text style={[styles.tagBtnText, tag === opt.value && { color: opt.color }]}>
               {opt.label}
             </Text>
           </TouchableOpacity>
         ))}
+        <TouchableOpacity
+          style={[styles.tagBtn, addingTag && styles.addTagBtnActive]}
+          onPress={() => {
+            setAddingTag(value => !value);
+            setTagError('');
+          }}
+        >
+          <Text style={styles.addTagText}>＋ 自訂</Text>
+        </TouchableOpacity>
       </View>
+      {addingTag && (
+        <View style={styles.newTagRow}>
+          <TextInput
+            style={styles.newTagInput}
+            value={newTag}
+            onChangeText={setNewTag}
+            placeholder="例如：運動、旅行"
+            placeholderTextColor="#4C5156"
+            maxLength={12}
+            returnKeyType="done"
+            onSubmitEditing={() => void addCustomTag()}
+          />
+          <TouchableOpacity style={styles.newTagSave} onPress={() => void addCustomTag()}>
+            <Text style={styles.newTagSaveText}>加入</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      {!!tagError && <Text style={styles.errorText}>{tagError}</Text>}
+      {customTags.length > 0 && (
+        <Text style={styles.tagHint}>長按自訂分類可移除；已分類任務不受影響</Text>
+      )}
 
       <View style={styles.divider} />
 
@@ -184,10 +293,35 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     marginRight: 8,
     marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
   },
-  tagBtnActive: { borderColor: '#FFFFFF', backgroundColor: '#252525' },
   tagBtnText: { color: '#444', fontSize: 12 },
-  tagBtnTextActive: { color: '#FFFFFF' },
+  tagDot: { width: 5, height: 5, borderRadius: 3 },
+  addTagBtnActive: { borderColor: '#59616A', backgroundColor: '#1A1D20' },
+  addTagText: { color: '#7A828A', fontSize: 12 },
+  newTagRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  newTagInput: {
+    flex: 1,
+    minHeight: 40,
+    borderWidth: 1,
+    borderColor: '#34383D',
+    borderRadius: 7,
+    color: '#FFFFFF',
+    paddingHorizontal: 11,
+    backgroundColor: '#151719',
+  },
+  newTagSave: {
+    minWidth: 58,
+    borderWidth: 1,
+    borderColor: '#46515B',
+    borderRadius: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  newTagSaveText: { color: '#AAB2BA', fontSize: 12 },
+  tagHint: { color: '#4D5359', fontSize: 10, marginBottom: 2 },
   actions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8, marginBottom: 24 },
   cancelBtn: {
     borderWidth: 1,

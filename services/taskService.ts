@@ -2,9 +2,21 @@ import { getDb } from './db';
 import { Task, CreateTaskInput } from '../types/task';
 import * as Crypto from 'expo-crypto';
 import { toLocalDateString } from '../utils/date';
+import {
+  removeTaskFromDeviceCalendar,
+  syncTaskToDeviceCalendar,
+} from './calendarIntegrationService';
 
 function nowISO(): string {
   return new Date().toISOString();
+}
+
+async function syncCalendarBestEffort(task: Task): Promise<void> {
+  try {
+    await syncTaskToDeviceCalendar(task);
+  } catch (error) {
+    console.error('[taskService] calendar sync failed:', error);
+  }
 }
 
 export async function getAllTasks(): Promise<Task[]> {
@@ -66,6 +78,7 @@ export async function createTask(input: CreateTaskInput): Promise<Task> {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [task.id, task.entry_id, task.title, task.due_date, task.priority, task.tag, task.source, task.completed, task.created_at]
   );
+  await syncCalendarBestEffort(task);
   return task;
 }
 
@@ -82,15 +95,24 @@ export async function updateTask(id: string, updates: Partial<Omit<Task, 'id' | 
   const setClause = fields.map((f) => `${f} = ?`).join(', ');
   const values = fields.map((f) => sanitized[f] as string | number | null);
   await db.runAsync(`UPDATE tasks SET ${setClause} WHERE id = ?`, [...values, id]);
+  const task = await getTaskById(id);
+  if (task) await syncCalendarBestEffort(task);
 }
 
 export async function toggleTaskComplete(id: string, completed: boolean): Promise<void> {
   await updateTask(id, { completed: completed ? 1 : 0 });
 }
 
-export async function deleteTask(id: string): Promise<void> {
+export async function deleteTask(id: string): Promise<{ calendarRemoved: boolean }> {
+  let calendarRemoved = false;
+  try {
+    calendarRemoved = await removeTaskFromDeviceCalendar(id);
+  } catch (error) {
+    console.error('[taskService] calendar event removal failed:', error);
+  }
   const db = await getDb();
   await db.runAsync('DELETE FROM tasks WHERE id = ?', [id]);
+  return { calendarRemoved };
 }
 
 export async function getDatesWithTasks(): Promise<string[]> {
@@ -111,6 +133,20 @@ export async function getTaskDatesByPriority(): Promise<Map<string, 'high' | 'me
   const map = new Map<string, 'high' | 'medium' | 'low'>();
   for (const r of rows) {
     if (!map.has(r.due_date)) map.set(r.due_date, r.priority);
+  }
+  return map;
+}
+
+export async function getTaskDatesByTag(): Promise<Map<string, string>> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<{ due_date: string; tag: string }>(
+    `SELECT due_date, tag FROM tasks
+     WHERE due_date IS NOT NULL AND completed = 0 AND tag IS NOT NULL
+     ORDER BY due_date, CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END`
+  );
+  const map = new Map<string, string>();
+  for (const row of rows) {
+    if (!map.has(row.due_date)) map.set(row.due_date, row.tag);
   }
   return map;
 }

@@ -1,5 +1,5 @@
 export type Priority = 'high' | 'medium' | 'low';
-export type TaskTag = 'research' | 'school' | 'application' | 'life';
+export type TaskTag = string;
 export type TaskSource = 'manual' | 'goal';
 
 export interface Task {

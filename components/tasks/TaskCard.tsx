@@ -3,6 +3,7 @@ import { StyleSheet, View, TouchableOpacity, Text } from 'react-native';
 import { Task } from '../../types/task';
 import PriorityBadge from './PriorityBadge';
 import { calendarDaysFromToday } from '../../utils/date';
+import { getTaskTagMeta } from '../../utils/taskTags';
 
 interface Props {
   task: Task;
@@ -26,12 +27,9 @@ function DeadlineLabel({ dueDate }: { dueDate: string }) {
   return <Text style={[styles.deadline, { color }]}>{label}</Text>;
 }
 
-const TAG_LABELS: Record<string, string> = {
-  research: '研究', school: '學校', application: '申請', life: '生活',
-};
-
 export default function TaskCard({ task, onToggleComplete, onPress }: Props) {
   const isCompleted = task.completed === 1;
+  const tagMeta = task.tag ? getTaskTagMeta(task.tag) : null;
 
   return (
     <TouchableOpacity
@@ -63,9 +61,12 @@ export default function TaskCard({ task, onToggleComplete, onPress }: Props) {
         </Text>
         <View style={styles.meta}>
           <PriorityBadge priority={task.priority} compact />
-          {task.tag && (
-            <View style={styles.tag}>
-              <Text style={styles.tagText}>{TAG_LABELS[task.tag] ?? task.tag}</Text>
+          {tagMeta && (
+            <View style={[
+              styles.tag,
+              { borderColor: `${tagMeta.color}66`, backgroundColor: `${tagMeta.color}12` },
+            ]}>
+              <Text style={[styles.tagText, { color: tagMeta.color }]}>{tagMeta.label}</Text>
             </View>
           )}
         </View>
@@ -109,8 +110,14 @@ const styles = StyleSheet.create({
   title: { color: '#FFFFFF', fontSize: 15, fontWeight: '300', lineHeight: 20, marginBottom: 4 },
   completedText: { textDecorationLine: 'line-through', color: '#444' },
   meta: { flexDirection: 'row', flexWrap: 'wrap' },
-  tag: { backgroundColor: '#1A1A2A', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 6 },
-  tagText: { color: '#6688CC', fontSize: 10 },
+  tag: {
+    borderWidth: 1,
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    marginLeft: 6,
+  },
+  tagText: { fontSize: 10 },
   right: { marginLeft: 8, alignItems: 'flex-end' },
   deadline: { fontSize: 11, fontWeight: '500' },
 });

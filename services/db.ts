@@ -1,7 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 
 const DATABASE_NAME = 'lumi.db';
-export const LATEST_DATABASE_VERSION = 2;
+export const LATEST_DATABASE_VERSION = 3;
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
@@ -125,6 +125,26 @@ async function migrateToVersion2(database: SQLite.SQLiteDatabase): Promise<void>
   });
 }
 
+async function migrateToVersion3(database: SQLite.SQLiteDatabase): Promise<void> {
+  await database.withExclusiveTransactionAsync(async tx => {
+    await tx.execAsync(`
+      CREATE TABLE IF NOT EXISTS calendar_event_links (
+        task_id TEXT PRIMARY KEY,
+        calendar_id TEXT NOT NULL,
+        event_id TEXT NOT NULL UNIQUE,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_calendar_links_event
+      ON calendar_event_links(event_id);
+
+      PRAGMA user_version = 3;
+    `);
+  });
+}
+
 async function initDb(database: SQLite.SQLiteDatabase): Promise<void> {
   await database.execAsync(`
     PRAGMA journal_mode = WAL;
@@ -143,5 +163,10 @@ async function initDb(database: SQLite.SQLiteDatabase): Promise<void> {
 
   if (version < 2) {
     await migrateToVersion2(database);
+    version = 2;
+  }
+
+  if (version < 3) {
+    await migrateToVersion3(database);
   }
 }
