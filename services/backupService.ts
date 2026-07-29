@@ -1,8 +1,8 @@
 import { getDb, LATEST_DATABASE_VERSION } from './db';
 
 export const BACKUP_FORMAT = 'lumi-backup';
-export const BACKUP_SCHEMA_VERSION = 1;
-export const BACKUP_APP_VERSION = '0.4.64';
+export const BACKUP_SCHEMA_VERSION = 2;
+export const BACKUP_APP_VERSION = '0.4.70';
 
 type SqlValue = string | number | null;
 type BackupRow = Record<string, SqlValue>;
@@ -10,6 +10,7 @@ type BackupRow = Record<string, SqlValue>;
 interface BackupData {
   entries: BackupRow[];
   tasks: BackupRow[];
+  lumi_events: BackupRow[];
   notes: BackupRow[];
   transactions: BackupRow[];
   budgets: BackupRow[];
@@ -31,6 +32,7 @@ export interface LumiBackup {
 export interface BackupCounts {
   entries: number;
   tasks: number;
+  events: number;
   notes: number;
   transactions: number;
   budgets: number;
@@ -72,6 +74,24 @@ const TABLES: TableSpec[] = [
       'source',
       'completed',
       'created_at',
+    ],
+  },
+  {
+    name: 'lumi_events',
+    columns: [
+      'id',
+      'title',
+      'start_date',
+      'end_date',
+      'all_day',
+      'start_time',
+      'end_time',
+      'location',
+      'category',
+      'notes',
+      'reminder_minutes',
+      'created_at',
+      'updated_at',
     ],
   },
   { name: 'notes', columns: ['id', 'entry_id', 'content', 'category', 'tag', 'created_at'] },
@@ -142,6 +162,10 @@ function parseBackup(value: unknown): LumiBackup {
     throw new Error('備份檔的匯出時間或資料內容無效');
   }
 
+  if (value.schemaVersion === 1 && !Array.isArray(value.data.lumi_events)) {
+    value.data.lumi_events = [];
+  }
+
   for (const table of TABLES) {
     const rows = value.data[table.name];
     if (!Array.isArray(rows)) {
@@ -161,6 +185,7 @@ function buildCounts(lengths: Record<keyof BackupData, number>): BackupCounts {
   const counts = {
     entries: lengths.entries,
     tasks: lengths.tasks,
+    events: lengths.lumi_events,
     notes: lengths.notes,
     transactions: lengths.transactions,
     budgets: lengths.budgets,
@@ -172,6 +197,7 @@ function buildCounts(lengths: Record<keyof BackupData, number>): BackupCounts {
     total:
       counts.entries +
       counts.tasks +
+      counts.events +
       counts.notes +
       counts.transactions +
       counts.budgets +
@@ -265,6 +291,7 @@ export async function importBackup(
         DELETE FROM budgets;
         DELETE FROM transactions;
         DELETE FROM notes;
+        DELETE FROM lumi_events;
         DELETE FROM tasks;
         DELETE FROM entries;
         DELETE FROM settings

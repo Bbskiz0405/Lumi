@@ -28,6 +28,24 @@ interface ReleaseEntry {
 
 const RELEASES: ReleaseEntry[] = [
   {
+    version: '0.4.70',
+    date: '2026-07-29',
+    notes: [
+      '行事曆新增「任務／行程」選擇，不再只能建立任務',
+      'Lumi 行程支援全天或時間、地點、分類、提醒，以及編輯與刪除',
+      '行程可同步到選定的手機／Google 日曆；既有行程也可從設定手動補同步',
+      '月曆與單日議程分開標示 Lumi 行程、外部行程與任務，備份亦納入行程資料',
+    ],
+  },
+  {
+    version: '0.4.69',
+    date: '2026-07-29',
+    notes: [
+      '修正單日全天外部行程因 UTC 與本地時區換算而被多顯示到隔天',
+      '全天行程改用開始日包含、結束日不包含的日期規則，月曆標點與單日內容一致',
+    ],
+  },
+  {
     version: '0.4.68',
     date: '2026-07-29',
     notes: [
@@ -194,7 +212,7 @@ const RELEASES: ReleaseEntry[] = [
   },
 ];
 
-const VERSION = '0.4.68';
+const VERSION = '0.4.70';
 const GITHUB_URL = 'https://github.com/Bbskiz0405/Lumi';
 
 interface Props {

@@ -1,7 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 
 const DATABASE_NAME = 'lumi.db';
-export const LATEST_DATABASE_VERSION = 3;
+export const LATEST_DATABASE_VERSION = 4;
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
@@ -145,6 +145,38 @@ async function migrateToVersion3(database: SQLite.SQLiteDatabase): Promise<void>
   });
 }
 
+async function migrateToVersion4(database: SQLite.SQLiteDatabase): Promise<void> {
+  await database.withExclusiveTransactionAsync(async tx => {
+    await tx.execAsync(`
+      CREATE TABLE IF NOT EXISTS lumi_events (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        start_date TEXT NOT NULL,
+        end_date TEXT NOT NULL,
+        all_day INTEGER NOT NULL DEFAULT 0,
+        start_time TEXT,
+        end_time TEXT,
+        location TEXT,
+        category TEXT,
+        notes TEXT,
+        reminder_minutes INTEGER,
+        calendar_id TEXT,
+        external_event_id TEXT UNIQUE,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_lumi_events_date
+      ON lumi_events(start_date, end_date);
+
+      CREATE INDEX IF NOT EXISTS idx_lumi_events_external
+      ON lumi_events(external_event_id);
+
+      PRAGMA user_version = 4;
+    `);
+  });
+}
+
 async function initDb(database: SQLite.SQLiteDatabase): Promise<void> {
   await database.execAsync(`
     PRAGMA journal_mode = WAL;
@@ -168,5 +200,10 @@ async function initDb(database: SQLite.SQLiteDatabase): Promise<void> {
 
   if (version < 3) {
     await migrateToVersion3(database);
+    version = 3;
+  }
+
+  if (version < 4) {
+    await migrateToVersion4(database);
   }
 }

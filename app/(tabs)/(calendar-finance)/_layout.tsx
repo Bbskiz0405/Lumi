@@ -14,6 +14,7 @@ import {
 } from '../../../services/taskService';
 import { getTransactionsForMonth } from '../../../services/financeService';
 import { getCalendarEventsForRange } from '../../../services/calendarIntegrationService';
+import { getLumiEventsForMonth } from '../../../services/calendarEventService';
 
 const { Navigator } = createMaterialTopTabNavigator();
 const MaterialTopTabs = withLayoutContext(Navigator);
@@ -22,6 +23,7 @@ function PersistentCalendar() {
   const [taskDates, setTaskDates] = useState<Set<string>>(new Set());
   const [financeDates, setFinanceDates] = useState<Set<string>>(new Set());
   const [externalDates, setExternalDates] = useState<Set<string>>(new Set());
+  const [lumiEventDates, setLumiEventDates] = useState<Set<string>>(new Set());
   const [taskPriorityMap, setTaskPriorityMap] = useState<Map<string, 'high' | 'medium' | 'low'>>(new Map());
   const [taskTagMap, setTaskTagMap] = useState<Map<string, string>>(new Map());
   const { year, month, refreshKey } = useCalendar();
@@ -31,12 +33,13 @@ function PersistentCalendar() {
     try {
       const rangeStart = new Date(year, month, 1);
       const rangeEnd = new Date(year, month + 1, 1);
-      const [taskList, priorityMap, tagMap, txs, externalEvents] = await Promise.all([
+      const [taskList, priorityMap, tagMap, txs, externalEvents, lumiEvents] = await Promise.all([
         getDatesWithTasks(),
         getTaskDatesByPriority(),
         getTaskDatesByTag(),
         getTransactionsForMonth(m),
         getCalendarEventsForRange(rangeStart, rangeEnd).catch(() => []),
+        getLumiEventsForMonth(year, month),
       ]);
       setTaskDates(new Set(taskList));
       setTaskPriorityMap(priorityMap);
@@ -47,6 +50,7 @@ function PersistentCalendar() {
         rangeStart,
         rangeEnd
       ));
+      setLumiEventDates(getLumiEventDates(lumiEvents, rangeStart, rangeEnd));
     } catch (err) {
       console.error('[PersistentCalendar] load failed:', err);
     }
@@ -63,6 +67,7 @@ function PersistentCalendar() {
           taskDates={taskDates}
           financeDates={financeDates}
           externalDates={externalDates}
+          eventDates={lumiEventDates}
           taskPriorityMap={taskPriorityMap}
           taskTagMap={taskTagMap}
         />
@@ -70,6 +75,30 @@ function PersistentCalendar() {
       <View style={{ height: 1, backgroundColor: '#252525', marginTop: 4 }} />
     </View>
   );
+}
+
+function getLumiEventDates(
+  events: Awaited<ReturnType<typeof getLumiEventsForMonth>>,
+  rangeStart: Date,
+  rangeEnd: Date
+): Set<string> {
+  const dates = new Set<string>();
+  const rangeStartDate = toCalendarDateString(rangeStart.toISOString());
+  const rangeEndDate = toCalendarDateString(rangeEnd.toISOString());
+  for (const event of events) {
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(event.start_date) ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(event.end_date)
+    ) {
+      continue;
+    }
+    let cursor = event.start_date > rangeStartDate ? event.start_date : rangeStartDate;
+    while (cursor <= event.end_date && cursor < rangeEndDate) {
+      dates.add(cursor);
+      cursor = addUtcCalendarDays(cursor, 1);
+    }
+  }
+  return dates;
 }
 
 function toCalendarDateString(isoDate: string): string {
@@ -83,7 +112,25 @@ function getExternalEventDates(
   rangeEnd: Date
 ): Set<string> {
   const dates = new Set<string>();
+  const rangeStartDate = toCalendarDateString(rangeStart.toISOString());
+  const rangeEndDate = toCalendarDateString(rangeEnd.toISOString());
   for (const event of events) {
+    if (event.allDay) {
+      const eventStartDate = toUtcCalendarDateString(event.startDate);
+      const rawEventEndDate = toUtcCalendarDateString(event.endDate);
+      const eventEndDate = rawEventEndDate > eventStartDate
+        ? rawEventEndDate
+        : addUtcCalendarDays(eventStartDate, 1);
+      let cursorDate = eventStartDate > rangeStartDate ? eventStartDate : rangeStartDate;
+      const effectiveEndDate = eventEndDate < rangeEndDate ? eventEndDate : rangeEndDate;
+
+      while (cursorDate < effectiveEndDate) {
+        dates.add(cursorDate);
+        cursorDate = addUtcCalendarDays(cursorDate, 1);
+      }
+      continue;
+    }
+
     const eventStart = new Date(event.startDate);
     const rawEventEnd = new Date(event.endDate);
     const eventEnd = rawEventEnd > eventStart
@@ -99,6 +146,17 @@ function getExternalEventDates(
     }
   }
   return dates;
+}
+
+function toUtcCalendarDateString(isoDate: string): string {
+  const date = new Date(isoDate);
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
+}
+
+function addUtcCalendarDays(dateString: string, days: number): string {
+  const [year, month, day] = dateString.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day + days));
+  return toUtcCalendarDateString(date.toISOString());
 }
 
 function SubTabBar({ state, descriptors, navigation }: MaterialTopTabBarProps) {

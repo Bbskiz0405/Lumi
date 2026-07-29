@@ -6,7 +6,9 @@ import {
 import { useFocusEffect, useRouter } from 'expo-router';
 import TaskCard from '../../../components/tasks/TaskCard';
 import TaskForm from '../../../components/tasks/TaskForm';
+import CalendarEventForm from '../../../components/calendar/CalendarEventForm';
 import IconButton from '../../../components/ui/IconButton';
+import TechIcon from '../../../components/ui/TechIcon';
 import { useCalendar } from '../../../contexts/CalendarContext';
 import {
   getTasksForDate,
@@ -21,6 +23,13 @@ import {
   openDeviceCalendarEvent,
 } from '../../../services/calendarIntegrationService';
 import { getTaskTagMeta } from '../../../utils/taskTags';
+import { LumiCalendarEvent, CreateLumiCalendarEventInput } from '../../../types/calendarEvent';
+import {
+  createLumiEvent,
+  deleteLumiEvent,
+  getLumiEventsForDate,
+  updateLumiEvent,
+} from '../../../services/calendarEventService';
 
 type SourceFilter = 'all' | 'tasks' | 'calendar';
 
@@ -30,11 +39,15 @@ export default function CalendarScreen() {
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [calendarEvents, setCalendarEvents] = useState<CalendarAgendaEvent[]>([]);
+  const [lumiEvents, setLumiEvents] = useState<LumiCalendarEvent[]>([]);
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
   const [selectedTaskTag, setSelectedTaskTag] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const hasLoaded = useRef(false);
   const [modalVisible, setModalVisible] = useState(false);
+  const [createMenuVisible, setCreateMenuVisible] = useState(false);
+  const [eventModalVisible, setEventModalVisible] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<LumiCalendarEvent | null>(null);
   const [loadError, setLoadError] = useState(false);
 
   async function retryLoad() {
@@ -57,10 +70,11 @@ export default function CalendarScreen() {
       if (!hasLoaded.current) setLoading(true);
       setLoadError(false);
       getDayData(selectedDate)
-        .then(({ taskData, eventData }) => {
+        .then(({ taskData, eventData, lumiEventData }) => {
           if (!active) return;
           setTasks(taskData);
           setCalendarEvents(eventData);
+          setLumiEvents(lumiEventData);
           hasLoaded.current = true;
         })
         .catch(() => {
@@ -74,20 +88,23 @@ export default function CalendarScreen() {
   );
 
   async function getDayData(date: string) {
-    const [taskData, eventData] = await Promise.all([
+    const [taskData, eventData, lumiEventData] = await Promise.all([
       getTasksForDate(date),
       getCalendarEventsForDate(date).catch(() => []),
+      getLumiEventsForDate(date),
     ]);
     return {
       taskData,
       eventData: eventData.filter(event => !event.isLinkedToLumi),
+      lumiEventData,
     };
   }
 
   async function loadDayData(date: string) {
-    const { taskData, eventData } = await getDayData(date);
+    const { taskData, eventData, lumiEventData } = await getDayData(date);
     setTasks(taskData);
     setCalendarEvents(eventData);
+    setLumiEvents(lumiEventData);
   }
 
   async function handleToggle(id: string, completed: boolean) {
@@ -107,6 +124,57 @@ export default function CalendarScreen() {
     await loadDayData(selectedDate).catch(() => setLoadError(true));
   }
 
+  function openTaskCreate() {
+    setCreateMenuVisible(false);
+    setModalVisible(true);
+  }
+
+  function openEventCreate() {
+    setCreateMenuVisible(false);
+    setEditingEvent(null);
+    setEventModalVisible(true);
+  }
+
+  async function handleSaveEvent(input: CreateLumiCalendarEventInput) {
+    if (editingEvent) {
+      await updateLumiEvent(editingEvent.id, input);
+    } else {
+      await createLumiEvent(input);
+    }
+    setEventModalVisible(false);
+    setEditingEvent(null);
+    bumpRefresh();
+    await loadDayData(selectedDate);
+  }
+
+  function handleDeleteEvent() {
+    if (!editingEvent) return;
+    Alert.alert('刪除行程', `確定要刪除「${editingEvent.title}」嗎？`, [
+      { text: '取消', style: 'cancel' },
+      {
+        text: '刪除',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const { calendarRemoved } = await deleteLumiEvent(editingEvent.id);
+            setEventModalVisible(false);
+            setEditingEvent(null);
+            bumpRefresh();
+            await loadDayData(selectedDate);
+            if (!calendarRemoved) {
+              Alert.alert(
+                'Lumi 行程已刪除',
+                '目前無法移除連動的系統日曆行程，請到手機日曆確認。'
+              );
+            }
+          } catch {
+            Alert.alert('刪除失敗', '行程仍保留在 Lumi，請再試一次。');
+          }
+        },
+      },
+    ]);
+  }
+
   const dateMonth = parseInt(selectedDate.split('-')[1]);
   const dateDay = parseInt(selectedDate.split('-')[2]);
   const todayStr = toLocalDateString();
@@ -116,7 +184,9 @@ export default function CalendarScreen() {
       ? tasks.filter(task => task.tag === selectedTaskTag)
       : tasks;
   const visibleEvents = sourceFilter === 'tasks' ? [] : calendarEvents;
-  const hasVisibleItems = visibleTasks.length > 0 || visibleEvents.length > 0;
+  const visibleLumiEvents = sourceFilter === 'tasks' ? [] : lumiEvents;
+  const hasVisibleItems =
+    visibleTasks.length > 0 || visibleEvents.length > 0 || visibleLumiEvents.length > 0;
   const taskTagOptions = [...new Set(
     tasks.map(task => task.tag).filter((tag): tag is string => !!tag)
   )].map(getTaskTagMeta);
@@ -154,8 +224,8 @@ export default function CalendarScreen() {
           />
           <IconButton
             icon="plus"
-            label={`新增 ${dateMonth} 月 ${dateDay} 日的任務`}
-            onPress={() => setModalVisible(true)}
+            label={`新增 ${dateMonth} 月 ${dateDay} 日的任務或行程`}
+            onPress={() => setCreateMenuVisible(true)}
             color="#FFFFFF"
             size={32}
             iconSize={17}
@@ -175,12 +245,12 @@ export default function CalendarScreen() {
           ItemSeparatorComponent={() => <View style={{ height: 2 }} />}
           ListHeaderComponent={
             <View>
-              {(calendarEvents.length > 0 || sourceFilter !== 'all') && (
+              {(calendarEvents.length > 0 || lumiEvents.length > 0 || sourceFilter !== 'all') && (
                 <View style={styles.filters}>
                   {([
                     ['all', '全部'],
                     ['tasks', `任務 ${tasks.length}`],
-                    ['calendar', `行程 ${calendarEvents.length}`],
+                    ['calendar', `行程 ${calendarEvents.length + lumiEvents.length}`],
                   ] as const).map(([value, label]) => (
                     <TouchableOpacity
                       key={value}
@@ -239,6 +309,43 @@ export default function CalendarScreen() {
                 </View>
               )}
 
+              {visibleLumiEvents.map(event => {
+                const categoryMeta = event.category
+                  ? getTaskTagMeta(event.category)
+                  : null;
+                return (
+                  <TouchableOpacity
+                    key={event.id}
+                    style={styles.eventCard}
+                    onPress={() => {
+                      setEditingEvent(event);
+                      setEventModalVisible(true);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Lumi 行程：${event.title}`}
+                  >
+                    <View style={[
+                      styles.eventAccent,
+                      { backgroundColor: categoryMeta?.color ?? '#55DDAA' },
+                    ]} />
+                    <View style={styles.eventCopy}>
+                      <Text style={styles.eventTitle} numberOfLines={2}>{event.title}</Text>
+                      <Text style={styles.eventMeta}>
+                        {event.all_day
+                          ? '全天'
+                          : `${event.start_time ?? ''}–${event.end_time ?? ''}`}
+                        {' · Lumi 行程'}
+                        {categoryMeta ? ` · ${categoryMeta.label}` : ''}
+                      </Text>
+                      {!!event.location && (
+                        <Text style={styles.eventLocation} numberOfLines={1}>{event.location}</Text>
+                      )}
+                    </View>
+                    <Text style={styles.eventOpenHint}>編輯</Text>
+                  </TouchableOpacity>
+                );
+              })}
+
               {visibleEvents.map(event => (
                 <TouchableOpacity
                   key={event.id}
@@ -261,7 +368,7 @@ export default function CalendarScreen() {
                 </TouchableOpacity>
               ))}
 
-              {visibleEvents.length > 0 && visibleTasks.length > 0 && (
+              {(visibleEvents.length > 0 || visibleLumiEvents.length > 0) && visibleTasks.length > 0 && (
                 <Text style={styles.taskSectionLabel}>LUMI 任務</Text>
               )}
             </View>
@@ -289,15 +396,55 @@ export default function CalendarScreen() {
                   <Text style={styles.emptyAddText}>重試</Text>
                 </TouchableOpacity>
               ) : (
-                <TouchableOpacity style={styles.emptyAddBtn} onPress={() => setModalVisible(true)}>
+                <TouchableOpacity style={styles.emptyAddBtn} onPress={() => setCreateMenuVisible(true)}>
                   <Text style={{ color: '#888', fontSize: 14, marginRight: 4 }}>+</Text>
-                  <Text style={styles.emptyAddText}>新增任務</Text>
+                  <Text style={styles.emptyAddText}>新增任務或行程</Text>
                 </TouchableOpacity>
               )}
             </View>
           }
         />
       )}
+
+      <Modal
+        visible={createMenuVisible}
+        onRequestClose={() => setCreateMenuVisible(false)}
+        animationType="fade"
+        transparent
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.createMenu}>
+            <Text style={styles.createMenuTitle}>要記錄什麼？</Text>
+            <Text style={styles.createMenuHint}>
+              任務可以完成；行程會佔用一段時間。
+            </Text>
+            <TouchableOpacity style={styles.createChoice} onPress={openTaskCreate}>
+              <View style={styles.createChoiceIcon}>
+                <TechIcon name="check-square" size={18} color="#55DDAA" />
+              </View>
+              <View style={styles.createChoiceCopy}>
+                <Text style={styles.createChoiceTitle}>任務</Text>
+                <Text style={styles.createChoiceText}>要完成的事情，可設定優先度與分類</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.createChoice} onPress={openEventCreate}>
+              <View style={[styles.createChoiceIcon, styles.eventChoiceIcon]}>
+                <TechIcon name="calendar" size={18} color="#88AAFF" />
+              </View>
+              <View style={styles.createChoiceCopy}>
+                <Text style={styles.createChoiceTitle}>行程</Text>
+                <Text style={styles.createChoiceText}>有開始與結束時間，可設定地點與提醒</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.createMenuCancel}
+              onPress={() => setCreateMenuVisible(false)}
+            >
+              <Text style={styles.createMenuCancelText}>取消</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         visible={modalVisible}
@@ -309,11 +456,44 @@ export default function CalendarScreen() {
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>新增任務（{dateMonth}月{dateDay}日）</Text>
             <View style={styles.modalDivider} />
-            <TaskForm
-              initialValues={{ due_date: selectedDate, priority: 'medium', tag: null }}
-              onSubmit={handleCreate}
-              onCancel={() => setModalVisible(false)}
-            />
+            {modalVisible && (
+              <TaskForm
+                initialValues={{ due_date: selectedDate, priority: 'medium', tag: null }}
+                onSubmit={handleCreate}
+                onCancel={() => setModalVisible(false)}
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={eventModalVisible}
+        onRequestClose={() => {
+          setEventModalVisible(false);
+          setEditingEvent(null);
+        }}
+        animationType="fade"
+        transparent
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modal}>
+            <Text style={styles.modalTitle}>
+              {editingEvent ? '編輯行程' : `新增行程（${dateMonth}月${dateDay}日）`}
+            </Text>
+            <View style={styles.modalDivider} />
+            {eventModalVisible && (
+              <CalendarEventForm
+                selectedDate={selectedDate}
+                initialValues={editingEvent}
+                onSubmit={handleSaveEvent}
+                onCancel={() => {
+                  setEventModalVisible(false);
+                  setEditingEvent(null);
+                }}
+                onDelete={editingEvent ? handleDeleteEvent : undefined}
+              />
+            )}
           </View>
         </View>
       </Modal>
@@ -411,6 +591,45 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#3A3A3A',
     maxHeight: '85%',
   },
+  createMenu: {
+    backgroundColor: '#111315',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    borderWidth: 1,
+    borderColor: '#30343A',
+    padding: 20,
+    paddingBottom: 26,
+  },
+  createMenuTitle: { color: '#FFFFFF', fontSize: 17, fontWeight: '400' },
+  createMenuHint: { color: '#697078', fontSize: 11, marginTop: 5, marginBottom: 16 },
+  createChoice: {
+    minHeight: 72,
+    borderWidth: 1,
+    borderColor: '#2D3237',
+    backgroundColor: '#15181B',
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    marginBottom: 9,
+  },
+  createChoiceIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#315C50',
+    backgroundColor: '#14201C',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  eventChoiceIcon: { borderColor: '#36465E', backgroundColor: '#141A22' },
+  createChoiceCopy: { flex: 1 },
+  createChoiceTitle: { color: '#E8EAED', fontSize: 14, marginBottom: 4 },
+  createChoiceText: { color: '#697078', fontSize: 11, lineHeight: 16 },
+  createMenuCancel: { alignItems: 'center', paddingTop: 10 },
+  createMenuCancelText: { color: '#747B82', fontSize: 13 },
   modalTitle: {
     padding: 20, paddingBottom: 12,
     color: '#FFFFFF', fontSize: 16, fontWeight: '300', letterSpacing: 1,

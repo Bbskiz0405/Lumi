@@ -12,6 +12,7 @@ interface Props {
   taskDates?: Set<string>;
   financeDates?: Set<string>;
   externalDates?: Set<string>;
+  eventDates?: Set<string>;
   taskPriorityMap?: Map<string, 'high' | 'medium' | 'low'>;
   taskTagMap?: Map<string, string>;
   onDayPress?: (date: string) => void;
@@ -31,6 +32,7 @@ export default function CalendarGrid({
   taskDates,
   financeDates,
   externalDates,
+  eventDates,
   taskPriorityMap,
   taskTagMap,
   onDayPress,
@@ -103,13 +105,14 @@ export default function CalendarGrid({
           const hasTask = taskDates?.has(dateStr);
           const hasFinance = financeDates?.has(dateStr);
           const hasExternal = externalDates?.has(dateStr);
+          const hasEvent = eventDates?.has(dateStr);
           return (
             <TouchableOpacity
               key={idx}
               style={styles.cell}
               onPress={() => handleDayPress(day)}
               accessibilityRole="button"
-              accessibilityLabel={`${year}年${month + 1}月${day}日${hasTask ? '，有任務' : ''}${hasExternal ? '，有外部行程' : ''}${hasFinance ? '，有記帳' : ''}`}
+              accessibilityLabel={`${year}年${month + 1}月${day}日${hasTask ? '，有任務' : ''}${hasEvent ? '，有 Lumi 行程' : ''}${hasExternal ? '，有外部行程' : ''}${hasFinance ? '，有記帳' : ''}`}
               accessibilityState={{ selected: isSelected }}
             >
               <View style={[
@@ -136,6 +139,7 @@ export default function CalendarGrid({
                     },
                   ]} />
                 )}
+                {hasEvent && <View style={styles.eventDot} />}
                 {hasExternal && <View style={styles.externalDot} />}
                 {hasFinance && <View style={[styles.dot, { backgroundColor: '#55DDAA' }]} />}
               </View>
@@ -145,6 +149,7 @@ export default function CalendarGrid({
       </View>
       <View style={styles.legend}>
         <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: '#FF9944' }]} /><Text style={styles.legendText}>任務</Text></View>
+        <View style={styles.legendItem}><View style={styles.legendEventDot} /><Text style={styles.legendText}>Lumi 行程</Text></View>
         <View style={styles.legendItem}><View style={styles.legendExternalDot} /><Text style={styles.legendText}>外部行程</Text></View>
         <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: '#55DDAA' }]} /><Text style={styles.legendText}>記帳</Text></View>
       </View>
@@ -181,15 +186,17 @@ const styles = StyleSheet.create({
   dotRow: { flexDirection: 'row', gap: 2, height: 6, marginTop: 1 },
   dot: { width: 4, height: 4, borderRadius: 2 },
   externalDot: { width: 5, height: 5, borderRadius: 3, borderWidth: 1, borderColor: '#88AAFF' },
+  eventDot: { width: 5, height: 5, borderRadius: 1, backgroundColor: '#55DDAA' },
   legend: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 16,
+    gap: 10,
     marginTop: 4,
     marginBottom: 4,
   },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   legendDot: { width: 4, height: 4, borderRadius: 2 },
   legendExternalDot: { width: 5, height: 5, borderRadius: 3, borderWidth: 1, borderColor: '#88AAFF' },
+  legendEventDot: { width: 5, height: 5, borderRadius: 1, backgroundColor: '#55DDAA' },
   legendText: { color: '#555D64', fontSize: 9, letterSpacing: 0.3 },
 });

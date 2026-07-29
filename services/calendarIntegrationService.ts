@@ -1,6 +1,7 @@
 import * as Calendar from 'expo-calendar';
 import { getDb } from './db';
 import { Task } from '../types/task';
+import { LumiCalendarEvent } from '../types/calendarEvent';
 import { toLocalDateString } from '../utils/date';
 
 const CONFIG_KEY = 'calendar_sync_config';
@@ -200,6 +201,43 @@ function taskEventDetails(task: Task) {
   };
 }
 
+function localDateTime(dateString: string, timeString: string): Date {
+  const [year, month, day] = dateString.split('-').map(Number);
+  const [hour, minute] = timeString.split(':').map(Number);
+  return new Date(year, month - 1, day, hour, minute, 0, 0);
+}
+
+function lumiEventDetails(event: LumiCalendarEvent) {
+  const allDay = event.all_day === 1;
+  let startDate: Date;
+  let endDate: Date;
+  let timeZone: string | undefined;
+
+  if (allDay) {
+    startDate = allDayBounds(event.start_date).startDate;
+    endDate = allDayBounds(addUtcDays(event.end_date, 1)).startDate;
+    timeZone = 'UTC';
+  } else {
+    startDate = localDateTime(event.start_date, event.start_time ?? '09:00');
+    endDate = localDateTime(event.end_date, event.end_time ?? '10:00');
+  }
+
+  return {
+    title: event.title,
+    startDate,
+    endDate,
+    allDay,
+    timeZone,
+    location: event.location ?? undefined,
+    notes: event.notes
+      ? `由 Lumi 行程建立\n\n${event.notes}`
+      : '由 Lumi 行程建立',
+    alarms: event.reminder_minutes === null
+      ? []
+      : [{ relativeOffset: -event.reminder_minutes }],
+  };
+}
+
 export async function syncTaskToDeviceCalendar(
   task: Task,
   options: { force?: boolean } = {}
@@ -259,6 +297,55 @@ export async function removeTaskFromDeviceCalendar(taskId: string): Promise<bool
   return true;
 }
 
+export async function syncLumiEventToDeviceCalendar(
+  event: LumiCalendarEvent
+): Promise<'synced' | 'skipped'> {
+  const config = await getCalendarSyncConfig();
+  if (!config?.enabled) return 'skipped';
+
+  const permission = await getCalendarPermission();
+  if (!permission.granted) return 'skipped';
+
+  const db = await getDb();
+  const details = lumiEventDetails(event);
+  let eventId = event.external_event_id;
+
+  if (eventId && event.calendar_id !== config.calendarId) {
+    await Calendar.deleteEventAsync(eventId);
+    eventId = null;
+  }
+
+  if (eventId) {
+    await Calendar.updateEventAsync(eventId, details);
+  } else {
+    eventId = await Calendar.createEventAsync(config.calendarId, details);
+  }
+
+  await db.runAsync(
+    `UPDATE lumi_events
+     SET calendar_id = ?, external_event_id = ?, updated_at = ?
+     WHERE id = ?`,
+    [config.calendarId, eventId, new Date().toISOString(), event.id]
+  );
+  return 'synced';
+}
+
+export async function removeLumiEventFromDeviceCalendar(
+  event: LumiCalendarEvent
+): Promise<boolean> {
+  if (!event.external_event_id) return true;
+
+  const permission = await getCalendarPermission();
+  if (!permission.granted) return false;
+
+  try {
+    await Calendar.deleteEventAsync(event.external_event_id);
+  } catch {
+    return false;
+  }
+  return true;
+}
+
 export async function syncUpcomingTasks(): Promise<BulkSyncResult> {
   const db = await getDb();
   const today = toLocalDateString();
@@ -284,7 +371,11 @@ export async function syncUpcomingTasks(): Promise<BulkSyncResult> {
 async function getLinkedEventIds(): Promise<Set<string>> {
   const db = await getDb();
   const rows = await db.getAllAsync<{ event_id: string }>(
-    'SELECT event_id FROM calendar_event_links'
+    `SELECT event_id FROM calendar_event_links
+     UNION
+     SELECT external_event_id AS event_id
+     FROM lumi_events
+     WHERE external_event_id IS NOT NULL`
   );
   return new Set(rows.map(row => row.event_id));
 }
@@ -334,11 +425,31 @@ export async function getCalendarEventsForDate(
   const startMs = dayStart.getTime();
   const endMs = dayEnd.getTime();
   return events.filter(event => {
+    if (event.allDay) {
+      const eventStartDate = toUtcDateString(event.startDate);
+      const rawEventEndDate = toUtcDateString(event.endDate);
+      const eventEndDate = rawEventEndDate > eventStartDate
+        ? rawEventEndDate
+        : addUtcDays(eventStartDate, 1);
+      return dateString >= eventStartDate && dateString < eventEndDate;
+    }
+
     const eventStartMs = new Date(event.startDate).getTime();
     const rawEventEndMs = new Date(event.endDate).getTime();
     const eventEndMs = Math.max(rawEventEndMs, eventStartMs + 1);
     return eventStartMs < endMs && eventEndMs > startMs;
   });
+}
+
+function toUtcDateString(isoDate: string): string {
+  const date = new Date(isoDate);
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
+}
+
+function addUtcDays(dateString: string, days: number): string {
+  const [year, month, day] = dateString.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day + days));
+  return toUtcDateString(date.toISOString());
 }
 
 export async function openDeviceCalendarEvent(eventId: string): Promise<void> {

@@ -3,7 +3,7 @@
     "name": "Lumi",
     "slug": "lumi",
     "scheme": "lumi",
-    "version": "0.4.68",
+    "version": "0.4.70",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "ios": {
@@ -25,7 +25,7 @@
       [
         "expo-calendar",
         {
-          "calendarPermission": "允許 Lumi 顯示你的行程，並把有日期的任務同步到你選擇的日曆。"
+          "calendarPermission": "允許 Lumi 顯示手機行程，並把 Lumi 任務與行程同步到你選擇的日曆。"
         }
       ]
     ],

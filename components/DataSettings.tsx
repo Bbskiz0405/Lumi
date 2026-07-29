@@ -36,11 +36,12 @@ function formatBackupSummary(preview: BackupPreview): string {
     `匯出時間：${exportedAt}`,
     '',
     `任務 ${counts.tasks} 筆`,
+    `行程 ${counts.events} 筆`,
     `記帳 ${counts.transactions} 筆`,
     `筆記 ${counts.notes} 筆`,
     `原始輸入 ${counts.entries} 筆`,
     `預算 ${counts.budgets} 筆`,
-    `其他資料 ${counts.total - counts.tasks - counts.transactions - counts.notes - counts.entries - counts.budgets} 筆`,
+    `其他資料 ${counts.total - counts.tasks - counts.events - counts.transactions - counts.notes - counts.entries - counts.budgets} 筆`,
   ].join('\n');
 }
 
@@ -184,6 +185,10 @@ export default function DataSettings() {
             <View style={styles.summaryRow}>
               <Text style={styles.summaryName}>任務</Text>
               <Text style={styles.summaryValue}>{counts.tasks}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryName}>行程</Text>
+              <Text style={styles.summaryValue}>{counts.events}</Text>
             </View>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryName}>記帳</Text>

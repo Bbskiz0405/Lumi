@@ -22,6 +22,7 @@ import {
   setCalendarIntegrationEnabled,
   syncUpcomingTasks,
 } from '../services/calendarIntegrationService';
+import { syncUpcomingLumiEvents } from '../services/calendarEventService';
 import { useCalendar } from '../contexts/CalendarContext';
 import TechIcon from './ui/TechIcon';
 
@@ -131,11 +132,15 @@ export default function CalendarSettings() {
     if (busy) return;
     setBusy(true);
     try {
-      const result = await syncUpcomingTasks();
+      const [taskResult, eventResult] = await Promise.all([
+        syncUpcomingTasks(),
+        syncUpcomingLumiEvents(),
+      ]);
       bumpRefresh();
       Alert.alert(
         '同步完成',
-        `已同步 ${result.synced} 件任務。略過 ${result.skipped} 件，失敗 ${result.failed} 件。`
+        `任務：同步 ${taskResult.synced}、略過 ${taskResult.skipped}、失敗 ${taskResult.failed}。\n` +
+        `行程：同步 ${eventResult.synced}、略過 ${eventResult.skipped}、失敗 ${eventResult.failed}。`
       );
     } catch {
       Alert.alert('同步失敗', '未完成任務仍保留在 Lumi，請稍後再試。');
@@ -162,9 +167,9 @@ export default function CalendarSettings() {
           <TechIcon name="calendar" size={23} color="#88AAFF" />
         </View>
         <View style={styles.introCopy}>
-          <Text style={styles.introTitle}>讓任務出現在你每天看的日曆</Text>
+          <Text style={styles.introTitle}>讓 Lumi 任務與行程出現在你的日曆</Text>
           <Text style={styles.introText}>
-            Google 原有行程只會顯示在 Lumi，不會自動變成任務。Lumi 只管理自己建立的連動行程。
+            Google 原有行程只會顯示在 Lumi，不會自動變成任務。Lumi 只管理自己建立或同步的內容。
           </Text>
         </View>
       </View>
@@ -213,7 +218,7 @@ export default function CalendarSettings() {
                 <View style={styles.settingRow}>
                   <View style={styles.settingCopy}>
                     <Text style={styles.settingTitle}>自動同步有日期的任務</Text>
-                    <Text style={styles.settingHint}>新增或改期後，自動更新 Lumi 建立的日曆行程</Text>
+                    <Text style={styles.settingHint}>新增或改期後，自動更新由 Lumi 任務建立的全天項目；Lumi 行程會直接同步</Text>
                   </View>
                   <Switch
                     value={config.autoSyncTasks}
@@ -237,7 +242,7 @@ export default function CalendarSettings() {
                   ) : (
                     <>
                       <TechIcon name="rotate-ccw" size={16} color="#88AAFF" />
-                      <Text style={styles.syncButtonText}>同步目前未完成任務</Text>
+                      <Text style={styles.syncButtonText}>同步目前任務與行程</Text>
                     </>
                   )}
                 </TouchableOpacity>
