@@ -27,6 +27,16 @@ interface ReleaseEntry {
 
 const RELEASES: ReleaseEntry[] = [
   {
+    version: '0.4.66',
+    date: '2026-07-29',
+    notes: [
+      '既有筆記改為先閱讀、再編輯，長內容上下滑動不再被輸入手勢接管',
+      '編輯框使用固定高度與內部捲動，避免長內容撐開整張介面',
+      '底部操作列固定在安全區上方，並改善鍵盤開啟時的版面',
+      '取消編輯會還原原始內容與標籤，不會留下未儲存變更',
+    ],
+  },
+  {
     version: '0.4.65',
     date: '2026-07-27',
     notes: [
@@ -164,7 +174,7 @@ const RELEASES: ReleaseEntry[] = [
   },
 ];
 
-const VERSION = '0.4.65';
+const VERSION = '0.4.66';
 const GITHUB_URL = 'https://github.com/Bbskiz0405/Lumi';
 
 interface Props {

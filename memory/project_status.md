@@ -4,6 +4,16 @@
 
 ---
 
+## v0.4.66 — 筆記長內容閱讀與安全區（2026-07-29）
+
+- 既有筆記採閱讀優先模式，打開後不再自動 focus 多行輸入框，長內容可正常上下滑動。
+- 使用者按「編輯」後才進入輸入狀態；輸入框固定 240px 高並可內部捲動。
+- 取消編輯會還原原始內容與標籤；新增筆記取消則直接關閉。
+- 底部操作列移出 ScrollView 並套用 safe-area，Modal 使用 KeyboardAvoidingView 處理鍵盤版面。
+- typecheck、diff check、arm64 release build 與 Pixel 8a 冷啟動均通過，使用者已實機驗收。
+
+---
+
 ## v0.4.65 — 深色極簡科技 UI（2026-07-27）
 
 - 以 `react-native-svg` 自製 `TechIcon` 圖示系統，避開 Android icon font 打包失效問題。

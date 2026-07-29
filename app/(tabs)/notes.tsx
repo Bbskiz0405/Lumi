@@ -1,10 +1,10 @@
 import React, { useState, useCallback, useRef } from 'react';
 import {
   View, FlatList, StyleSheet, Text, TouchableOpacity, Alert,
-  ActivityIndicator, Modal, TextInput, ScrollView,
+  ActivityIndicator, KeyboardAvoidingView, Modal, Platform, TextInput, ScrollView,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getAllNotes, createNote, deleteNote, updateNote, getCustomTags, saveCustomTags } from '../../services/noteService';
 import { Note, NoteCategory } from '../../types/note';
 import IconButton from '../../components/ui/IconButton';
@@ -22,6 +22,7 @@ function formatDate(isoStr: string): string {
 }
 
 export default function NotesScreen() {
+  const insets = useSafeAreaInsets();
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const hasLoaded = useRef(false);
@@ -32,6 +33,7 @@ export default function NotesScreen() {
   const [addingNote, setAddingNote] = useState(false);
   const [editContent, setEditContent] = useState('');
   const [editCategory, setEditCategory] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
 
   const [addingTag, setAddingTag] = useState(false);
   const [newTagName, setNewTagName] = useState('');
@@ -43,6 +45,7 @@ export default function NotesScreen() {
     setEditNote(note);
     setEditContent(note.content);
     setEditCategory(note.category);
+    setIsEditing(false);
     setModalError('');
   }
 
@@ -50,6 +53,7 @@ export default function NotesScreen() {
     setAddingNote(true);
     setEditContent('');
     setEditCategory(null);
+    setIsEditing(true);
     setModalError('');
   }
 
@@ -58,7 +62,19 @@ export default function NotesScreen() {
     setAddingNote(false);
     setEditContent('');
     setEditCategory(null);
+    setIsEditing(false);
     setModalError('');
+  }
+
+  function cancelEditing() {
+    if (addingNote || !editNote) {
+      closeModal();
+      return;
+    }
+    setEditContent(editNote.content);
+    setEditCategory(editNote.category);
+    setModalError('');
+    setIsEditing(false);
   }
 
   async function handleSaveEdit() {
@@ -310,59 +326,107 @@ export default function NotesScreen() {
         animationType="fade"
         transparent
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modal}>
-            <Text style={styles.modalTitle}>{addingNote ? '新增筆記' : '編輯筆記'}</Text>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={[styles.modal, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+            <Text style={styles.modalTitle}>
+              {addingNote ? '新增筆記' : isEditing ? '編輯筆記' : '筆記內容'}
+            </Text>
             <View style={styles.modalDivider} />
-            <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
-              <TextInput
-                style={styles.editInput}
-                value={editContent}
-                onChangeText={setEditContent}
-                multiline
-                autoFocus
-                placeholder={addingNote ? '寫點什麼...' : undefined}
-                placeholderTextColor="#444"
-              />
-              {!!modalError && <Text style={styles.modalError}>{modalError}</Text>}
-              <Text style={styles.fieldLabel}>標籤</Text>
-              <View style={styles.catRow}>
-                <TouchableOpacity
-                  style={[styles.catPill, !editCategory && styles.catPillNone]}
-                  onPress={() => setEditCategory(null)}
-                >
-                  <Text style={[styles.catPillText, !editCategory && { color: '#FFFFFF' }]}>無</Text>
-                </TouchableOpacity>
-                {tags.map((tag, i) => (
+            <ScrollView
+              style={styles.modalBody}
+              contentContainerStyle={styles.modalBodyContent}
+              keyboardShouldPersistTaps="handled"
+              nestedScrollEnabled
+              showsVerticalScrollIndicator
+            >
+              {addingNote || isEditing ? (
+                <>
+                  <TextInput
+                    style={styles.editInput}
+                    value={editContent}
+                    onChangeText={setEditContent}
+                    multiline
+                    autoFocus
+                    scrollEnabled
+                    placeholder={addingNote ? '寫點什麼...' : undefined}
+                    placeholderTextColor="#444"
+                  />
+                  {!!modalError && <Text style={styles.modalError}>{modalError}</Text>}
+                  <Text style={styles.fieldLabel}>標籤</Text>
+                  <View style={styles.catRow}>
+                    <TouchableOpacity
+                      style={[styles.catPill, !editCategory && styles.catPillNone]}
+                      onPress={() => setEditCategory(null)}
+                    >
+                      <Text style={[styles.catPillText, !editCategory && { color: '#FFFFFF' }]}>無</Text>
+                    </TouchableOpacity>
+                    {tags.map((tag, i) => (
+                      <TouchableOpacity
+                        key={tag}
+                        style={[
+                          styles.catPill,
+                          editCategory === tag && {
+                            borderColor: getTagColor(i),
+                            backgroundColor: getTagColor(i) + '15',
+                          },
+                        ]}
+                        onPress={() => setEditCategory(tag)}
+                      >
+                        <Text style={[styles.catPillText, editCategory === tag && { color: getTagColor(i) }]}>
+                          {tag}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.readContent}>{editContent}</Text>
+                  <View style={styles.readMeta}>
+                    <Text style={styles.fieldLabel}>標籤</Text>
+                    <View style={styles.readTag}>
+                      <Text style={styles.readTagText}>{editCategory ?? '無'}</Text>
+                    </View>
+                  </View>
+                </>
+              )}
+            </ScrollView>
+            <View style={styles.modalActions}>
+              {addingNote || isEditing ? (
+                <>
                   <TouchableOpacity
-                    key={tag}
-                    style={[
-                      styles.catPill,
-                      editCategory === tag && { borderColor: getTagColor(i), backgroundColor: getTagColor(i) + '15' },
-                    ]}
-                    onPress={() => setEditCategory(tag)}
+                    onPress={cancelEditing}
+                    style={styles.cancelBtn}
+                    disabled={saving}
                   >
-                    <Text style={[styles.catPillText, editCategory === tag && { color: getTagColor(i) }]}>
-                      {tag}
+                    <Text style={styles.cancelText}>取消</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={handleSaveEdit}
+                    style={[styles.saveBtn, saving && { opacity: 0.55 }]}
+                    disabled={saving}
+                  >
+                    <Text style={styles.saveText}>
+                      {saving ? '儲存中…' : addingNote ? '新增' : '儲存'}
                     </Text>
                   </TouchableOpacity>
-                ))}
-              </View>
-              <View style={styles.modalActions}>
-                <TouchableOpacity onPress={closeModal} style={styles.cancelBtn} disabled={saving}>
-                  <Text style={styles.cancelText}>取消</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={handleSaveEdit}
-                  style={[styles.saveBtn, saving && { opacity: 0.55 }]}
-                  disabled={saving}
-                >
-                  <Text style={styles.saveText}>{saving ? '儲存中…' : addingNote ? '新增' : '儲存'}</Text>
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
+                </>
+              ) : (
+                <>
+                  <TouchableOpacity onPress={closeModal} style={styles.cancelBtn}>
+                    <Text style={styles.cancelText}>關閉</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => setIsEditing(true)} style={styles.saveBtn}>
+                    <Text style={styles.saveText}>編輯</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
@@ -405,18 +469,23 @@ const styles = StyleSheet.create({
   retryText: { color: '#FFFFFF', fontSize: 13 },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  modal: { backgroundColor: '#111111', borderTopLeftRadius: 16, borderTopRightRadius: 16, borderWidth: 1, borderColor: '#3A3A3A', maxHeight: '85%' },
+  modal: { backgroundColor: '#111111', borderTopLeftRadius: 16, borderTopRightRadius: 16, borderWidth: 1, borderColor: '#3A3A3A', maxHeight: '88%', minHeight: 360 },
   modalTitle: { padding: 20, paddingBottom: 12, color: '#FFFFFF', fontSize: 16, fontWeight: '300', letterSpacing: 1 },
   modalDivider: { height: 1, backgroundColor: '#3A3A3A' },
-  modalBody: { padding: 16 },
-  editInput: { borderWidth: 1, borderColor: '#3A3A3A', borderRadius: 8, padding: 12, color: '#FFFFFF', fontSize: 15, fontWeight: '300', backgroundColor: '#161616', minHeight: 100, textAlignVertical: 'top', marginBottom: 12 },
+  modalBody: { flexShrink: 1 },
+  modalBodyContent: { padding: 16 },
+  editInput: { borderWidth: 1, borderColor: '#3A3A3A', borderRadius: 8, padding: 12, color: '#FFFFFF', fontSize: 15, fontWeight: '300', lineHeight: 23, backgroundColor: '#161616', height: 240, textAlignVertical: 'top', marginBottom: 12 },
+  readContent: { color: '#DDDDDD', fontSize: 15, fontWeight: '300', lineHeight: 24 },
+  readMeta: { marginTop: 24, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#252525' },
+  readTag: { alignSelf: 'flex-start', borderWidth: 1, borderColor: '#3A3A3A', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 5 },
+  readTagText: { color: '#888', fontSize: 12 },
   modalError: { color: '#FF6655', fontSize: 12, marginBottom: 12 },
   fieldLabel: { color: '#777', fontSize: 12, letterSpacing: 1, marginBottom: 8 },
   catRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
   catPill: { borderWidth: 1, borderColor: '#3A3A3A', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 5 },
   catPillNone: { borderColor: '#FFFFFF', backgroundColor: '#FFFFFF10' },
   catPillText: { color: '#666', fontSize: 12 },
-  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginBottom: 16 },
+  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, paddingHorizontal: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#252525' },
   cancelBtn: { borderWidth: 1, borderColor: '#3A3A3A', borderRadius: 8, paddingHorizontal: 16, paddingVertical: 8 },
   cancelText: { color: '#666', fontSize: 13 },
   saveBtn: { backgroundColor: '#FFFFFF', borderRadius: 8, paddingHorizontal: 20, paddingVertical: 8 },
