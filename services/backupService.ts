@@ -1,8 +1,8 @@
 import { getDb, LATEST_DATABASE_VERSION } from './db';
 
 export const BACKUP_FORMAT = 'lumi-backup';
-export const BACKUP_SCHEMA_VERSION = 2;
-export const BACKUP_APP_VERSION = '0.4.70';
+export const BACKUP_SCHEMA_VERSION = 3;
+export const BACKUP_APP_VERSION = '0.4.76';
 
 type SqlValue = string | number | null;
 type BackupRow = Record<string, SqlValue>;
@@ -11,6 +11,7 @@ interface BackupData {
   entries: BackupRow[];
   tasks: BackupRow[];
   lumi_events: BackupRow[];
+  work_records: BackupRow[];
   notes: BackupRow[];
   transactions: BackupRow[];
   budgets: BackupRow[];
@@ -33,6 +34,7 @@ export interface BackupCounts {
   entries: number;
   tasks: number;
   events: number;
+  workRecords: number;
   notes: number;
   transactions: number;
   budgets: number;
@@ -90,6 +92,20 @@ const TABLES: TableSpec[] = [
       'category',
       'notes',
       'reminder_minutes',
+      'created_at',
+      'updated_at',
+    ],
+  },
+  {
+    name: 'work_records',
+    columns: [
+      'id',
+      'work_date',
+      'clock_in',
+      'clock_out',
+      'break_minutes',
+      'target_minutes',
+      'note',
       'created_at',
       'updated_at',
     ],
@@ -165,6 +181,9 @@ function parseBackup(value: unknown): LumiBackup {
   if (value.schemaVersion === 1 && !Array.isArray(value.data.lumi_events)) {
     value.data.lumi_events = [];
   }
+  if (value.schemaVersion <= 2 && !Array.isArray(value.data.work_records)) {
+    value.data.work_records = [];
+  }
 
   for (const table of TABLES) {
     const rows = value.data[table.name];
@@ -186,6 +205,7 @@ function buildCounts(lengths: Record<keyof BackupData, number>): BackupCounts {
     entries: lengths.entries,
     tasks: lengths.tasks,
     events: lengths.lumi_events,
+    workRecords: lengths.work_records,
     notes: lengths.notes,
     transactions: lengths.transactions,
     budgets: lengths.budgets,
@@ -198,6 +218,7 @@ function buildCounts(lengths: Record<keyof BackupData, number>): BackupCounts {
       counts.entries +
       counts.tasks +
       counts.events +
+      counts.workRecords +
       counts.notes +
       counts.transactions +
       counts.budgets +
@@ -291,6 +312,7 @@ export async function importBackup(
         DELETE FROM budgets;
         DELETE FROM transactions;
         DELETE FROM notes;
+        DELETE FROM work_records;
         DELETE FROM lumi_events;
         DELETE FROM tasks;
         DELETE FROM entries;

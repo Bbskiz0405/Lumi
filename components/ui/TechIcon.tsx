@@ -16,6 +16,7 @@ export type TechIconName =
   | 'chevron-left'
   | 'chevron-right'
   | 'close'
+  | 'clock'
   | 'command'
   | 'database'
   | 'file-text'
@@ -74,6 +75,14 @@ export default function TechIcon({
             <Line {...common} x1="16" y1="14" x2="16.01" y2="14" />
             <Line {...common} x1="8" y1="18" x2="8.01" y2="18" />
             <Line {...common} x1="12" y1="18" x2="12.01" y2="18" />
+          </>
+        );
+      case 'clock':
+        return (
+          <>
+            <Circle {...common} cx="12" cy="12" r="9" />
+            <Line {...common} x1="12" y1="7" x2="12" y2="12" />
+            <Line {...common} x1="12" y1="12" x2="16" y2="14" />
           </>
         );
       case 'wallet':

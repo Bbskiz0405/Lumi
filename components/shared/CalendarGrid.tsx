@@ -1,20 +1,25 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Animated, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useCalendar } from '../../contexts/CalendarContext';
 import { toLocalDateString } from '../../utils/date';
 import TechIcon from '../ui/TechIcon';
 import { getTaskTagMeta } from '../../utils/taskTags';
+import { WorkDateStatus } from '../../types/workTime';
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
 const MONTHS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
 
 interface Props {
+  mode?: 'calendar' | 'work' | 'finance';
+  previousMode?: 'calendar' | 'work' | 'finance';
   taskDates?: Set<string>;
   financeDates?: Set<string>;
   externalDates?: Set<string>;
   eventDates?: Set<string>;
+  workDateStatusMap?: Map<string, WorkDateStatus>;
   taskPriorityMap?: Map<string, 'high' | 'medium' | 'low'>;
   taskTagMap?: Map<string, string>;
+  markerTransition?: Animated.Value;
   onDayPress?: (date: string) => void;
 }
 
@@ -24,17 +29,28 @@ const PRIORITY_COLORS: Record<string, string> = {
   low: '#88AAFF',
 };
 
+const WORK_STATUS_COLORS: Record<WorkDateStatus, string> = {
+  active: '#88AAFF',
+  positive: '#55DDAA',
+  balanced: '#AAB2BA',
+  negative: '#D58A60',
+};
+
 function toDateStr(year: number, month: number, day: number): string {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
 export default function CalendarGrid({
+  mode = 'calendar',
+  previousMode,
   taskDates,
   financeDates,
   externalDates,
   eventDates,
+  workDateStatusMap,
   taskPriorityMap,
   taskTagMap,
+  markerTransition,
   onDayPress,
 }: Props) {
   const { year, month, selectedDate, setSelectedDate, prevMonth, nextMonth, goToday } = useCalendar();
@@ -51,6 +67,72 @@ export default function CalendarGrid({
     const date = toDateStr(year, month, day);
     setSelectedDate(date);
     onDayPress?.(date);
+  }
+
+  const incomingOpacity = previousMode && markerTransition ? markerTransition : 1;
+  const outgoingOpacity = previousMode && markerTransition
+    ? markerTransition.interpolate({
+        inputRange: [0, 1],
+        outputRange: [1, 0],
+      })
+    : 0;
+
+  function renderMarkers(
+    markerMode: 'calendar' | 'work' | 'finance',
+    dateStr: string,
+    hasTask: boolean | undefined,
+    hasFinance: boolean | undefined,
+    hasExternal: boolean | undefined,
+    hasEvent: boolean | undefined,
+    workStatus: WorkDateStatus | undefined
+  ) {
+    return (
+      <>
+        {markerMode === 'calendar' && hasTask && (
+          <View style={[
+            styles.dot,
+            {
+              backgroundColor: taskTagMap?.has(dateStr)
+                ? getTaskTagMeta(taskTagMap.get(dateStr)!).color
+                : PRIORITY_COLORS[taskPriorityMap?.get(dateStr) ?? 'medium'],
+            },
+          ]} />
+        )}
+        {markerMode === 'calendar' && hasEvent && <View style={styles.eventDot} />}
+        {markerMode === 'calendar' && hasExternal && <View style={styles.externalDot} />}
+        {markerMode === 'work' && workStatus && (
+          <View style={[styles.workDot, { backgroundColor: WORK_STATUS_COLORS[workStatus] }]} />
+        )}
+        {markerMode === 'finance' && hasFinance && (
+          <View style={[styles.dot, { backgroundColor: '#55DDAA' }]} />
+        )}
+      </>
+    );
+  }
+
+  function renderLegend(legendMode: 'calendar' | 'work' | 'finance') {
+    if (legendMode === 'calendar') {
+      return (
+        <>
+          <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: '#FF9944' }]} /><Text style={styles.legendText}>任務</Text></View>
+          <View style={styles.legendItem}><View style={styles.legendEventDot} /><Text style={styles.legendText}>Lumi 行程</Text></View>
+          <View style={styles.legendItem}><View style={styles.legendExternalDot} /><Text style={styles.legendText}>外部行程</Text></View>
+        </>
+      );
+    }
+    if (legendMode === 'work') {
+      return (
+        <>
+          <View style={styles.legendItem}><View style={[styles.legendWorkDot, { backgroundColor: '#88AAFF' }]} /><Text style={styles.legendText}>上班中</Text></View>
+          <View style={styles.legendItem}><View style={[styles.legendWorkDot, { backgroundColor: '#55DDAA' }]} /><Text style={styles.legendText}>超時</Text></View>
+          <View style={styles.legendItem}><View style={[styles.legendWorkDot, { backgroundColor: '#AAB2BA' }]} /><Text style={styles.legendText}>剛好</Text></View>
+          <View style={styles.legendItem}><View style={[styles.legendWorkDot, { backgroundColor: '#D58A60' }]} /><Text style={styles.legendText}>不足</Text></View>
+        </>
+      );
+    }
+    return (
+      <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: '#55DDAA' }]} /><Text style={styles.legendText}>有記帳</Text></View>
+    );
   }
 
   return (
@@ -106,13 +188,19 @@ export default function CalendarGrid({
           const hasFinance = financeDates?.has(dateStr);
           const hasExternal = externalDates?.has(dateStr);
           const hasEvent = eventDates?.has(dateStr);
+          const workStatus = workDateStatusMap?.get(dateStr);
+          const markerLabel = mode === 'calendar'
+            ? `${hasTask ? '，有任務' : ''}${hasEvent ? '，有 Lumi 行程' : ''}${hasExternal ? '，有外部行程' : ''}`
+            : mode === 'work'
+              ? workStatus ? `，有工時紀錄，${workStatus === 'active' ? '上班中' : workStatus === 'negative' ? '工時不足' : '已完成'}` : ''
+              : hasFinance ? '，有記帳' : '';
           return (
             <TouchableOpacity
               key={idx}
               style={styles.cell}
               onPress={() => handleDayPress(day)}
               accessibilityRole="button"
-              accessibilityLabel={`${year}年${month + 1}月${day}日${hasTask ? '，有任務' : ''}${hasEvent ? '，有 Lumi 行程' : ''}${hasExternal ? '，有外部行程' : ''}${hasFinance ? '，有記帳' : ''}`}
+              accessibilityLabel={`${year}年${month + 1}月${day}日${markerLabel}`}
               accessibilityState={{ selected: isSelected }}
             >
               <View style={[
@@ -128,30 +216,29 @@ export default function CalendarGrid({
                   {day}
                 </Text>
               </View>
-              <View style={styles.dotRow}>
-                {hasTask && (
-                  <View style={[
-                    styles.dot,
-                    {
-                      backgroundColor: taskTagMap?.has(dateStr)
-                        ? getTaskTagMeta(taskTagMap.get(dateStr)!).color
-                        : PRIORITY_COLORS[taskPriorityMap?.get(dateStr) ?? 'medium'],
-                    },
-                  ]} />
+              <View style={styles.markerStack}>
+                {previousMode && (
+                  <Animated.View style={[styles.markerLayer, { opacity: outgoingOpacity }]}>
+                    {renderMarkers(previousMode, dateStr, hasTask, hasFinance, hasExternal, hasEvent, workStatus)}
+                  </Animated.View>
                 )}
-                {hasEvent && <View style={styles.eventDot} />}
-                {hasExternal && <View style={styles.externalDot} />}
-                {hasFinance && <View style={[styles.dot, { backgroundColor: '#55DDAA' }]} />}
+                <Animated.View style={[styles.markerLayer, { opacity: incomingOpacity }]}>
+                  {renderMarkers(mode, dateStr, hasTask, hasFinance, hasExternal, hasEvent, workStatus)}
+                </Animated.View>
               </View>
             </TouchableOpacity>
           );
         })}
       </View>
-      <View style={styles.legend}>
-        <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: '#FF9944' }]} /><Text style={styles.legendText}>任務</Text></View>
-        <View style={styles.legendItem}><View style={styles.legendEventDot} /><Text style={styles.legendText}>Lumi 行程</Text></View>
-        <View style={styles.legendItem}><View style={styles.legendExternalDot} /><Text style={styles.legendText}>外部行程</Text></View>
-        <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: '#55DDAA' }]} /><Text style={styles.legendText}>記帳</Text></View>
+      <View style={styles.legendStack}>
+        {previousMode && (
+          <Animated.View style={[styles.legendLayer, { opacity: outgoingOpacity }]}>
+            {renderLegend(previousMode)}
+          </Animated.View>
+        )}
+        <Animated.View style={[styles.legendLayer, { opacity: incomingOpacity }]}>
+          {renderLegend(mode)}
+        </Animated.View>
       </View>
     </View>
   );
@@ -183,20 +270,43 @@ const styles = StyleSheet.create({
   dayText: { color: '#AAAAAA', fontSize: 13 },
   todayText: { color: '#FFFFFF' },
   selectedText: { color: '#0F0F0F', fontWeight: '500' },
-  dotRow: { flexDirection: 'row', gap: 2, height: 6, marginTop: 1 },
+  markerStack: { width: 22, height: 7, marginTop: 1, position: 'relative' },
+  markerLayer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    height: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
   dot: { width: 4, height: 4, borderRadius: 2 },
   externalDot: { width: 5, height: 5, borderRadius: 3, borderWidth: 1, borderColor: '#88AAFF' },
   eventDot: { width: 5, height: 5, borderRadius: 1, backgroundColor: '#55DDAA' },
-  legend: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 10,
+  workDot: { width: 6, height: 3, borderRadius: 1 },
+  legendStack: {
+    height: 18,
     marginTop: 4,
     marginBottom: 4,
+    position: 'relative',
+  },
+  legendLayer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    height: 18,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
   },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   legendDot: { width: 4, height: 4, borderRadius: 2 },
   legendExternalDot: { width: 5, height: 5, borderRadius: 3, borderWidth: 1, borderColor: '#88AAFF' },
   legendEventDot: { width: 5, height: 5, borderRadius: 1, backgroundColor: '#55DDAA' },
+  legendWorkDot: { width: 6, height: 3, borderRadius: 1 },
   legendText: { color: '#555D64', fontSize: 9, letterSpacing: 0.3 },
 });

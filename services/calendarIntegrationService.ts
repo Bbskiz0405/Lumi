@@ -245,7 +245,7 @@ export async function syncTaskToDeviceCalendar(
   const config = await getCalendarSyncConfig();
   const link = await getTaskCalendarLink(task.id);
 
-  if (!task.due_date) {
+  if (task.completed === 1 || !task.due_date) {
     if (link) {
       const permission = await getCalendarPermission();
       if (!permission.granted) return 'skipped';

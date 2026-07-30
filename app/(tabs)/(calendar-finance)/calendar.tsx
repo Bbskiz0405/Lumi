@@ -49,6 +49,7 @@ export default function CalendarScreen() {
   const [eventModalVisible, setEventModalVisible] = useState(false);
   const [editingEvent, setEditingEvent] = useState<LumiCalendarEvent | null>(null);
   const [loadError, setLoadError] = useState(false);
+  const [calendarLoadError, setCalendarLoadError] = useState(false);
 
   async function retryLoad() {
     setLoading(true);
@@ -69,12 +70,14 @@ export default function CalendarScreen() {
       setSelectedTaskTag(null);
       if (!hasLoaded.current) setLoading(true);
       setLoadError(false);
+      setCalendarLoadError(false);
       getDayData(selectedDate)
-        .then(({ taskData, eventData, lumiEventData }) => {
+        .then(({ taskData, eventData, lumiEventData, externalLoadFailed }) => {
           if (!active) return;
           setTasks(taskData);
           setCalendarEvents(eventData);
           setLumiEvents(lumiEventData);
+          setCalendarLoadError(externalLoadFailed);
           hasLoaded.current = true;
         })
         .catch(() => {
@@ -88,23 +91,27 @@ export default function CalendarScreen() {
   );
 
   async function getDayData(date: string) {
-    const [taskData, eventData, lumiEventData] = await Promise.all([
+    const [taskData, externalResult, lumiEventData] = await Promise.all([
       getTasksForDate(date),
-      getCalendarEventsForDate(date).catch(() => []),
+      getCalendarEventsForDate(date)
+        .then(data => ({ data, failed: false }))
+        .catch(() => ({ data: [] as CalendarAgendaEvent[], failed: true })),
       getLumiEventsForDate(date),
     ]);
     return {
       taskData,
-      eventData: eventData.filter(event => !event.isLinkedToLumi),
+      eventData: externalResult.data.filter(event => !event.isLinkedToLumi),
       lumiEventData,
+      externalLoadFailed: externalResult.failed,
     };
   }
 
   async function loadDayData(date: string) {
-    const { taskData, eventData, lumiEventData } = await getDayData(date);
+    const { taskData, eventData, lumiEventData, externalLoadFailed } = await getDayData(date);
     setTasks(taskData);
     setCalendarEvents(eventData);
     setLumiEvents(lumiEventData);
+    setCalendarLoadError(externalLoadFailed);
   }
 
   async function handleToggle(id: string, completed: boolean) {
@@ -185,6 +192,21 @@ export default function CalendarScreen() {
       : tasks;
   const visibleEvents = sourceFilter === 'tasks' ? [] : calendarEvents;
   const visibleLumiEvents = sourceFilter === 'tasks' ? [] : lumiEvents;
+  const visibleScheduleItems = [
+    ...visibleLumiEvents.map(event => ({ kind: 'lumi' as const, event })),
+    ...visibleEvents.map(event => ({ kind: 'external' as const, event })),
+  ].sort((a, b) => {
+    const aAllDay = a.kind === 'lumi' ? a.event.all_day === 1 : a.event.allDay;
+    const bAllDay = b.kind === 'lumi' ? b.event.all_day === 1 : b.event.allDay;
+    if (aAllDay !== bAllDay) return aAllDay ? -1 : 1;
+    const aTime = a.kind === 'lumi'
+      ? new Date(`${a.event.start_date}T${a.event.start_time ?? '00:00'}:00`).getTime()
+      : new Date(a.event.startDate).getTime();
+    const bTime = b.kind === 'lumi'
+      ? new Date(`${b.event.start_date}T${b.event.start_time ?? '00:00'}:00`).getTime()
+      : new Date(b.event.startDate).getTime();
+    return aTime - bTime;
+  });
   const hasVisibleItems =
     visibleTasks.length > 0 || visibleEvents.length > 0 || visibleLumiEvents.length > 0;
   const taskTagOptions = [...new Set(
@@ -193,11 +215,39 @@ export default function CalendarScreen() {
 
   function formatEventTime(event: CalendarAgendaEvent): string {
     if (event.allDay) return '全天';
-    return new Intl.DateTimeFormat('zh-TW', {
+    const timeFormatter = new Intl.DateTimeFormat('zh-TW', {
       hour: '2-digit',
       minute: '2-digit',
       hour12: false,
-    }).format(new Date(event.startDate));
+    });
+    const start = new Date(event.startDate);
+    const end = new Date(event.endDate);
+    const startDate = toLocalDateString(start);
+    const endDate = toLocalDateString(end);
+    if (startDate !== endDate) {
+      return `${formatShortDate(startDate)} ${timeFormatter.format(start)} → ` +
+        `${formatShortDate(endDate)} ${timeFormatter.format(end)}`;
+    }
+    return `${timeFormatter.format(start)}–${timeFormatter.format(end)}`;
+  }
+
+  function formatShortDate(date: string): string {
+    const [, month, day] = date.split('-');
+    return `${Number(month)}/${Number(day)}`;
+  }
+
+  function formatLumiEventTime(event: LumiCalendarEvent): string {
+    const spansDays = event.start_date !== event.end_date;
+    if (event.all_day) {
+      return spansDays
+        ? `全天 · ${formatShortDate(event.start_date)}–${formatShortDate(event.end_date)}`
+        : '全天';
+    }
+    if (spansDays) {
+      return `${formatShortDate(event.start_date)} ${event.start_time ?? ''} → ` +
+        `${formatShortDate(event.end_date)} ${event.end_time ?? ''}`;
+    }
+    return `${event.start_time ?? ''}–${event.end_time ?? ''}`;
   }
 
   function handleOpenEvent(eventId: string) {
@@ -245,6 +295,18 @@ export default function CalendarScreen() {
           ItemSeparatorComponent={() => <View style={{ height: 2 }} />}
           ListHeaderComponent={
             <View>
+              {calendarLoadError && (
+                <View style={styles.calendarWarning}>
+                  <View style={styles.calendarWarningCopy}>
+                    <Text style={styles.calendarWarningTitle}>外部日曆暫時無法讀取</Text>
+                    <Text style={styles.calendarWarningText}>Lumi 任務與行程仍可正常使用。</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => void retryLoad()}>
+                    <Text style={styles.calendarWarningAction}>重試</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
               {(calendarEvents.length > 0 || lumiEvents.length > 0 || sourceFilter !== 'all') && (
                 <View style={styles.filters}>
                   {([
@@ -309,64 +371,69 @@ export default function CalendarScreen() {
                 </View>
               )}
 
-              {visibleLumiEvents.map(event => {
-                const categoryMeta = event.category
-                  ? getTaskTagMeta(event.category)
-                  : null;
+              {visibleScheduleItems.map(item => {
+                if (item.kind === 'lumi') {
+                  const event = item.event;
+                  const categoryMeta = event.category
+                    ? getTaskTagMeta(event.category)
+                    : null;
+                  return (
+                    <TouchableOpacity
+                      key={`lumi-${event.id}`}
+                      style={styles.eventCard}
+                      onPress={() => {
+                        setEditingEvent(event);
+                        setEventModalVisible(true);
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Lumi 行程：${event.title}`}
+                    >
+                      <View style={[
+                        styles.eventAccent,
+                        { backgroundColor: categoryMeta?.color ?? '#55DDAA' },
+                      ]} />
+                      <View style={styles.eventCopy}>
+                        <Text style={styles.eventTitle} numberOfLines={2}>{event.title}</Text>
+                        <Text style={styles.eventMeta}>
+                          {formatLumiEventTime(event)}
+                          {' · Lumi 行程'}
+                          {categoryMeta ? ` · ${categoryMeta.label}` : ''}
+                        </Text>
+                        {!!event.location && (
+                          <Text style={styles.eventLocation} numberOfLines={1}>{event.location}</Text>
+                        )}
+                        <Text style={styles.eventSyncState}>
+                          {event.external_event_id ? '已寫入手機日曆' : '僅儲存在 Lumi'}
+                        </Text>
+                      </View>
+                      <Text style={styles.eventOpenHint}>編輯</Text>
+                    </TouchableOpacity>
+                  );
+                }
+
+                const event = item.event;
                 return (
                   <TouchableOpacity
-                    key={event.id}
+                    key={`external-${event.id}`}
                     style={styles.eventCard}
-                    onPress={() => {
-                      setEditingEvent(event);
-                      setEventModalVisible(true);
-                    }}
+                    onPress={() => handleOpenEvent(event.id)}
                     accessibilityRole="button"
-                    accessibilityLabel={`Lumi 行程：${event.title}`}
+                    accessibilityLabel={`${event.title}，${formatEventTime(event)}，外部行程`}
                   >
-                    <View style={[
-                      styles.eventAccent,
-                      { backgroundColor: categoryMeta?.color ?? '#55DDAA' },
-                    ]} />
+                    <View style={[styles.eventAccent, { backgroundColor: event.calendarColor }]} />
                     <View style={styles.eventCopy}>
                       <Text style={styles.eventTitle} numberOfLines={2}>{event.title}</Text>
                       <Text style={styles.eventMeta}>
-                        {event.all_day
-                          ? '全天'
-                          : `${event.start_time ?? ''}–${event.end_time ?? ''}`}
-                        {' · Lumi 行程'}
-                        {categoryMeta ? ` · ${categoryMeta.label}` : ''}
+                        {formatEventTime(event)} · {event.calendarTitle}
                       </Text>
                       {!!event.location && (
                         <Text style={styles.eventLocation} numberOfLines={1}>{event.location}</Text>
                       )}
                     </View>
-                    <Text style={styles.eventOpenHint}>編輯</Text>
+                    <Text style={styles.eventOpenHint}>開啟</Text>
                   </TouchableOpacity>
                 );
               })}
-
-              {visibleEvents.map(event => (
-                <TouchableOpacity
-                  key={event.id}
-                  style={styles.eventCard}
-                  onPress={() => handleOpenEvent(event.id)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${event.title}，${formatEventTime(event)}，外部行程`}
-                >
-                  <View style={[styles.eventAccent, { backgroundColor: event.calendarColor }]} />
-                  <View style={styles.eventCopy}>
-                    <Text style={styles.eventTitle} numberOfLines={2}>{event.title}</Text>
-                    <Text style={styles.eventMeta}>
-                      {formatEventTime(event)} · {event.calendarTitle}
-                    </Text>
-                    {!!event.location && (
-                      <Text style={styles.eventLocation} numberOfLines={1}>{event.location}</Text>
-                    )}
-                  </View>
-                  <Text style={styles.eventOpenHint}>開啟</Text>
-                </TouchableOpacity>
-              ))}
 
               {(visibleEvents.length > 0 || visibleLumiEvents.length > 0) && visibleTasks.length > 0 && (
                 <Text style={styles.taskSectionLabel}>LUMI 任務</Text>
@@ -386,7 +453,7 @@ export default function CalendarScreen() {
                 {loadError
                   ? '無法讀取這天的內容'
                   : sourceFilter === 'calendar'
-                    ? '這天沒有外部行程'
+                    ? '這天沒有行程'
                     : sourceFilter === 'tasks'
                       ? '這天沒有 Lumi 任務'
                       : '這天沒有任務或行程'}
@@ -565,7 +632,24 @@ const styles = StyleSheet.create({
   eventTitle: { color: '#E5E8EB', fontSize: 14, fontWeight: '400', lineHeight: 19 },
   eventMeta: { color: '#718094', fontSize: 11, marginTop: 5 },
   eventLocation: { color: '#5E656C', fontSize: 11, marginTop: 3 },
+  eventSyncState: { color: '#4F685F', fontSize: 10, marginTop: 4 },
   eventOpenHint: { color: '#4F5963', fontSize: 10, marginLeft: 8 },
+  calendarWarning: {
+    minHeight: 54,
+    borderWidth: 1,
+    borderColor: '#594632',
+    backgroundColor: '#1A1713',
+    borderRadius: 8,
+    marginHorizontal: 6,
+    marginVertical: 6,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  calendarWarningCopy: { flex: 1 },
+  calendarWarningTitle: { color: '#D3A36F', fontSize: 12 },
+  calendarWarningText: { color: '#7B6B5B', fontSize: 10, marginTop: 3 },
+  calendarWarningAction: { color: '#D3A36F', fontSize: 11, padding: 8 },
   taskSectionLabel: {
     color: '#5E656C',
     fontSize: 10,

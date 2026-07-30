@@ -24,7 +24,7 @@ function CustomTabBar({ insets }: { insets: EdgeInsets }) {
       {tabs.map((tab) => {
         const isActive =
           (tab.name === 'index' && pathname === '/') ||
-          (tab.name === 'calendar' && pathname.includes('/calendar')) ||
+          (tab.name === 'calendar' && (pathname.includes('/calendar') || pathname.includes('/work'))) ||
           (tab.name === 'finance' && pathname.includes('/finance')) ||
           (tab.name === 'tasks' && pathname.includes('/tasks')) ||
           (tab.name === 'notes' && pathname.includes('/notes'));

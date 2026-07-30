@@ -12,7 +12,11 @@ import {
   CreateLumiCalendarEventInput,
   LumiCalendarEvent,
 } from '../../types/calendarEvent';
-import { isValidLocalDateString } from '../../utils/date';
+import {
+  isValidLocalDateString,
+  parseLocalDate,
+  toLocalDateString,
+} from '../../utils/date';
 import { DEFAULT_TASK_TAGS, getTaskTagMeta } from '../../utils/taskTags';
 import { getCustomTaskTags } from '../../services/taskTagService';
 
@@ -44,6 +48,32 @@ function isValidTime(value: string): boolean {
   return hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59;
 }
 
+function addDays(dateString: string, days: number): string {
+  const date = parseLocalDate(dateString);
+  date.setDate(date.getDate() + days);
+  return toLocalDateString(date);
+}
+
+function getDefaultRange(selectedDate: string) {
+  const today = toLocalDateString();
+  if (selectedDate !== today) {
+    return { endDate: selectedDate, startTime: '09:00', endTime: '10:00' };
+  }
+
+  const now = new Date();
+  const roundedStart = Math.ceil((now.getHours() * 60 + now.getMinutes()) / 30) * 30;
+  const startMinutes = Math.min(roundedStart, 23 * 60 + 30);
+  const endMinutes = startMinutes + 60;
+  const formatTime = (minutes: number) =>
+    `${String(Math.floor((minutes % 1440) / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+
+  return {
+    endDate: endMinutes >= 1440 ? addDays(selectedDate, 1) : selectedDate,
+    startTime: formatTime(startMinutes),
+    endTime: formatTime(endMinutes),
+  };
+}
+
 export default function CalendarEventForm({
   selectedDate,
   initialValues,
@@ -51,11 +81,13 @@ export default function CalendarEventForm({
   onCancel,
   onDelete,
 }: Props) {
+  const defaultRange = getDefaultRange(selectedDate);
   const [title, setTitle] = useState(initialValues?.title ?? '');
-  const [date, setDate] = useState(initialValues?.start_date ?? selectedDate);
+  const [startDate, setStartDate] = useState(initialValues?.start_date ?? selectedDate);
+  const [endDate, setEndDate] = useState(initialValues?.end_date ?? defaultRange.endDate);
   const [allDay, setAllDay] = useState(initialValues ? initialValues.all_day === 1 : false);
-  const [startTime, setStartTime] = useState(initialValues?.start_time ?? '09:00');
-  const [endTime, setEndTime] = useState(initialValues?.end_time ?? '10:00');
+  const [startTime, setStartTime] = useState(initialValues?.start_time ?? defaultRange.startTime);
+  const [endTime, setEndTime] = useState(initialValues?.end_time ?? defaultRange.endTime);
   const [location, setLocation] = useState(initialValues?.location ?? '');
   const [notes, setNotes] = useState(initialValues?.notes ?? '');
   const [category, setCategory] = useState<string | null>(initialValues?.category ?? null);
@@ -79,14 +111,35 @@ export default function CalendarEventForm({
     setReminder(null);
   }
 
+  function setEndOffset(days: number) {
+    if (!isValidLocalDateString(startDate)) return;
+    setEndDate(addDays(startDate, days));
+  }
+
+  function setDuration(minutes: number) {
+    if (!isValidLocalDateString(startDate) || !isValidTime(startTime)) return;
+    const start = parseLocalDate(startDate);
+    const [hour, minute] = startTime.split(':').map(Number);
+    start.setHours(hour, minute, 0, 0);
+    const end = new Date(start.getTime() + minutes * 60 * 1000);
+    setEndDate(toLocalDateString(end));
+    setEndTime(
+      `${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')}`
+    );
+  }
+
   async function handleSubmit() {
     if (submitting) return;
     if (!title.trim()) {
       setError('請輸入行程名稱');
       return;
     }
-    if (!isValidLocalDateString(date)) {
-      setError('請輸入有效日期（YYYY-MM-DD）');
+    if (!isValidLocalDateString(startDate) || !isValidLocalDateString(endDate)) {
+      setError('請輸入有效的開始與結束日期（YYYY-MM-DD）');
+      return;
+    }
+    if (endDate < startDate) {
+      setError('結束日期不可早於開始日期');
       return;
     }
     if (!allDay) {
@@ -94,7 +147,7 @@ export default function CalendarEventForm({
         setError('時間格式請使用 HH:mm');
         return;
       }
-      if (endTime <= startTime) {
+      if (endDate === startDate && endTime <= startTime) {
         setError('結束時間必須晚於開始時間');
         return;
       }
@@ -105,8 +158,8 @@ export default function CalendarEventForm({
     try {
       await onSubmit({
         title: title.trim(),
-        start_date: date,
-        end_date: date,
+        start_date: startDate,
+        end_date: endDate,
         all_day: allDay ? 1 : 0,
         start_time: allDay ? null : startTime,
         end_time: allDay ? null : endTime,
@@ -137,14 +190,41 @@ export default function CalendarEventForm({
         autoFocus
       />
 
-      <TextInput
-        style={styles.input}
-        value={date}
-        onChangeText={setDate}
-        placeholder="日期（YYYY-MM-DD）"
-        placeholderTextColor="#4A4F54"
-        keyboardType="numbers-and-punctuation"
-      />
+      <View style={styles.dateRow}>
+        <View style={styles.dateField}>
+          <Text style={styles.fieldLabel}>開始日期</Text>
+          <TextInput
+            style={styles.input}
+            value={startDate}
+            onChangeText={value => {
+              setStartDate(value);
+              if (endDate < value) setEndDate(value);
+            }}
+            placeholder="YYYY-MM-DD"
+            placeholderTextColor="#4A4F54"
+            keyboardType="numbers-and-punctuation"
+          />
+        </View>
+        <View style={styles.dateField}>
+          <Text style={styles.fieldLabel}>結束日期</Text>
+          <TextInput
+            style={styles.input}
+            value={endDate}
+            onChangeText={setEndDate}
+            placeholder="YYYY-MM-DD"
+            placeholderTextColor="#4A4F54"
+            keyboardType="numbers-and-punctuation"
+          />
+        </View>
+      </View>
+      <View style={styles.quickRow}>
+        <TouchableOpacity style={styles.quickButton} onPress={() => setEndOffset(0)}>
+          <Text style={styles.quickText}>同一天</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.quickButton} onPress={() => setEndOffset(1)}>
+          <Text style={styles.quickText}>到隔天</Text>
+        </TouchableOpacity>
+      </View>
 
       <View style={styles.switchRow}>
         <View>
@@ -160,30 +240,45 @@ export default function CalendarEventForm({
       </View>
 
       {!allDay && (
-        <View style={styles.timeRow}>
-          <View style={styles.timeField}>
-            <Text style={styles.fieldLabel}>開始</Text>
-            <TextInput
-              style={styles.input}
-              value={startTime}
-              onChangeText={setStartTime}
-              placeholder="09:00"
-              placeholderTextColor="#4A4F54"
-              keyboardType="numbers-and-punctuation"
-            />
+        <>
+          <View style={styles.timeRow}>
+            <View style={styles.timeField}>
+              <Text style={styles.fieldLabel}>開始時間</Text>
+              <TextInput
+                style={styles.input}
+                value={startTime}
+                onChangeText={setStartTime}
+                placeholder="09:00"
+                placeholderTextColor="#4A4F54"
+                keyboardType="numbers-and-punctuation"
+              />
+            </View>
+            <View style={styles.timeField}>
+              <Text style={styles.fieldLabel}>結束時間</Text>
+              <TextInput
+                style={styles.input}
+                value={endTime}
+                onChangeText={setEndTime}
+                placeholder="10:00"
+                placeholderTextColor="#4A4F54"
+                keyboardType="numbers-and-punctuation"
+              />
+            </View>
           </View>
-          <View style={styles.timeField}>
-            <Text style={styles.fieldLabel}>結束</Text>
-            <TextInput
-              style={styles.input}
-              value={endTime}
-              onChangeText={setEndTime}
-              placeholder="10:00"
-              placeholderTextColor="#4A4F54"
-              keyboardType="numbers-and-punctuation"
-            />
+          <View style={styles.quickRow}>
+            {[30, 60, 120].map(minutes => (
+              <TouchableOpacity
+                key={minutes}
+                style={styles.quickButton}
+                onPress={() => setDuration(minutes)}
+              >
+                <Text style={styles.quickText}>
+                  {minutes < 60 ? `${minutes} 分` : `${minutes / 60} 小時`}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
-        </View>
+        </>
       )}
 
       <TextInput
@@ -300,7 +395,20 @@ const styles = StyleSheet.create({
   switchHint: { color: '#5C6268', fontSize: 10, marginTop: 3 },
   timeRow: { flexDirection: 'row', gap: 10 },
   timeField: { flex: 1 },
+  dateRow: { flexDirection: 'row', gap: 10 },
+  dateField: { flex: 1 },
   fieldLabel: { color: '#646B72', fontSize: 11, letterSpacing: 1, marginBottom: 7 },
+  quickRow: { flexDirection: 'row', gap: 7, marginTop: -3, marginBottom: 10 },
+  quickButton: {
+    minHeight: 29,
+    borderWidth: 1,
+    borderColor: '#2D3237',
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickText: { color: '#737B83', fontSize: 10 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginBottom: 13 },
   chip: {
     minHeight: 30,

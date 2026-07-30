@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { Animated, Easing, View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { withLayoutContext } from 'expo-router';
 import {
   createMaterialTopTabNavigator,
@@ -15,15 +15,35 @@ import {
 import { getTransactionsForMonth } from '../../../services/financeService';
 import { getCalendarEventsForRange } from '../../../services/calendarIntegrationService';
 import { getLumiEventsForMonth } from '../../../services/calendarEventService';
+import { getWorkDateStatusMap } from '../../../services/workTimeService';
+import { WorkDateStatus } from '../../../types/workTime';
 
 const { Navigator } = createMaterialTopTabNavigator();
 const MaterialTopTabs = withLayoutContext(Navigator);
 
-function PersistentCalendar() {
+type CalendarWorkspace = 'calendar' | 'work' | 'finance';
+
+interface WorkspaceTransition {
+  id: number;
+  from: CalendarWorkspace | null;
+  to: CalendarWorkspace;
+  progress: Animated.Value;
+}
+
+function PersistentCalendar({
+  workspace,
+  previousWorkspace,
+  markerTransition,
+}: {
+  workspace: CalendarWorkspace;
+  previousWorkspace: CalendarWorkspace | null;
+  markerTransition: Animated.Value;
+}) {
   const [taskDates, setTaskDates] = useState<Set<string>>(new Set());
   const [financeDates, setFinanceDates] = useState<Set<string>>(new Set());
   const [externalDates, setExternalDates] = useState<Set<string>>(new Set());
   const [lumiEventDates, setLumiEventDates] = useState<Set<string>>(new Set());
+  const [workDateStatusMap, setWorkDateStatusMap] = useState<Map<string, WorkDateStatus>>(new Map());
   const [taskPriorityMap, setTaskPriorityMap] = useState<Map<string, 'high' | 'medium' | 'low'>>(new Map());
   const [taskTagMap, setTaskTagMap] = useState<Map<string, string>>(new Map());
   const { year, month, refreshKey } = useCalendar();
@@ -33,13 +53,14 @@ function PersistentCalendar() {
     try {
       const rangeStart = new Date(year, month, 1);
       const rangeEnd = new Date(year, month + 1, 1);
-      const [taskList, priorityMap, tagMap, txs, externalEvents, lumiEvents] = await Promise.all([
+      const [taskList, priorityMap, tagMap, txs, externalEvents, lumiEvents, workStatuses] = await Promise.all([
         getDatesWithTasks(),
         getTaskDatesByPriority(),
         getTaskDatesByTag(),
         getTransactionsForMonth(m),
         getCalendarEventsForRange(rangeStart, rangeEnd).catch(() => []),
         getLumiEventsForMonth(year, month),
+        getWorkDateStatusMap(m),
       ]);
       setTaskDates(new Set(taskList));
       setTaskPriorityMap(priorityMap);
@@ -51,6 +72,7 @@ function PersistentCalendar() {
         rangeEnd
       ));
       setLumiEventDates(getLumiEventDates(lumiEvents, rangeStart, rangeEnd));
+      setWorkDateStatusMap(workStatuses);
     } catch (err) {
       console.error('[PersistentCalendar] load failed:', err);
     }
@@ -64,10 +86,14 @@ function PersistentCalendar() {
     <View style={{ backgroundColor: '#0F0F0F' }}>
       <View style={{ paddingTop: 8 }}>
         <CalendarGrid
+          mode={workspace}
+          previousMode={previousWorkspace ?? undefined}
+          markerTransition={markerTransition}
           taskDates={taskDates}
           financeDates={financeDates}
           externalDates={externalDates}
           eventDates={lumiEventDates}
+          workDateStatusMap={workDateStatusMap}
           taskPriorityMap={taskPriorityMap}
           taskTagMap={taskTagMap}
         />
@@ -159,7 +185,21 @@ function addUtcCalendarDays(dateString: string, days: number): string {
   return toUtcCalendarDateString(date.toISOString());
 }
 
-function SubTabBar({ state, descriptors, navigation }: MaterialTopTabBarProps) {
+function SubTabBar({
+  state,
+  descriptors,
+  navigation,
+  onWorkspaceChange,
+}: MaterialTopTabBarProps & {
+  onWorkspaceChange: (workspace: CalendarWorkspace) => void;
+}) {
+  useEffect(() => {
+    const routeName = state.routes[state.index]?.name;
+    if (routeName === 'calendar' || routeName === 'work' || routeName === 'finance') {
+      onWorkspaceChange(routeName);
+    }
+  }, [state.index, state.routes, onWorkspaceChange]);
+
   return (
     <View style={styles.subTabBar}>
       {state.routes.map((route, index) => {
@@ -174,25 +214,128 @@ function SubTabBar({ state, descriptors, navigation }: MaterialTopTabBarProps) {
         };
 
         return (
-          <TouchableOpacity
+          <WorkspaceTab
             key={route.key}
+            label={String(label)}
+            color={color}
+            isFocused={isFocused}
             onPress={onPress}
-            style={[styles.subTabItem, isFocused && styles.subTabItemActive]}
-          >
-            <Text style={[styles.subTabLabel, { color }]}>{label}</Text>
-          </TouchableOpacity>
+          />
         );
       })}
     </View>
   );
 }
 
+function WorkspaceTab({
+  label,
+  color,
+  isFocused,
+  onPress,
+}: {
+  label: string;
+  color: string;
+  isFocused: boolean;
+  onPress: () => void;
+}) {
+  const indicatorProgress = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    indicatorProgress.stopAnimation();
+    if (!isFocused) {
+      indicatorProgress.setValue(0);
+      return;
+    }
+    Animated.timing(indicatorProgress, {
+      toValue: 1,
+      duration: 160,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [indicatorProgress, isFocused]);
+
+  return (
+    <TouchableOpacity onPress={onPress} style={styles.subTabItem}>
+      <Text style={[styles.subTabLabel, { color }]}>{label}</Text>
+      {isFocused && (
+        <Animated.View
+          style={[
+            styles.subTabIndicator,
+            {
+              opacity: indicatorProgress,
+              transform: [{
+                scaleX: indicatorProgress.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.45, 1],
+                }),
+              }],
+            },
+          ]}
+        />
+      )}
+    </TouchableOpacity>
+  );
+}
+
 export default function CalendarFinanceLayout() {
+  const [workspaceTransition, setWorkspaceTransition] = useState<WorkspaceTransition>(() => ({
+    id: 0,
+    from: null,
+    to: 'calendar',
+    progress: new Animated.Value(1),
+  }));
+  const currentWorkspace = useRef<CalendarWorkspace>('calendar');
+  const nextTransitionId = useRef(0);
+  const activeMarkerAnimation = useRef<Animated.CompositeAnimation | null>(null);
+
+  const handleWorkspaceChange = useCallback((workspace: CalendarWorkspace) => {
+    if (currentWorkspace.current === workspace) return;
+    activeMarkerAnimation.current?.stop();
+    const from = currentWorkspace.current;
+    currentWorkspace.current = workspace;
+    nextTransitionId.current += 1;
+    setWorkspaceTransition({
+      id: nextTransitionId.current,
+      from,
+      to: workspace,
+      progress: new Animated.Value(0),
+    });
+  }, []);
+
+  const transitionId = workspaceTransition.id;
+  const transitionProgress = workspaceTransition.progress;
+
+  useEffect(() => {
+    if (transitionId === 0) return;
+    const animation = Animated.timing(transitionProgress, {
+      toValue: 1,
+      duration: 180,
+      easing: Easing.inOut(Easing.quad),
+      useNativeDriver: true,
+    });
+    activeMarkerAnimation.current = animation;
+    animation.start(({ finished }) => {
+      if (!finished) return;
+      setWorkspaceTransition(current => (
+        current.id === transitionId
+          ? { ...current, from: null }
+          : current
+      ));
+    });
+    return () => animation.stop();
+  }, [transitionId, transitionProgress]);
+
   return (
     <View style={{ flex: 1, backgroundColor: '#0F0F0F' }}>
-      <PersistentCalendar />
+      <PersistentCalendar
+        workspace={workspaceTransition.to}
+        previousWorkspace={workspaceTransition.from}
+        markerTransition={workspaceTransition.progress}
+      />
       <MaterialTopTabs
-        tabBar={(props: MaterialTopTabBarProps) => <SubTabBar {...props} />}
+        tabBar={(props: MaterialTopTabBarProps) => (
+          <SubTabBar {...props} onWorkspaceChange={handleWorkspaceChange} />
+        )}
         screenOptions={{
           swipeEnabled: true,
           animationEnabled: true,
@@ -201,6 +344,7 @@ export default function CalendarFinanceLayout() {
         }}
       >
         <MaterialTopTabs.Screen name="calendar" options={{ title: '行事曆' }} />
+        <MaterialTopTabs.Screen name="work" options={{ title: '工時' }} />
         <MaterialTopTabs.Screen name="finance" options={{ title: '財務' }} />
       </MaterialTopTabs>
     </View>
@@ -214,7 +358,6 @@ const styles = StyleSheet.create({
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 40,
     borderBottomWidth: 1,
     borderBottomColor: '#252525',
   },
@@ -222,12 +365,16 @@ const styles = StyleSheet.create({
     height: 44,
     justifyContent: 'center',
     alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
     paddingHorizontal: 4,
+    flex: 1,
   },
-  subTabItemActive: {
-    borderBottomColor: '#55DDAA',
+  subTabIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    width: 28,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: '#55DDAA',
   },
   subTabLabel: {
     fontSize: 13,

@@ -10,7 +10,7 @@ import {
   Text,
 } from 'react-native';
 import { Task, Priority, TaskTag, CreateTaskInput } from '../../types/task';
-import { isValidLocalDateString } from '../../utils/date';
+import { isValidLocalDateString, toLocalDateString } from '../../utils/date';
 import { DEFAULT_TASK_TAGS, getTaskTagMeta } from '../../utils/taskTags';
 import { getCustomTaskTags, saveCustomTaskTags } from '../../services/taskTagService';
 
@@ -26,6 +26,12 @@ const PRIORITY_OPTIONS: { value: Priority; label: string }[] = [
   { value: 'medium', label: '中' },
   { value: 'low', label: '低' },
 ];
+
+function relativeDate(days: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return toLocalDateString(date);
+}
 
 export default function TaskForm({ initialValues, onSubmit, onCancel, submitLabel = '新增' }: Props) {
   const [title, setTitle] = useState(initialValues?.title ?? '');
@@ -163,6 +169,29 @@ export default function TaskForm({ initialValues, onSubmit, onCancel, submitLabe
         keyboardType={Platform.OS === 'android' ? 'numeric' : 'numbers-and-punctuation'}
       />
       {!!dateError && <Text style={styles.errorText}>{dateError}</Text>}
+      <View style={styles.dateQuickRow}>
+        {[
+          { label: '今天', value: relativeDate(0) },
+          { label: '明天', value: relativeDate(1) },
+          { label: '無日期', value: '' },
+        ].map(option => (
+          <TouchableOpacity
+            key={option.label}
+            style={[styles.dateQuick, dueDate === option.value && styles.dateQuickActive]}
+            onPress={() => {
+              setDueDate(option.value);
+              setDateError('');
+            }}
+          >
+            <Text style={[
+              styles.dateQuickText,
+              dueDate === option.value && styles.dateQuickTextActive,
+            ]}>
+              {option.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
       <Text style={styles.sectionLabel}>優先度</Text>
       <View style={styles.segRow}>
@@ -269,6 +298,19 @@ const styles = StyleSheet.create({
   },
   inputError: { borderColor: '#FF4444' },
   errorText: { color: '#FF4444', fontSize: 12, marginBottom: 8, marginLeft: 4 },
+  dateQuickRow: { flexDirection: 'row', gap: 7, marginTop: -2, marginBottom: 10 },
+  dateQuick: {
+    minHeight: 30,
+    borderWidth: 1,
+    borderColor: '#303438',
+    borderRadius: 6,
+    paddingHorizontal: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dateQuickActive: { borderColor: '#59616A', backgroundColor: '#1A1D20' },
+  dateQuickText: { color: '#697078', fontSize: 11 },
+  dateQuickTextActive: { color: '#D6DADF' },
   sectionLabel: { color: '#555', fontSize: 12, letterSpacing: 1, marginBottom: 8, marginTop: 4 },
   segRow: { flexDirection: 'row', marginBottom: 4 },
   seg: {
