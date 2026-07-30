@@ -1,7 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 
 const DATABASE_NAME = 'lumi.db';
-export const LATEST_DATABASE_VERSION = 5;
+export const LATEST_DATABASE_VERSION = 6;
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
@@ -200,6 +200,17 @@ async function migrateToVersion5(database: SQLite.SQLiteDatabase): Promise<void>
   });
 }
 
+async function migrateToVersion6(database: SQLite.SQLiteDatabase): Promise<void> {
+  await database.withExclusiveTransactionAsync(async tx => {
+    await tx.execAsync(`
+      ALTER TABLE tasks ADD COLUMN due_time TEXT;
+      ALTER TABLE tasks ADD COLUMN reminder_minutes INTEGER;
+
+      PRAGMA user_version = 6;
+    `);
+  });
+}
+
 async function initDb(database: SQLite.SQLiteDatabase): Promise<void> {
   await database.execAsync(`
     PRAGMA journal_mode = WAL;
@@ -233,5 +244,10 @@ async function initDb(database: SQLite.SQLiteDatabase): Promise<void> {
 
   if (version < 5) {
     await migrateToVersion5(database);
+    version = 5;
+  }
+
+  if (version < 6) {
+    await migrateToVersion6(database);
   }
 }

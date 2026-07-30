@@ -1,9 +1,36 @@
-import React from 'react';
-import { Stack } from 'expo-router';
+import React, { useEffect } from 'react';
+import { Stack, useRouter } from 'expo-router';
+import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
 import { CalendarProvider } from '../contexts/CalendarContext';
+import {
+  configureNotificationPresentation,
+  initializeNotifications,
+} from '../services/notificationService';
+
+configureNotificationPresentation();
 
 export default function RootLayout() {
+  const router = useRouter();
+  const notificationResponse = Notifications.useLastNotificationResponse();
+
+  useEffect(() => {
+    initializeNotifications().catch(error => {
+      console.error('[notifications] initialization failed:', error);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!notificationResponse) return;
+    const data = notificationResponse.notification.request.content.data ?? {};
+    if (data.type === 'task' && typeof data.taskId === 'string') {
+      router.push(`/task/${data.taskId}`);
+    } else if (data.type === 'work') {
+      router.push('/work');
+    }
+    Notifications.clearLastNotificationResponse();
+  }, [notificationResponse, router]);
+
   return (
     <CalendarProvider>
       <StatusBar style="light" />

@@ -15,7 +15,7 @@ function getDaysUntil(dueDateStr: string): number {
   return calendarDaysFromToday(dueDateStr);
 }
 
-function DeadlineLabel({ dueDate }: { dueDate: string }) {
+function DeadlineLabel({ dueDate, dueTime }: { dueDate: string; dueTime: string | null }) {
   const days = getDaysUntil(dueDate);
   let label = '';
   let color = '#555';
@@ -24,7 +24,11 @@ function DeadlineLabel({ dueDate }: { dueDate: string }) {
   else if (days === 1){ label = '明天到期'; color = '#FF8844'; }
   else if (days <= 7) { label = `${days}天後`; color = '#4488FF'; }
   else                { label = `${days}天後`; color = '#555'; }
-  return <Text style={[styles.deadline, { color }]}>{label}</Text>;
+  return (
+    <Text style={[styles.deadline, { color }]}>
+      {label}{dueTime ? ` ${dueTime}` : ''}
+    </Text>
+  );
 }
 
 export default function TaskCard({ task, onToggleComplete, onPress }: Props) {
@@ -74,7 +78,8 @@ export default function TaskCard({ task, onToggleComplete, onPress }: Props) {
 
       {task.due_date && !isCompleted && (
         <View style={styles.right}>
-          <DeadlineLabel dueDate={task.due_date} />
+          <DeadlineLabel dueDate={task.due_date} dueTime={task.due_time} />
+          {task.reminder_minutes !== null && <Text style={styles.reminder}>提醒已開啟</Text>}
         </View>
       )}
     </TouchableOpacity>
@@ -120,4 +125,5 @@ const styles = StyleSheet.create({
   tagText: { fontSize: 10 },
   right: { marginLeft: 8, alignItems: 'flex-end' },
   deadline: { fontSize: 11, fontWeight: '500' },
+  reminder: { color: '#7188A8', fontSize: 9, marginTop: 3 },
 });

@@ -28,6 +28,15 @@ interface ReleaseEntry {
 
 const RELEASES: ReleaseEntry[] = [
   {
+    version: '0.4.77',
+    date: '2026-07-30',
+    notes: [
+      '任務可設定具體時間與準時、10 分、30 分或 1 小時前的本機提醒',
+      '編輯、完成與刪除任務會同步重排或取消提醒，不依賴 Google 日曆',
+      '上班打卡後依標準工時加一小時提醒尚未下班，完成下班時自動取消',
+    ],
+  },
+  {
     version: '0.4.76',
     date: '2026-07-30',
     notes: [
@@ -266,7 +275,7 @@ const RELEASES: ReleaseEntry[] = [
   },
 ];
 
-const VERSION = '0.4.76';
+const VERSION = '0.4.77';
 const GITHUB_URL = 'https://github.com/Bbskiz0405/Lumi';
 
 interface Props {

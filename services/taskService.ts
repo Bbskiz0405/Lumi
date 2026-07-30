@@ -6,6 +6,10 @@ import {
   removeTaskFromDeviceCalendar,
   syncTaskToDeviceCalendar,
 } from './calendarIntegrationService';
+import {
+  cancelTaskReminder,
+  scheduleTaskReminder,
+} from './notificationService';
 
 function nowISO(): string {
   return new Date().toISOString();
@@ -67,17 +71,39 @@ export async function createTask(input: CreateTaskInput): Promise<Task> {
     entry_id: input.entry_id,
     title,
     due_date: input.due_date,
+    due_time: input.due_time ?? null,
+    reminder_minutes: input.reminder_minutes ?? null,
     priority: input.priority,
     tag: input.tag,
     source: input.source,
     completed: input.completed ?? 0,
     created_at: now,
   };
-  await db.runAsync(
-    `INSERT INTO tasks (id, entry_id, title, due_date, priority, tag, source, completed, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [task.id, task.entry_id, task.title, task.due_date, task.priority, task.tag, task.source, task.completed, task.created_at]
-  );
+  await scheduleTaskReminder(task);
+  try {
+    await db.runAsync(
+      `INSERT INTO tasks (
+        id, entry_id, title, due_date, due_time, reminder_minutes,
+        priority, tag, source, completed, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        task.id,
+        task.entry_id,
+        task.title,
+        task.due_date,
+        task.due_time,
+        task.reminder_minutes,
+        task.priority,
+        task.tag,
+        task.source,
+        task.completed,
+        task.created_at,
+      ]
+    );
+  } catch (error) {
+    await cancelTaskReminder(task.id).catch(() => {});
+    throw error;
+  }
   await syncCalendarBestEffort(task);
   return task;
 }
@@ -89,12 +115,22 @@ export async function updateTask(id: string, updates: Partial<Omit<Task, 'id' | 
     if (!sanitized.title) throw new Error('任務名稱不可空白');
   }
 
+  const existing = await getTaskById(id);
+  if (!existing) throw new Error('找不到任務');
+  const proposed: Task = { ...existing, ...sanitized };
+  await scheduleTaskReminder(proposed);
+
   const db = await getDb();
   const fields = Object.keys(sanitized) as (keyof typeof sanitized)[];
   if (fields.length === 0) return;
   const setClause = fields.map((f) => `${f} = ?`).join(', ');
   const values = fields.map((f) => sanitized[f] as string | number | null);
-  await db.runAsync(`UPDATE tasks SET ${setClause} WHERE id = ?`, [...values, id]);
+  try {
+    await db.runAsync(`UPDATE tasks SET ${setClause} WHERE id = ?`, [...values, id]);
+  } catch (error) {
+    await scheduleTaskReminder(existing).catch(() => {});
+    throw error;
+  }
   const task = await getTaskById(id);
   if (task) await syncCalendarBestEffort(task);
 }
@@ -112,6 +148,9 @@ export async function deleteTask(id: string): Promise<{ calendarRemoved: boolean
   }
   const db = await getDb();
   await db.runAsync('DELETE FROM tasks WHERE id = ?', [id]);
+  await cancelTaskReminder(id).catch(error => {
+    console.error('[taskService] reminder cancellation failed:', error);
+  });
   return { calendarRemoved };
 }
 

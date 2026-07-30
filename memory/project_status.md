@@ -4,6 +4,17 @@
 
 ---
 
+## v0.4.77 — 任務時間與本機提醒（2026-07-30）
+
+- 新增 `expo-notifications 55.0.25` 與 Android 任務／工時通知頻道；本機提醒不依賴 Google 日曆或網路服務。
+- 任務 schema 新增 `due_time`、`reminder_minutes`，建立與編輯支援時間快捷及準時／10 分／30 分／1 小時前提醒。
+- 任務提醒以固定 ID 管理，建立、修改、完成、取消完成與刪除均同步排程或取消；通知點擊可直達任務詳情。
+- 上班打卡依標準工時加一小時安排尚未下班提醒，下班、完整補登或刪除時取消；通知點擊直達工時頁。
+- SQLite 最新版為 v6；備份 schema v4 並將舊備份任務的新增欄位正規化為 `null`。
+- TypeScript、Expo config、diff check 與 arm64 release build 通過；`0.4.77 (77)` 已覆蓋安裝 Pixel 8a，通知權限宣告與兩個頻道存在，冷啟動正常且未命中 fatal error。
+
+---
+
 ## v0.4.76 — 日曆動畫偶發閃爍修正（2026-07-30）
 
 - 工作區轉場改為單一 `WorkspaceTransition` 狀態，原子地保存唯一序號、來源、目標及該次專用的 `Animated.Value`。

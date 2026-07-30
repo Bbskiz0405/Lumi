@@ -27,6 +27,14 @@ const PRIORITY_OPTIONS: { value: Priority; label: string }[] = [
   { value: 'low', label: '低' },
 ];
 
+const REMINDER_OPTIONS: { value: number | null; label: string }[] = [
+  { value: null, label: '不提醒' },
+  { value: 0, label: '準時' },
+  { value: 10, label: '10 分前' },
+  { value: 30, label: '30 分前' },
+  { value: 60, label: '1 小時前' },
+];
+
 function relativeDate(days: number): string {
   const date = new Date();
   date.setDate(date.getDate() + days);
@@ -36,10 +44,15 @@ function relativeDate(days: number): string {
 export default function TaskForm({ initialValues, onSubmit, onCancel, submitLabel = '新增' }: Props) {
   const [title, setTitle] = useState(initialValues?.title ?? '');
   const [dueDate, setDueDate] = useState(initialValues?.due_date ?? '');
+  const [dueTime, setDueTime] = useState(initialValues?.due_time ?? '');
+  const [reminderMinutes, setReminderMinutes] = useState<number | null>(
+    initialValues?.reminder_minutes ?? null
+  );
   const [priority, setPriority] = useState<Priority>(initialValues?.priority ?? 'medium');
   const [tag, setTag] = useState<TaskTag | null>(initialValues?.tag ?? null);
   const [titleError, setTitleError] = useState('');
   const [dateError, setDateError] = useState('');
+  const [timeError, setTimeError] = useState('');
   const [submitError, setSubmitError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [customTags, setCustomTags] = useState<string[]>([]);
@@ -121,6 +134,13 @@ export default function TaskForm({ initialValues, onSubmit, onCancel, submitLabe
     return isValidLocalDateString(value);
   }
 
+  function validateTime(value: string): boolean {
+    if (!value) return true;
+    if (!/^\d{2}:\d{2}$/.test(value)) return false;
+    const [hour, minute] = value.split(':').map(Number);
+    return hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59;
+  }
+
   async function handleSubmit() {
     if (submitting) return;
     let valid = true;
@@ -128,6 +148,26 @@ export default function TaskForm({ initialValues, onSubmit, onCancel, submitLabe
     else setTitleError('');
     if (dueDate && !validateDate(dueDate)) { setDateError('請輸入有效日期（YYYY-MM-DD）'); valid = false; }
     else setDateError('');
+    if (dueTime && !dueDate) {
+      setTimeError('設定時間前請先選擇日期');
+      valid = false;
+    } else if (!validateTime(dueTime)) {
+      setTimeError('時間請使用 HH:mm');
+      valid = false;
+    } else if (reminderMinutes !== null && !dueTime) {
+      setTimeError('設定提醒前請先填寫任務時間');
+      valid = false;
+    } else if (
+      reminderMinutes !== null &&
+      dueDate &&
+      dueTime &&
+      new Date(`${dueDate}T${dueTime}:00`).getTime() - reminderMinutes * 60000 <= Date.now()
+    ) {
+      setTimeError('提醒時間已經過了，請調整日期、時間或提前量');
+      valid = false;
+    } else {
+      setTimeError('');
+    }
     if (!valid) return;
 
     setSubmitting(true);
@@ -136,6 +176,8 @@ export default function TaskForm({ initialValues, onSubmit, onCancel, submitLabe
       await onSubmit({
         title: title.trim(),
         due_date: dueDate || null,
+        due_time: dueTime || null,
+        reminder_minutes: reminderMinutes,
         priority,
         tag,
         source: 'manual',
@@ -181,6 +223,11 @@ export default function TaskForm({ initialValues, onSubmit, onCancel, submitLabe
             onPress={() => {
               setDueDate(option.value);
               setDateError('');
+              if (!option.value) {
+                setDueTime('');
+                setReminderMinutes(null);
+                setTimeError('');
+              }
             }}
           >
             <Text style={[
@@ -192,6 +239,61 @@ export default function TaskForm({ initialValues, onSubmit, onCancel, submitLabe
           </TouchableOpacity>
         ))}
       </View>
+
+      <Text style={styles.sectionLabel}>時間與提醒（選填）</Text>
+      <TextInput
+        style={[styles.input, !!timeError && styles.inputError]}
+        value={dueTime}
+        onChangeText={value => {
+          setDueTime(value);
+          setTimeError('');
+          if (!value) setReminderMinutes(null);
+        }}
+        placeholder="任務時間 (HH:mm)"
+        placeholderTextColor="#444"
+        keyboardType={Platform.OS === 'android' ? 'numeric' : 'numbers-and-punctuation'}
+        maxLength={5}
+      />
+      <View style={styles.timeQuickRow}>
+        {['09:00', '12:00', '18:00', '21:00'].map(value => (
+          <TouchableOpacity
+            key={value}
+            style={[styles.timeQuick, dueTime === value && styles.timeQuickActive]}
+            onPress={() => {
+              if (!dueDate) setDueDate(relativeDate(0));
+              setDueTime(value);
+              setTimeError('');
+            }}
+          >
+            <Text style={[styles.timeQuickText, dueTime === value && styles.timeQuickTextActive]}>
+              {value}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      <View style={styles.reminderRow}>
+        {REMINDER_OPTIONS.map(option => (
+          <TouchableOpacity
+            key={option.label}
+            style={[
+              styles.reminderOption,
+              reminderMinutes === option.value && styles.reminderOptionActive,
+            ]}
+            onPress={() => {
+              setReminderMinutes(option.value);
+              setTimeError('');
+            }}
+          >
+            <Text style={[
+              styles.reminderText,
+              reminderMinutes === option.value && styles.reminderTextActive,
+            ]}>
+              {option.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      {!!timeError && <Text style={styles.errorText}>{timeError}</Text>}
 
       <Text style={styles.sectionLabel}>優先度</Text>
       <View style={styles.segRow}>
@@ -311,6 +413,32 @@ const styles = StyleSheet.create({
   dateQuickActive: { borderColor: '#59616A', backgroundColor: '#1A1D20' },
   dateQuickText: { color: '#697078', fontSize: 11 },
   dateQuickTextActive: { color: '#D6DADF' },
+  timeQuickRow: { flexDirection: 'row', gap: 6, marginTop: -2, marginBottom: 8 },
+  timeQuick: {
+    minHeight: 29,
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#303438',
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timeQuickActive: { borderColor: '#71808D', backgroundColor: '#1A1D20' },
+  timeQuickText: { color: '#697078', fontSize: 10 },
+  timeQuickTextActive: { color: '#D6DADF' },
+  reminderRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 },
+  reminderOption: {
+    minHeight: 30,
+    borderWidth: 1,
+    borderColor: '#303438',
+    borderRadius: 6,
+    paddingHorizontal: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reminderOptionActive: { borderColor: '#88AAFF', backgroundColor: '#17202B' },
+  reminderText: { color: '#697078', fontSize: 10 },
+  reminderTextActive: { color: '#AFC6FF' },
   sectionLabel: { color: '#555', fontSize: 12, letterSpacing: 1, marginBottom: 8, marginTop: 4 },
   segRow: { flexDirection: 'row', marginBottom: 4 },
   seg: {

@@ -1,8 +1,8 @@
 import { getDb, LATEST_DATABASE_VERSION } from './db';
 
 export const BACKUP_FORMAT = 'lumi-backup';
-export const BACKUP_SCHEMA_VERSION = 3;
-export const BACKUP_APP_VERSION = '0.4.76';
+export const BACKUP_SCHEMA_VERSION = 4;
+export const BACKUP_APP_VERSION = '0.4.77';
 
 type SqlValue = string | number | null;
 type BackupRow = Record<string, SqlValue>;
@@ -71,6 +71,8 @@ const TABLES: TableSpec[] = [
       'entry_id',
       'title',
       'due_date',
+      'due_time',
+      'reminder_minutes',
       'priority',
       'tag',
       'source',
@@ -183,6 +185,14 @@ function parseBackup(value: unknown): LumiBackup {
   }
   if (value.schemaVersion <= 2 && !Array.isArray(value.data.work_records)) {
     value.data.work_records = [];
+  }
+  if (value.schemaVersion <= 3 && Array.isArray(value.data.tasks)) {
+    value.data.tasks.forEach(task => {
+      if (isObject(task)) {
+        task.due_time = null;
+        task.reminder_minutes = null;
+      }
+    });
   }
 
   for (const table of TABLES) {

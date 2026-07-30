@@ -33,6 +33,8 @@ export default function TaskDetailScreen() {
   async function handleUpdate(input: CreateTaskInput) {
     if (!task) return;
     await updateTask(task.id, {
+      due_time: input.due_time ?? null,
+      reminder_minutes: input.reminder_minutes ?? null,
       title: input.title,
       due_date: input.due_date,
       priority: input.priority,
@@ -41,6 +43,8 @@ export default function TaskDetailScreen() {
     const updated = await getTaskById(task.id).catch(() => null);
     setTask(updated ?? {
       ...task,
+      due_time: input.due_time ?? null,
+      reminder_minutes: input.reminder_minutes ?? null,
       title: input.title,
       due_date: input.due_date,
       priority: input.priority,
@@ -142,7 +146,22 @@ export default function TaskDetailScreen() {
         {task.due_date && (
           <View style={styles.row}>
             <Text style={styles.rowLabel}>截止日期</Text>
-            <Text style={styles.rowValue}>{task.due_date}</Text>
+            <Text style={styles.rowValue}>
+              {task.due_date}{task.due_time ? ` ${task.due_time}` : ''}
+            </Text>
+          </View>
+        )}
+
+        {task.reminder_minutes !== null && (
+          <View style={styles.row}>
+            <Text style={styles.rowLabel}>提醒</Text>
+            <Text style={styles.rowValue}>
+              {task.reminder_minutes === 0
+                ? '準時'
+                : task.reminder_minutes < 60
+                  ? `提前 ${task.reminder_minutes} 分鐘`
+                  : `提前 ${task.reminder_minutes / 60} 小時`}
+            </Text>
           </View>
         )}
 

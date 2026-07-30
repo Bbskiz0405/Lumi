@@ -3,7 +3,7 @@
     "name": "Lumi",
     "slug": "lumi",
     "scheme": "lumi",
-    "version": "0.4.76",
+    "version": "0.4.77",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "ios": {
@@ -22,6 +22,7 @@
       "expo-sqlite",
       "expo-secure-store",
       "expo-sharing",
+      "expo-notifications",
       [
         "expo-calendar",
         {

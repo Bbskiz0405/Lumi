@@ -7,6 +7,8 @@ export interface Task {
   entry_id: string | null;
   title: string;
   due_date: string | null;
+  due_time: string | null;
+  reminder_minutes: number | null;
   priority: Priority;
   tag: TaskTag | null;
   source: TaskSource;
@@ -14,6 +16,11 @@ export interface Task {
   created_at: string;
 }
 
-export type CreateTaskInput = Omit<Task, 'id' | 'created_at' | 'completed'> & {
+export type CreateTaskInput = Omit<
+  Task,
+  'id' | 'created_at' | 'completed' | 'due_time' | 'reminder_minutes'
+> & {
   completed?: number;
+  due_time?: string | null;
+  reminder_minutes?: number | null;
 };

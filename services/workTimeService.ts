@@ -7,6 +7,10 @@ import {
   WorkRecordMetrics,
 } from '../types/workTime';
 import { toLocalDateString } from '../utils/date';
+import {
+  cancelWorkClockOutReminder,
+  scheduleWorkClockOutReminder,
+} from './notificationService';
 
 const DEFAULT_TARGET_MINUTES = 8 * 60;
 
@@ -112,6 +116,9 @@ export async function clockIn(date: Date = new Date()): Promise<WorkRecord> {
       record.updated_at,
     ]
   );
+  await scheduleWorkClockOutReminder(record).catch(error => {
+    console.error('[workTimeService] clock-out reminder failed:', error);
+  });
   return record;
 }
 
@@ -131,6 +138,9 @@ export async function clockOut(id: string, date: Date = new Date()): Promise<Wor
     'UPDATE work_records SET clock_out = ?, updated_at = ? WHERE id = ?',
     [date.toISOString(), nowISO(), id]
   );
+  await cancelWorkClockOutReminder(id).catch(error => {
+    console.error('[workTimeService] clock-out reminder cancellation failed:', error);
+  });
   return (await getWorkRecordForDate(record.work_date)) ?? record;
 }
 
@@ -185,10 +195,18 @@ export async function saveWorkRecord(
   );
   const saved = await getWorkRecordForDate(input.work_date);
   if (!saved) throw new Error('工時紀錄儲存失敗');
+  if (saved.clock_out) {
+    await cancelWorkClockOutReminder(saved.id).catch(() => {});
+  } else {
+    await scheduleWorkClockOutReminder(saved).catch(error => {
+      console.error('[workTimeService] clock-out reminder failed:', error);
+    });
+  }
   return saved;
 }
 
 export async function deleteWorkRecord(id: string): Promise<void> {
   const db = await getDb();
   await db.runAsync('DELETE FROM work_records WHERE id = ?', [id]);
+  await cancelWorkClockOutReminder(id).catch(() => {});
 }
