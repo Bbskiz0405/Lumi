@@ -17,6 +17,7 @@ import { getCalendarEventsForRange } from '../../../services/calendarIntegration
 import { getLumiEventsForMonth } from '../../../services/calendarEventService';
 import { getWorkDateStatusMap } from '../../../services/workTimeService';
 import { WorkDateStatus } from '../../../types/workTime';
+import { useForegroundRefresh } from '../../../hooks/useForegroundRefresh';
 
 const { Navigator } = createMaterialTopTabNavigator();
 const MaterialTopTabs = withLayoutContext(Navigator);
@@ -47,8 +48,10 @@ function PersistentCalendar({
   const [taskPriorityMap, setTaskPriorityMap] = useState<Map<string, 'high' | 'medium' | 'low'>>(new Map());
   const [taskTagMap, setTaskTagMap] = useState<Map<string, string>>(new Map());
   const { year, month, refreshKey } = useCalendar();
+  const dateLoadRequestId = useRef(0);
 
   const loadDates = useCallback(async () => {
+    const requestId = ++dateLoadRequestId.current;
     const m = `${year}-${String(month + 1).padStart(2, '0')}`;
     try {
       const rangeStart = new Date(year, month, 1);
@@ -62,6 +65,7 @@ function PersistentCalendar({
         getLumiEventsForMonth(year, month),
         getWorkDateStatusMap(m),
       ]);
+      if (requestId !== dateLoadRequestId.current) return;
       setTaskDates(new Set(taskList));
       setTaskPriorityMap(priorityMap);
       setTaskTagMap(tagMap);
@@ -81,6 +85,10 @@ function PersistentCalendar({
   useEffect(() => {
     loadDates();
   }, [loadDates]);
+
+  useForegroundRefresh(() => {
+    void loadDates();
+  });
 
   return (
     <View style={{ backgroundColor: '#0F0F0F' }}>

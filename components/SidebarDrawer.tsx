@@ -28,6 +28,15 @@ interface ReleaseEntry {
 
 const RELEASES: ReleaseEntry[] = [
   {
+    version: '0.4.78',
+    date: '2026-07-30',
+    notes: [
+      '修正從 Google 行事曆切回 Lumi 後，外部行程可能仍停在上一次同步結果',
+      '回到前景後會短暫自動複查，涵蓋 Android 日曆資料稍晚寫入的情況',
+      '避免較慢的舊查詢覆蓋最新結果，日期標點與當日行程會一起更新',
+    ],
+  },
+  {
     version: '0.4.77',
     date: '2026-07-30',
     notes: [
@@ -275,7 +284,7 @@ const RELEASES: ReleaseEntry[] = [
   },
 ];
 
-const VERSION = '0.4.77';
+const VERSION = '0.4.78';
 const GITHUB_URL = 'https://github.com/Bbskiz0405/Lumi';
 
 interface Props {

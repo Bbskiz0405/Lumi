@@ -4,6 +4,7 @@ import {
   TouchableOpacity, Modal, Alert,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { useIsFocused } from '@react-navigation/native';
 import TaskCard from '../../../components/tasks/TaskCard';
 import TaskForm from '../../../components/tasks/TaskForm';
 import CalendarEventForm from '../../../components/calendar/CalendarEventForm';
@@ -30,11 +31,13 @@ import {
   getLumiEventsForDate,
   updateLumiEvent,
 } from '../../../services/calendarEventService';
+import { useForegroundRefresh } from '../../../hooks/useForegroundRefresh';
 
 type SourceFilter = 'all' | 'tasks' | 'calendar';
 
 export default function CalendarScreen() {
   const router = useRouter();
+  const isFocused = useIsFocused();
   const { selectedDate, bumpRefresh } = useCalendar();
 
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -50,6 +53,7 @@ export default function CalendarScreen() {
   const [editingEvent, setEditingEvent] = useState<LumiCalendarEvent | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [calendarLoadError, setCalendarLoadError] = useState(false);
+  const dayLoadRequestId = useRef(0);
 
   async function retryLoad() {
     setLoading(true);
@@ -71,9 +75,10 @@ export default function CalendarScreen() {
       if (!hasLoaded.current) setLoading(true);
       setLoadError(false);
       setCalendarLoadError(false);
+      const requestId = ++dayLoadRequestId.current;
       getDayData(selectedDate)
         .then(({ taskData, eventData, lumiEventData, externalLoadFailed }) => {
-          if (!active) return;
+          if (!active || requestId !== dayLoadRequestId.current) return;
           setTasks(taskData);
           setCalendarEvents(eventData);
           setLumiEvents(lumiEventData);
@@ -107,12 +112,20 @@ export default function CalendarScreen() {
   }
 
   async function loadDayData(date: string) {
+    const requestId = ++dayLoadRequestId.current;
     const { taskData, eventData, lumiEventData, externalLoadFailed } = await getDayData(date);
+    if (requestId !== dayLoadRequestId.current) return;
     setTasks(taskData);
     setCalendarEvents(eventData);
     setLumiEvents(lumiEventData);
     setCalendarLoadError(externalLoadFailed);
   }
+
+  useForegroundRefresh(() => {
+    if (isFocused) {
+      void loadDayData(selectedDate).catch(() => setCalendarLoadError(true));
+    }
+  });
 
   async function handleToggle(id: string, completed: boolean) {
     try {
