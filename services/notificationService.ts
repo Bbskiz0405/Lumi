@@ -129,7 +129,8 @@ export async function scheduleWorkClockOutReminder(record: WorkRecord): Promise<
   await cancelWorkClockOutReminder(record.id);
   if (record.clock_out) return true;
   const triggerDate = new Date(
-    new Date(record.clock_in).getTime() + (record.target_minutes + 60) * 60000
+    new Date(record.clock_in).getTime() +
+      (record.target_minutes + record.break_minutes) * 60000
   );
   if (triggerDate.getTime() <= Date.now()) return false;
   if (!(await ensurePermission())) return false;

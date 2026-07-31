@@ -18,13 +18,16 @@ import {
   calculateWorkMetrics,
   clockIn,
   clockOut,
+  DEFAULT_WORK_PREFERENCES,
   deleteWorkRecord,
   getActiveWorkRecord,
+  getWorkPreferences,
   getWorkRecordForDate,
   getWorkRecordsForMonth,
+  saveWorkPreferences,
   saveWorkRecord,
 } from '../../../services/workTimeService';
-import { WorkRecord } from '../../../types/workTime';
+import { WorkPreferences, WorkRecord } from '../../../types/workTime';
 import { isValidLocalDateString, parseLocalDate, toLocalDateString } from '../../../utils/date';
 import TechIcon from '../../../components/ui/TechIcon';
 
@@ -38,6 +41,11 @@ function formatMinutes(minutes: number, signed = false): string {
   const sign = minutes < 0 ? '-' : signed && minutes > 0 ? '+' : '';
   const absolute = Math.abs(Math.round(minutes));
   return `${sign}${Math.floor(absolute / 60)}:${String(absolute % 60).padStart(2, '0')}`;
+}
+
+function formatWorkBalance(minutes: number): string {
+  if (minutes === 0) return '剛好達標';
+  return `${minutes > 0 ? '多 ' : '少 '}${formatMinutes(Math.abs(minutes))}`;
 }
 
 function parseDuration(value: string): number | null {
@@ -76,10 +84,14 @@ export default function WorkScreen() {
   const [busy, setBusy] = useState(false);
   const [tick, setTick] = useState(0);
   const [modalVisible, setModalVisible] = useState(false);
+  const [settingsModalVisible, setSettingsModalVisible] = useState(false);
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('18:00');
-  const [breakMinutes, setBreakMinutes] = useState('0');
   const [targetTime, setTargetTime] = useState('8:00');
+  const [preferences, setPreferences] = useState<WorkPreferences>(DEFAULT_WORK_PREFERENCES);
+  const [defaultTargetTime, setDefaultTargetTime] = useState('8:00');
+  const [defaultBreakMinutes, setDefaultBreakMinutes] = useState('60');
+  const [settingsError, setSettingsError] = useState('');
   const [note, setNote] = useState('');
   const [formError, setFormError] = useState('');
 
@@ -90,14 +102,16 @@ export default function WorkScreen() {
     if (!silent) setLoading(true);
     setLoadError(false);
     try {
-      const [dayRecord, active, records] = await Promise.all([
+      const [dayRecord, active, records, workPreferences] = await Promise.all([
         getWorkRecordForDate(selectedDate),
         getActiveWorkRecord(),
         getWorkRecordsForMonth(monthKey),
+        getWorkPreferences(),
       ]);
       setRecord(dayRecord);
       setActiveRecord(active);
       setMonthRecords(records);
+      setPreferences(workPreferences);
     } catch {
       setLoadError(true);
     } finally {
@@ -124,8 +138,8 @@ export default function WorkScreen() {
     let completedDays = 0;
     for (const item of monthRecords) {
       const metrics = calculateWorkMetrics(item);
-      workedMinutes += metrics.workedMinutes;
       if (!metrics.active) {
+        workedMinutes += metrics.workedMinutes;
         balanceMinutes += metrics.balanceMinutes;
         completedDays += 1;
       }
@@ -143,11 +157,62 @@ export default function WorkScreen() {
         : '18:00';
     setStartTime(record ? formatClock(record.clock_in) : defaultStart);
     setEndTime(record?.clock_out ? formatClock(record.clock_out) : record ? '' : defaultEnd);
-    setBreakMinutes(String(record?.break_minutes ?? 0));
-    setTargetTime(formatMinutes(record?.target_minutes ?? 480));
+    setTargetTime(formatMinutes(record?.target_minutes ?? preferences.targetMinutes));
     setNote(record?.note ?? '');
     setFormError('');
     setModalVisible(true);
+  }
+
+  function openSettings() {
+    setDefaultTargetTime(formatMinutes(preferences.targetMinutes));
+    setDefaultBreakMinutes(String(preferences.breakMinutes));
+    setSettingsError('');
+    setSettingsModalVisible(true);
+  }
+
+  async function handleSaveSettings() {
+    if (busy) return;
+    const targetMinutes = parseDuration(defaultTargetTime);
+    const breakMinutes = Number(defaultBreakMinutes);
+    if (
+      targetMinutes === null ||
+      targetMinutes <= 0 ||
+      !Number.isFinite(breakMinutes) ||
+      breakMinutes < 0
+    ) {
+      setSettingsError('請輸入有效的標準工時與休息時間');
+      return;
+    }
+    if (targetMinutes + breakMinutes > 24 * 60) {
+      setSettingsError('標準工時加休息時間需在 24 小時內');
+      return;
+    }
+
+    setBusy(true);
+    setSettingsError('');
+    try {
+      const saved = await saveWorkPreferences({
+        targetMinutes,
+        breakMinutes: Math.round(breakMinutes),
+      });
+      if (activeRecord) {
+        await saveWorkRecord({
+          work_date: activeRecord.work_date,
+          clock_in: activeRecord.clock_in,
+          clock_out: null,
+          break_minutes: saved.breakMinutes,
+          target_minutes: saved.targetMinutes,
+          note: activeRecord.note,
+        }, activeRecord.id);
+      }
+      setPreferences(saved);
+      setSettingsModalVisible(false);
+      await load(true);
+    } catch (error) {
+      setSettingsError(error instanceof Error ? error.message : '儲存失敗，請稍後再試');
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function handleClockIn() {
@@ -215,10 +280,9 @@ export default function WorkScreen() {
       return;
     }
 
-    const breakValue = Number(breakMinutes);
     const targetMinutes = parseDuration(targetTime);
-    if (!Number.isFinite(breakValue) || breakValue < 0 || targetMinutes === null || targetMinutes <= 0) {
-      setFormError('休息分鐘與標準工時無效');
+    if (targetMinutes === null || targetMinutes <= 0) {
+      setFormError('標準工時無效');
       return;
     }
 
@@ -229,11 +293,6 @@ export default function WorkScreen() {
       if (end.getTime() <= start.getTime()) {
         end.setDate(end.getDate() + 1);
       }
-      const grossMinutes = Math.floor((end.getTime() - start.getTime()) / 60000);
-      if (breakValue > grossMinutes) {
-        setFormError('休息時間不可超過整段上班時間');
-        return;
-      }
     }
 
     setBusy(true);
@@ -243,7 +302,7 @@ export default function WorkScreen() {
         work_date: selectedDate,
         clock_in: start.toISOString(),
         clock_out: end?.toISOString() ?? null,
-        break_minutes: Math.round(breakValue),
+        break_minutes: record?.break_minutes ?? preferences.breakMinutes,
         target_minutes: targetMinutes,
         note: note.trim() || null,
       }, record?.id);
@@ -282,8 +341,31 @@ export default function WorkScreen() {
   const selectedMonth = Number(selectedDate.split('-')[1]);
   const selectedDay = Number(selectedDate.split('-')[2]);
   const progress = selectedMetrics && record
-    ? Math.min(100, (selectedMetrics.workedMinutes / record.target_minutes) * 100)
+    ? Math.min(
+        100,
+        selectedMetrics.active
+          ? (
+              Math.max(0, Date.now() - new Date(record.clock_in).getTime()) /
+              ((record.target_minutes + record.break_minutes) * 60000)
+            ) * 100
+          : (selectedMetrics.workedMinutes / record.target_minutes) * 100
+      )
     : 0;
+  const activeElapsedMinutes = activeRecord
+    ? Math.max(
+        0,
+        Math.floor((Date.now() - new Date(activeRecord.clock_in).getTime()) / 60000)
+      )
+    : null;
+  const activeRemainingMinutes = activeRecord && activeElapsedMinutes !== null
+    ? activeRecord.target_minutes + activeRecord.break_minutes - activeElapsedMinutes
+    : null;
+  const activeTargetTime = activeRecord
+    ? new Date(
+        new Date(activeRecord.clock_in).getTime() +
+          (activeRecord.target_minutes + activeRecord.break_minutes) * 60000
+      ).toISOString()
+    : null;
 
   if (loading) {
     return (
@@ -303,7 +385,11 @@ export default function WorkScreen() {
             <Text style={styles.activeTime}>
               {activeRecord.work_date} {formatClock(activeRecord.clock_in)} 開始
               {' · '}
-              已工作 {formatMinutes(calculateWorkMetrics(activeRecord).workedMinutes)}
+              {activeRemainingMinutes !== null && activeRemainingMinutes > 0
+                ? `預計 ${formatClock(activeTargetTime)} 達標，還有 ${formatMinutes(activeRemainingMinutes)}`
+                : activeRemainingMinutes === 0
+                  ? '已達標'
+                  : `已超過標準 ${formatMinutes(Math.abs(activeRemainingMinutes ?? 0))}`}
             </Text>
           </View>
           <TouchableOpacity
@@ -321,10 +407,19 @@ export default function WorkScreen() {
           <Text style={styles.dayTitle}>{selectedMonth}月{selectedDay}日</Text>
           <Text style={styles.dayHint}>{selectedDate === today ? '今天' : '工時紀錄'}</Text>
         </View>
-        <TouchableOpacity style={styles.editButton} onPress={openForm}>
-          <TechIcon name={record ? 'settings' : 'plus'} size={15} color="#9BA3AB" />
-          <Text style={styles.editButtonText}>{record ? '編輯' : '補登'}</Text>
-        </TouchableOpacity>
+        <View style={styles.headingActions}>
+          <TouchableOpacity style={styles.policyButton} onPress={openSettings}>
+            <Text style={styles.policyButtonText}>
+              標準 {formatMinutes(preferences.targetMinutes)}
+              {' · '}
+              休 {formatMinutes(preferences.breakMinutes)}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.editButton} onPress={openForm}>
+            <TechIcon name={record ? 'settings' : 'plus'} size={15} color="#9BA3AB" />
+            <Text style={styles.editButtonText}>{record ? '編輯' : '補登'}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {loadError ? (
@@ -355,23 +450,29 @@ export default function WorkScreen() {
           <View style={styles.metricGrid}>
             <View style={styles.metric}>
               <Text style={styles.metricLabel}>實際工時</Text>
-              <Text style={styles.metricValue}>{formatMinutes(selectedMetrics.workedMinutes)}</Text>
+              <Text style={styles.metricValue}>
+                {selectedMetrics.active
+                  ? '下班後結算'
+                  : formatMinutes(selectedMetrics.workedMinutes)}
+              </Text>
             </View>
             <View style={styles.metric}>
-              <Text style={styles.metricLabel}>休息</Text>
-              <Text style={styles.metricValue}>{record.break_minutes} 分</Text>
+              <Text style={styles.metricLabel}>固定休息</Text>
+              <Text style={styles.metricValue}>{formatMinutes(record.break_minutes)}</Text>
             </View>
             <View style={styles.metric}>
               <Text style={styles.metricLabel}>標準</Text>
               <Text style={styles.metricValue}>{formatMinutes(record.target_minutes)}</Text>
             </View>
             <View style={styles.metric}>
-              <Text style={styles.metricLabel}>差額</Text>
+              <Text style={styles.metricLabel}>工時結餘</Text>
               <Text style={[
                 styles.metricValue,
                 selectedMetrics.balanceMinutes < 0 ? styles.negative : styles.positive,
               ]}>
-                {selectedMetrics.active ? '計算中' : formatMinutes(selectedMetrics.balanceMinutes, true)}
+                {selectedMetrics.active
+                  ? '計算中'
+                  : formatWorkBalance(selectedMetrics.balanceMinutes)}
               </Text>
             </View>
           </View>
@@ -406,24 +507,131 @@ export default function WorkScreen() {
         </View>
         <View style={styles.monthDivider} />
         <View style={styles.monthMetric}>
-          <Text style={styles.monthValue}>{formatMinutes(monthSummary.workedMinutes)}</Text>
-          <Text style={styles.monthLabel}>累計工時</Text>
+          <Text style={styles.monthValue}>
+            {monthSummary.completedDays > 0
+              ? formatMinutes(monthSummary.workedMinutes)
+              : '—'}
+          </Text>
+          <Text style={styles.monthLabel}>已結算工時</Text>
         </View>
         <View style={styles.monthDivider} />
         <View style={styles.monthMetric}>
           <Text style={[
             styles.monthValue,
-            monthSummary.balanceMinutes < 0 ? styles.negative : styles.positive,
+            monthSummary.completedDays > 0 && (
+              monthSummary.balanceMinutes < 0 ? styles.negative : styles.positive
+            ),
           ]}>
-            {formatMinutes(monthSummary.balanceMinutes, true)}
+            {monthSummary.completedDays > 0
+              ? formatWorkBalance(monthSummary.balanceMinutes)
+              : '尚未結算'}
           </Text>
-          <Text style={styles.monthLabel}>累計差額</Text>
+          <Text style={styles.monthLabel}>本月工時結餘</Text>
         </View>
       </View>
 
       <Text style={styles.disclaimer}>
-        工時差額依每筆設定的標準工時計算；薪資與法定加班費尚未納入。
+        工時結餘＝實際工時－當日標準工時，不等同加班費或薪資。
       </Text>
+
+      <Modal
+        visible={settingsModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSettingsModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={styles.settingsModalCard}>
+            <Text style={styles.modalTitle}>工時設定</Text>
+            <Text style={styles.settingsDescription}>
+              設定每日有效工時與固定休息；會套用到目前上班中與之後的紀錄。
+            </Text>
+
+            <Text style={styles.formLabel}>每日標準工時</Text>
+            <TextInput
+              style={styles.input}
+              value={defaultTargetTime}
+              onChangeText={setDefaultTargetTime}
+              placeholder="8:00"
+              placeholderTextColor="#50565C"
+              keyboardType="numbers-and-punctuation"
+            />
+            <View style={styles.targetChoices}>
+              {['7:00', '7:30', '8:00', '8:30', '9:00'].map(value => (
+                <TouchableOpacity
+                  key={value}
+                  style={[
+                    styles.targetChoice,
+                    defaultTargetTime === value && styles.targetChoiceActive,
+                  ]}
+                  onPress={() => setDefaultTargetTime(value)}
+                >
+                  <Text style={[
+                    styles.targetChoiceText,
+                    defaultTargetTime === value && styles.targetChoiceTextActive,
+                  ]}>
+                    {value}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={styles.formLabel}>固定休息分鐘</Text>
+            <TextInput
+              style={styles.input}
+              value={defaultBreakMinutes}
+              onChangeText={setDefaultBreakMinutes}
+              placeholder="60"
+              placeholderTextColor="#50565C"
+              keyboardType="number-pad"
+            />
+            <View style={styles.targetChoices}>
+              {[0, 30, 60, 90].map(value => {
+                const selected = defaultBreakMinutes === String(value);
+                return (
+                  <TouchableOpacity
+                    key={value}
+                    style={[styles.targetChoice, selected && styles.targetChoiceActive]}
+                    onPress={() => setDefaultBreakMinutes(String(value))}
+                  >
+                    <Text style={[
+                      styles.targetChoiceText,
+                      selected && styles.targetChoiceTextActive,
+                    ]}>
+                      {value === 0 ? '不扣除' : `${value} 分`}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <Text style={styles.policyExplanation}>
+              例如標準 8:00、休息 60 分，09:00 上班會在 18:00 達標；下班後有效工時會扣除 60 分。
+            </Text>
+
+            {!!settingsError && <Text style={styles.formError}>{settingsError}</Text>}
+
+            <View style={styles.settingsActions}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => setSettingsModalVisible(false)}
+                disabled={busy}
+              >
+                <Text style={styles.cancelText}>取消</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.saveButton, busy && styles.disabled]}
+                onPress={() => void handleSaveSettings()}
+                disabled={busy}
+              >
+                <Text style={styles.saveText}>{busy ? '儲存中…' : '儲存設定'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       <Modal
         visible={modalVisible}
@@ -436,95 +644,89 @@ export default function WorkScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>{record ? '編輯工時' : '補登工時'}</Text>
-            <Text style={styles.modalDate}>{selectedDate}</Text>
+            <ScrollView
+              contentContainerStyle={styles.modalContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={styles.modalTitle}>{record ? '編輯工時' : '補登工時'}</Text>
+              <Text style={styles.modalDate}>{selectedDate}</Text>
 
-            <View style={styles.formRow}>
-              <View style={styles.formField}>
-                <Text style={styles.formLabel}>上班</Text>
-                <TextInput
-                  style={styles.input}
-                  value={startTime}
-                  onChangeText={setStartTime}
-                  placeholder="09:00"
-                  placeholderTextColor="#50565C"
-                  keyboardType="numbers-and-punctuation"
-                />
+              <View style={styles.formRow}>
+                <View style={styles.formField}>
+                  <Text style={styles.formLabel}>上班</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={startTime}
+                    onChangeText={setStartTime}
+                    placeholder="09:00"
+                    placeholderTextColor="#50565C"
+                    keyboardType="numbers-and-punctuation"
+                  />
+                </View>
+                <View style={styles.formField}>
+                  <Text style={styles.formLabel}>下班</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={endTime}
+                    onChangeText={setEndTime}
+                    placeholder="留空表示進行中"
+                    placeholderTextColor="#50565C"
+                    keyboardType="numbers-and-punctuation"
+                  />
+                </View>
               </View>
-              <View style={styles.formField}>
-                <Text style={styles.formLabel}>下班</Text>
-                <TextInput
-                  style={styles.input}
-                  value={endTime}
-                  onChangeText={setEndTime}
-                  placeholder="留空表示進行中"
-                  placeholderTextColor="#50565C"
-                  keyboardType="numbers-and-punctuation"
-                />
-              </View>
-            </View>
-            <Text style={styles.overnightHint}>下班時間早於上班時間時，會自動視為隔天下班。</Text>
+              <Text style={styles.overnightHint}>下班時間早於上班時間時，會自動視為隔天下班。</Text>
 
-            <View style={styles.formRow}>
-              <View style={styles.formField}>
-                <Text style={styles.formLabel}>休息分鐘</Text>
-                <TextInput
-                  style={styles.input}
-                  value={breakMinutes}
-                  onChangeText={setBreakMinutes}
-                  placeholder="0"
-                  placeholderTextColor="#50565C"
-                  keyboardType="number-pad"
-                />
-              </View>
-              <View style={styles.formField}>
-                <Text style={styles.formLabel}>標準工時</Text>
-                <TextInput
-                  style={styles.input}
-                  value={targetTime}
-                  onChangeText={setTargetTime}
-                  placeholder="8:00"
-                  placeholderTextColor="#50565C"
-                  keyboardType="numbers-and-punctuation"
-                />
-              </View>
-            </View>
+              <Text style={styles.formLabel}>當日標準工時</Text>
+              <TextInput
+                style={styles.input}
+                value={targetTime}
+                onChangeText={setTargetTime}
+                placeholder="8:00"
+                placeholderTextColor="#50565C"
+                keyboardType="numbers-and-punctuation"
+              />
+              <Text style={styles.overnightHint}>
+                只調整 {selectedDate}；其他日期仍使用工時設定。
+              </Text>
 
-            <TextInput
-              style={[styles.input, styles.noteInput]}
-              value={note}
-              onChangeText={setNote}
-              placeholder="備註，例如請假、忘記打卡（選填）"
-              placeholderTextColor="#50565C"
-              multiline
-              textAlignVertical="top"
-            />
+              <TextInput
+                style={[styles.input, styles.noteInput]}
+                value={note}
+                onChangeText={setNote}
+                placeholder="備註，例如請假、忘記打卡（選填）"
+                placeholderTextColor="#50565C"
+                multiline
+                textAlignVertical="top"
+              />
 
-            {!!formError && <Text style={styles.formError}>{formError}</Text>}
+              {!!formError && <Text style={styles.formError}>{formError}</Text>}
 
-            <View style={styles.modalActions}>
-              {record ? (
-                <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-                  <Text style={styles.deleteText}>刪除</Text>
-                </TouchableOpacity>
-              ) : <View />}
-              <View style={styles.modalRight}>
-                <TouchableOpacity
-                  style={styles.cancelButton}
-                  onPress={() => setModalVisible(false)}
-                  disabled={busy}
-                >
-                  <Text style={styles.cancelText}>取消</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.saveButton, busy && styles.disabled]}
-                  onPress={() => void handleSave()}
-                  disabled={busy}
-                >
-                  <Text style={styles.saveText}>{busy ? '儲存中…' : '儲存'}</Text>
-                </TouchableOpacity>
+              <View style={styles.modalActions}>
+                {record ? (
+                  <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+                    <Text style={styles.deleteText}>刪除</Text>
+                  </TouchableOpacity>
+                ) : <View />}
+                <View style={styles.modalRight}>
+                  <TouchableOpacity
+                    style={styles.cancelButton}
+                    onPress={() => setModalVisible(false)}
+                    disabled={busy}
+                  >
+                    <Text style={styles.cancelText}>取消</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.saveButton, busy && styles.disabled]}
+                    onPress={() => void handleSave()}
+                    disabled={busy}
+                  >
+                    <Text style={styles.saveText}>{busy ? '儲存中…' : '儲存'}</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
+            </ScrollView>
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -568,6 +770,18 @@ const styles = StyleSheet.create({
   },
   dayTitle: { color: '#F0F2F4', fontSize: 17, fontWeight: '400' },
   dayHint: { color: '#59616A', fontSize: 10, marginTop: 3 },
+  headingActions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  policyButton: {
+    minHeight: 34,
+    borderWidth: 1,
+    borderColor: '#29343D',
+    backgroundColor: '#13181C',
+    borderRadius: 7,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  policyButtonText: { color: '#88AAFF', fontSize: 10 },
   editButton: {
     minHeight: 34,
     borderWidth: 1,
@@ -659,11 +873,39 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 16,
     borderWidth: 1,
     borderColor: '#30343A',
+    maxHeight: '88%',
+    overflow: 'hidden',
+  },
+  modalContent: {
+    padding: 18,
+    paddingBottom: 28,
+  },
+  settingsModalCard: {
+    backgroundColor: '#111315',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    borderWidth: 1,
+    borderColor: '#30343A',
     padding: 18,
     paddingBottom: 28,
   },
   modalTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: '400' },
   modalDate: { color: '#65707A', fontSize: 11, marginTop: 4, marginBottom: 16 },
+  settingsDescription: { color: '#626C75', fontSize: 11, lineHeight: 17, marginTop: 6, marginBottom: 16 },
+  targetChoices: { flexDirection: 'row', gap: 6, marginBottom: 16 },
+  targetChoice: {
+    flex: 1,
+    minHeight: 34,
+    borderWidth: 1,
+    borderColor: '#30363B',
+    borderRadius: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  targetChoiceActive: { borderColor: '#52749A', backgroundColor: '#172230' },
+  targetChoiceText: { color: '#707880', fontSize: 10 },
+  targetChoiceTextActive: { color: '#9DBFFF' },
+  policyExplanation: { color: '#59636C', fontSize: 10, lineHeight: 16, marginBottom: 15 },
   formRow: { flexDirection: 'row', gap: 10 },
   formField: { flex: 1 },
   formLabel: { color: '#646C74', fontSize: 10, marginBottom: 6 },
@@ -682,6 +924,7 @@ const styles = StyleSheet.create({
   noteInput: { minHeight: 72, paddingTop: 10 },
   formError: { color: '#D66F66', fontSize: 11, marginBottom: 10 },
   modalActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  settingsActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 4 },
   modalRight: { flexDirection: 'row', gap: 8 },
   deleteButton: { paddingHorizontal: 8, paddingVertical: 10 },
   deleteText: { color: '#C86A64', fontSize: 12 },

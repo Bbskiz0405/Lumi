@@ -25,4 +25,9 @@ export interface WorkRecordMetrics {
   active: boolean;
 }
 
+export interface WorkPreferences {
+  targetMinutes: number;
+  breakMinutes: number;
+}
+
 export type WorkDateStatus = 'active' | 'positive' | 'negative' | 'balanced';

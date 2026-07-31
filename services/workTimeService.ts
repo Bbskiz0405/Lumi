@@ -3,6 +3,7 @@ import { getDb } from './db';
 import {
   SaveWorkRecordInput,
   WorkDateStatus,
+  WorkPreferences,
   WorkRecord,
   WorkRecordMetrics,
 } from '../types/workTime';
@@ -13,6 +14,12 @@ import {
 } from './notificationService';
 
 const DEFAULT_TARGET_MINUTES = 8 * 60;
+const WORK_PREFERENCES_KEY = 'work_time_preferences';
+
+export const DEFAULT_WORK_PREFERENCES: WorkPreferences = {
+  targetMinutes: DEFAULT_TARGET_MINUTES,
+  breakMinutes: 60,
+};
 
 function nowISO(): string {
   return new Date().toISOString();
@@ -31,6 +38,60 @@ export function calculateWorkMetrics(
     balanceMinutes: workedMinutes - record.target_minutes,
     active: record.clock_out === null,
   };
+}
+
+export async function getWorkPreferences(): Promise<WorkPreferences> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ value: string }>(
+    'SELECT value FROM settings WHERE key = ?',
+    [WORK_PREFERENCES_KEY]
+  );
+  if (!row) return DEFAULT_WORK_PREFERENCES;
+
+  try {
+    const parsed = JSON.parse(row.value) as Partial<WorkPreferences>;
+    const targetMinutes = Number(parsed.targetMinutes);
+    const breakMinutes = parsed.breakMinutes === undefined
+      ? DEFAULT_WORK_PREFERENCES.breakMinutes
+      : Number(parsed.breakMinutes);
+    if (
+      !Number.isFinite(targetMinutes) ||
+      targetMinutes <= 0 ||
+      !Number.isFinite(breakMinutes) ||
+      breakMinutes < 0
+    ) {
+      return DEFAULT_WORK_PREFERENCES;
+    }
+    return {
+      targetMinutes: Math.round(targetMinutes),
+      breakMinutes: Math.round(breakMinutes),
+    };
+  } catch {
+    return DEFAULT_WORK_PREFERENCES;
+  }
+}
+
+export async function saveWorkPreferences(
+  preferences: WorkPreferences
+): Promise<WorkPreferences> {
+  if (
+    !Number.isFinite(preferences.targetMinutes) ||
+    preferences.targetMinutes <= 0 ||
+    !Number.isFinite(preferences.breakMinutes) ||
+    preferences.breakMinutes < 0
+  ) {
+    throw new Error('標準工時或休息時間無效');
+  }
+  const normalized: WorkPreferences = {
+    targetMinutes: Math.round(preferences.targetMinutes),
+    breakMinutes: Math.round(preferences.breakMinutes),
+  };
+  const db = await getDb();
+  await db.runAsync(
+    'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
+    [WORK_PREFERENCES_KEY, JSON.stringify(normalized)]
+  );
+  return normalized;
 }
 
 export async function getWorkRecordForDate(date: string): Promise<WorkRecord | null> {
@@ -86,15 +147,15 @@ export async function clockIn(date: Date = new Date()): Promise<WorkRecord> {
   if (existing?.clock_out === null) return existing;
   if (existing) throw new Error('今天已有完成的工時紀錄，請使用編輯調整');
 
-  const db = await getDb();
+  const [db, preferences] = await Promise.all([getDb(), getWorkPreferences()]);
   const now = nowISO();
   const record: WorkRecord = {
     id: Crypto.randomUUID(),
     work_date: workDate,
     clock_in: date.toISOString(),
     clock_out: null,
-    break_minutes: 0,
-    target_minutes: DEFAULT_TARGET_MINUTES,
+    break_minutes: preferences.breakMinutes,
+    target_minutes: preferences.targetMinutes,
     note: null,
     created_at: now,
     updated_at: now,
@@ -156,8 +217,8 @@ export async function saveWorkRecord(
   if (endMs !== null && endMs <= startMs) {
     throw new Error('下班時間必須晚於上班時間');
   }
-  if (input.break_minutes < 0 || input.target_minutes <= 0) {
-    throw new Error('休息與標準工時無效');
+  if (input.target_minutes <= 0 || input.break_minutes < 0) {
+    throw new Error('標準工時或休息時間無效');
   }
   if (
     endMs !== null &&
