@@ -1,14 +1,21 @@
-# LOG — 歷史紀錄歸檔（append-only，新紀錄加在檔案最下方）
+# LOG — 歷史紀錄歸檔（新條目加在「當前狀態」下方，由新到舊）
 
-> 唯一的「過去」。收工時把摘要 append 到本檔結尾，並覆寫 `STATUS.md`。
+> 唯一的「過去」。收工時把新條目加到最上方版本清單頂端，並覆寫 `STATUS.md`。
 > 重要決策用 `⭐定案：` 標籤（含理由）方便 grep。
 > 註：本檔由原 `daily_log.md` 遷入，尾端併入原 `project_status.md` 的早期 Phase 歸檔。
 
 ---
 
-## 當前狀態 (2026-07-30)
+## 當前狀態 (2026-07-31)
 
 **版號：0.4.81（標準工時＋固定休息制度）**
+
+### 日曆子頁記憶（未 bump 版號，2026-07-31）
+- 使用者回報：在日曆 tab 停在某子頁（行事曆／工時／財務）後離開再回來，底部「行事曆」鍵會硬把子頁重設回「行事曆」。
+- 根因：`app/(tabs)/_layout.tsx` 底部「行事曆」鍵寫死 `route: '/(calendar-finance)/calendar'`，每次點都 deep-link 回 calendar 子頁。
+- 修法：`CalendarContext` 新增 `lastWorkspace` 狀態；`(calendar-finance)/_layout.tsx` 子頁切換時 `setLastWorkspace`；底部「行事曆」鍵改導向 `/(calendar-finance)/${lastWorkspace}`（三子頁皆記憶）。
+- 已知行為：上次停「財務」時點「行事曆」會回到財務子頁，但因兩者同路由，底部亮的是「財務」鍵（內容正確，僅高亮）；狀態存記憶體，App 完全重啟回預設 calendar。
+- 環境備忘：本機建置路徑改用帳號 `user` 與 Microsoft OpenJDK 21（見 `ENVIRONMENT.md`）；arm64 release build 通過，`adb install -r` 已裝上 Pixel 8a，待使用者實測三子頁記憶。
 
 ### 0.4.81 — 標準工時＋固定休息制度（2026-07-31）
 - 使用者進一步確認休息應保留，但屬於公司制度而非每日輸入：例如標準 8 小時、固定休息 1 小時。

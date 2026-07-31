@@ -4,6 +4,7 @@ import { withLayoutContext, useRouter, usePathname } from 'expo-router';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { useSafeAreaInsets, SafeAreaView, EdgeInsets } from 'react-native-safe-area-context';
 import TechIcon, { TechIconName } from '../../components/ui/TechIcon';
+import { useCalendar } from '../../contexts/CalendarContext';
 
 const { Navigator } = createMaterialTopTabNavigator();
 const MaterialTopTabs = withLayoutContext(Navigator);
@@ -11,9 +12,11 @@ const MaterialTopTabs = withLayoutContext(Navigator);
 function CustomTabBar({ insets }: { insets: EdgeInsets }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { lastWorkspace } = useCalendar();
+  // 「行事曆」tab 記住上次停在的子頁（行事曆／工時／財務）。
   const tabs: { name: string; label: string; icon: TechIconName; route: string }[] = [
     { name: 'index', label: '首頁', icon: 'grid', route: '/' },
-    { name: 'calendar', label: '行事曆', icon: 'calendar', route: '/(calendar-finance)/calendar' },
+    { name: 'calendar', label: '行事曆', icon: 'calendar', route: `/(calendar-finance)/${lastWorkspace}` },
     { name: 'finance', label: '財務', icon: 'wallet', route: '/(calendar-finance)/finance' },
     { name: 'tasks', label: '任務', icon: 'check-square', route: '/tasks' },
     { name: 'notes', label: '筆記', icon: 'file-text', route: '/notes' },

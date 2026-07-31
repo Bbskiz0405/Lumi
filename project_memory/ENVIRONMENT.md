@@ -6,17 +6,20 @@
 
 ## 環境
 
-- adb 路徑：`C:\Users\Brayden\AppData\Local\Android\Sdk\platform-tools\adb.exe`
+> 本機（帳號 `user`）路徑；舊機器帳號為 `Brayden`，見 LOG 早期紀錄。
+- adb 路徑：`C:\Users\user\AppData\Local\Android\Sdk\platform-tools\adb.exe`
 - Build 前需在同一 PowerShell session 設定：
-  - `$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"`
-  - `$env:ANDROID_HOME = "C:\Users\Brayden\AppData\Local\Android\Sdk"`
-- `android\local.properties` 需寫入 `sdk.dir=C\:\\Users\\Brayden\\AppData\\Local\\Android\\Sdk`。
+  - `$env:JAVA_HOME = "C:\Program Files\Microsoft\jdk-21.0.11.10-hotspot"`（本機無 Android Studio jbr，用 Microsoft OpenJDK 21）
+  - `$env:ANDROID_HOME = "C:\Users\user\AppData\Local\Android\Sdk"`
+- `android\local.properties`：`sdk.dir=C\:\\Users\\user\\AppData\\Local\\Android\\Sdk`。
 
 ## 常用指令 SOP
 
 - 型別/檢查：`npm.cmd run check`（TypeScript）＋ Expo public config ＋ diff check。
-- Release build：arm64 release build（本地 Gradle，debug keystore 簽）。
-- 安裝到裝置：`adb install -r <apk>`（`-r` 保留資料覆蓋升級，因 keystore 相同）。目標機：Pixel 8a。
+- Release build（本地 Gradle，debug keystore 簽）：
+  `cd android; .\gradlew.bat assembleRelease -PreactNativeArchitectures=arm64-v8a --console=plain`
+  （限 arm64 加速；Pixel 8a 為 arm64。APK 產出 `android\app\build\outputs\apk\release\app-release.apk`）
+- 安裝到裝置：`adb install -r <apk>`（`-r` 保留資料覆蓋升級，因 keystore 相同）。目標機：Pixel 8a（`adb devices` 應見 `42231JEKB12273`）。
 
 ## 開發固定規則（原 CLAUDE.md）
 

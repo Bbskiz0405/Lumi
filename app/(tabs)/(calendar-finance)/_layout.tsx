@@ -286,6 +286,7 @@ function WorkspaceTab({
 }
 
 export default function CalendarFinanceLayout() {
+  const { setLastWorkspace } = useCalendar();
   const [workspaceTransition, setWorkspaceTransition] = useState<WorkspaceTransition>(() => ({
     id: 0,
     from: null,
@@ -297,6 +298,7 @@ export default function CalendarFinanceLayout() {
   const activeMarkerAnimation = useRef<Animated.CompositeAnimation | null>(null);
 
   const handleWorkspaceChange = useCallback((workspace: CalendarWorkspace) => {
+    setLastWorkspace(workspace);
     if (currentWorkspace.current === workspace) return;
     activeMarkerAnimation.current?.stop();
     const from = currentWorkspace.current;

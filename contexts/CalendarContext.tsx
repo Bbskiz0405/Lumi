@@ -1,11 +1,15 @@
 import React, { createContext, useContext, useRef, useState } from 'react';
 import { toLocalDateString } from '../utils/date';
 
+export type CalendarWorkspace = 'calendar' | 'work' | 'finance';
+
 interface CalendarState {
   year: number;
   month: number;
   selectedDate: string;
   refreshKey: number;
+  lastWorkspace: CalendarWorkspace;
+  setLastWorkspace: (w: CalendarWorkspace) => void;
   setYear: (y: number | ((prev: number) => number)) => void;
   setMonth: (m: number | ((prev: number) => number)) => void;
   setSelectedDate: (d: string) => void;
@@ -25,6 +29,7 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
   const [month, setMonth] = useState(today.getMonth());
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [lastWorkspace, setLastWorkspace] = useState<CalendarWorkspace>('calendar');
   const viewMonthRef = useRef({ year: today.getFullYear(), month: today.getMonth() });
 
   function moveMonth(offset: number) {
@@ -63,7 +68,7 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <CalendarContext.Provider value={{ year, month, selectedDate, refreshKey, setYear, setMonth, setSelectedDate, prevMonth, nextMonth, goToday, bumpRefresh }}>
+    <CalendarContext.Provider value={{ year, month, selectedDate, refreshKey, lastWorkspace, setLastWorkspace, setYear, setMonth, setSelectedDate, prevMonth, nextMonth, goToday, bumpRefresh }}>
       {children}
     </CalendarContext.Provider>
   );
