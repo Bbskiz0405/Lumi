@@ -3,22 +3,10 @@
 Expo 55 + React Native 0.83 + TypeScript + SQLite + Expo Router。Android 為主。
 
 PRD 完整規格：`Lumi_PRD.md`
-開發進度：`memory/`
+開發進度：`project_memory/`（STATUS=現在／LOG=過去／ENVIRONMENT=參考，架構說明見 `project_memory/README.md`）。
 
-每次對話開始先讀 `memory/daily_log.md` 取得當前狀態，需要歷史細節再讀 `memory/project_status.md`。
+開工先讀 `project_memory/STATUS.md` 照「下一步」執行；每完成一個階段就 append `project_memory/LOG.md` 並覆寫 `STATUS.md`；指令／路徑／踩坑／UI 規範查 `project_memory/ENVIRONMENT.md`，不憑記憶。
 
-## 固定規則
-- 不用 react-native-calendars，月曆自製 grid
-- `Crypto.randomUUID()` 同步，不需 await
-- Modal 一律 bottom sheet（justifyContent: 'flex-end'）
-- ID 用 `Crypto.randomUUID()`，時間用 `new Date().toISOString()`
-- `useFocusEffect + useCallback([dep])` 處理頁面重入 + 狀態變更
+## 開發規範與 UI
 
-## UI 色彩系統
-- 背景：`#0F0F0F`
-- 卡片：`#111111`，border `#1A1A1A`
-- 次要卡片/輸入：`#161616`，border `#2A2A2A`
-- 文字主：`#FFFFFF`，次：`#444444`，暗：`#333333`
-- 財務收入 accent：`#55DDAA`，支出：`#FF6655`
-- 任務 accent：`#FF9944`
-- fontWeight `'300'` 為主基調
+固定規則（不用 react-native-calendars 自製 grid、`Crypto.randomUUID()` 同步、Modal 一律 bottom sheet 等）、色彩系統、環境指令與踩坑，統一見 `project_memory/ENVIRONMENT.md`（單一事實來源）。
