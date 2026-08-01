@@ -7,6 +7,7 @@
 ## 環境
 
 > 本機（帳號 `user`）路徑；舊機器帳號為 `Brayden`，見 LOG 早期紀錄。
+- 2026-08-02 目前工作區位於帳號 `asus`；只偵測到 Java 8，`%LOCALAPPDATA%\Android\Sdk` 與既有 JDK 21 路徑皆不存在，不能直接沿用下列 `user` 機器的本地 Gradle SOP。建 APK 前需先確認／安裝 JDK 21 與 Android SDK，或使用可登入的 EAS build。
 - adb 路徑：`C:\Users\user\AppData\Local\Android\Sdk\platform-tools\adb.exe`
 - Build 前需在同一 PowerShell session 設定：
   - `$env:JAVA_HOME = "C:\Program Files\Microsoft\jdk-21.0.11.10-hotspot"`（本機無 Android Studio jbr，用 Microsoft OpenJDK 21）
@@ -41,3 +42,4 @@
 - Release APK 86.2 MB 為正常（4 ABI + Hermes + R8 minify）；比舊 debug 180 MB 小是因 R8 + .so 壓縮。
 - `gemini-1.5-flash` 已於 2025/09 從 v1beta 下架；`gemini-2.0-flash` free tier RPD 被砍極低 → 現用 `gemini-2.5-flash-lite`。
 - `MaterialCommunityIcons.ttf` 曾被刪導致 MCI icon 全變問號 → 改自製圓圈 + Unicode（`✓`/`↑`/`$`/`!`）。
+- 帳號與工作區搬到新電腦後不要照抄舊 `JAVA_HOME`／`ANDROID_HOME`：先用 `java -version`、`Test-Path $env:LOCALAPPDATA\Android\Sdk` 驗證；Java 8 無法建置目前 Expo 55 Android 專案。

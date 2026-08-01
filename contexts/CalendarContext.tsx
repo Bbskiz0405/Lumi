@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useRef, useState } from 'react';
 import { toLocalDateString } from '../utils/date';
 
-export type CalendarWorkspace = 'calendar' | 'work' | 'finance';
+export type CalendarWorkspace = 'calendar' | 'work';
 
 interface CalendarState {
   year: number;

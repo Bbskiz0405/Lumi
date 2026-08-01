@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import TransactionCard from '../../../components/finance/TransactionCard';
+import { useCalendarWorkspaceScroll } from '../../../contexts/CalendarWorkspaceScrollContext';
 import ExpensePieChart from '../../../components/finance/ExpensePieChart';
 import FinanceAdvisor from '../../../components/finance/FinanceAdvisor';
 import Calculator from '../../../components/finance/Calculator';
@@ -40,6 +41,7 @@ function toMonthStr(year: number, month: number): string {
 }
 
 export default function FinanceScreen() {
+  const { contentInset, onScroll } = useCalendarWorkspaceScroll();
   const { year, month, selectedDate, bumpRefresh } = useCalendar();
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -272,9 +274,14 @@ export default function FinanceScreen() {
   return (
     <View style={styles.safe}>
       {loading ? (
-        <View style={styles.center}><ActivityIndicator color="#FFFFFF" /></View>
+        <View style={[styles.center, { paddingTop: contentInset }]}><ActivityIndicator color="#FFFFFF" /></View>
       ) : (
-        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={[styles.scroll, { paddingTop: contentInset }]}
+          showsVerticalScrollIndicator={false}
+          onScroll={onScroll('finance')}
+          scrollEventThrottle={16}
+        >
           {/* Toolbar: mode toggle + action buttons */}
           <View style={styles.toolbar}>
             <View style={styles.modeRow}>

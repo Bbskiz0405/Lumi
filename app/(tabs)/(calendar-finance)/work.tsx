@@ -28,6 +28,7 @@ import {
   saveWorkRecord,
 } from '../../../services/workTimeService';
 import { WorkPreferences, WorkRecord } from '../../../types/workTime';
+import { useCalendarWorkspaceScroll } from '../../../contexts/CalendarWorkspaceScrollContext';
 import { isValidLocalDateString, parseLocalDate, toLocalDateString } from '../../../utils/date';
 import TechIcon from '../../../components/ui/TechIcon';
 
@@ -69,6 +70,7 @@ function isValidTime(value: string): boolean {
 }
 
 export default function WorkScreen() {
+  const { contentInset, onScroll } = useCalendarWorkspaceScroll();
   const {
     year,
     month,
@@ -369,14 +371,18 @@ export default function WorkScreen() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
+      <View style={[styles.center, { paddingTop: contentInset }]}>
         <ActivityIndicator color="#88AAFF" />
       </View>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView
+      contentContainerStyle={[styles.container, { paddingTop: contentInset }]}
+      onScroll={onScroll('work')}
+      scrollEventThrottle={16}
+    >
       {activeRecord && (
         <View style={styles.activeCard}>
           <View style={styles.activePulse} />

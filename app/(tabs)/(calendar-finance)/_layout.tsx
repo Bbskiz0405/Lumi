@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { Animated, Easing, View, StyleSheet, TouchableOpacity, Text } from 'react-native';
+import { Animated, Easing, View, StyleSheet, TouchableOpacity, Text, LayoutChangeEvent } from 'react-native';
 import { withLayoutContext } from 'expo-router';
 import {
   createMaterialTopTabNavigator,
@@ -18,6 +18,7 @@ import { getLumiEventsForMonth } from '../../../services/calendarEventService';
 import { getWorkDateStatusMap } from '../../../services/workTimeService';
 import { WorkDateStatus } from '../../../types/workTime';
 import { useForegroundRefresh } from '../../../hooks/useForegroundRefresh';
+import { CalendarWorkspaceScrollProvider } from '../../../contexts/CalendarWorkspaceScrollContext';
 
 const { Navigator } = createMaterialTopTabNavigator();
 const MaterialTopTabs = withLayoutContext(Navigator);
@@ -198,8 +199,12 @@ function SubTabBar({
   descriptors,
   navigation,
   onWorkspaceChange,
+  collapseOffset,
+  calendarHeight,
 }: MaterialTopTabBarProps & {
   onWorkspaceChange: (workspace: CalendarWorkspace) => void;
+  collapseOffset: Animated.AnimatedInterpolation<number>;
+  calendarHeight: number;
 }) {
   useEffect(() => {
     const routeName = state.routes[state.index]?.name;
@@ -209,7 +214,7 @@ function SubTabBar({
   }, [state.index, state.routes, onWorkspaceChange]);
 
   return (
-    <View style={styles.subTabBar}>
+    <Animated.View style={[styles.subTabBar, { top: calendarHeight, transform: [{ translateY: collapseOffset }] }]}>
       {state.routes.map((route, index) => {
         const { options } = descriptors[route.key];
         const label = options.title || route.name;
@@ -231,7 +236,7 @@ function SubTabBar({
           />
         );
       })}
-    </View>
+    </Animated.View>
   );
 }
 
@@ -296,9 +301,13 @@ export default function CalendarFinanceLayout() {
   const currentWorkspace = useRef<CalendarWorkspace>('calendar');
   const nextTransitionId = useRef(0);
   const activeMarkerAnimation = useRef<Animated.CompositeAnimation | null>(null);
+  const headerOffset = useRef(new Animated.Value(0)).current;
+  const offsets = useRef<Record<CalendarWorkspace, number>>({ calendar: 0, work: 0, finance: 0 });
+  const [calendarHeight, setCalendarHeight] = useState(0);
 
   const handleWorkspaceChange = useCallback((workspace: CalendarWorkspace) => {
-    setLastWorkspace(workspace);
+    if (workspace === 'calendar' || workspace === 'work') setLastWorkspace(workspace);
+    headerOffset.setValue(Math.min(offsets.current[workspace], calendarHeight));
     if (currentWorkspace.current === workspace) return;
     activeMarkerAnimation.current?.stop();
     const from = currentWorkspace.current;
@@ -310,7 +319,27 @@ export default function CalendarFinanceLayout() {
       to: workspace,
       progress: new Animated.Value(0),
     });
-  }, []);
+  }, [calendarHeight, headerOffset, setLastWorkspace]);
+
+  const handleCalendarLayout = useCallback((event: LayoutChangeEvent) => {
+    const nextHeight = event.nativeEvent.layout.height;
+    if (nextHeight > 0 && nextHeight !== calendarHeight) setCalendarHeight(nextHeight);
+  }, [calendarHeight]);
+
+  const scrollContext = React.useMemo(() => ({
+    contentInset: calendarHeight + 44,
+    onScroll: (workspace: CalendarWorkspace) => (event: any) => {
+      const offset = Math.max(0, event.nativeEvent.contentOffset.y);
+      offsets.current[workspace] = offset;
+      if (currentWorkspace.current === workspace) headerOffset.setValue(Math.min(offset, calendarHeight));
+    },
+  }), [calendarHeight, headerOffset]);
+
+  const calendarCollapse = headerOffset.interpolate({
+    inputRange: [0, Math.max(calendarHeight, 1)],
+    outputRange: [0, -calendarHeight],
+    extrapolate: 'clamp',
+  });
 
   const transitionId = workspaceTransition.id;
   const transitionProgress = workspaceTransition.progress;
@@ -336,15 +365,26 @@ export default function CalendarFinanceLayout() {
   }, [transitionId, transitionProgress]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#0F0F0F' }}>
-      <PersistentCalendar
-        workspace={workspaceTransition.to}
-        previousWorkspace={workspaceTransition.from}
-        markerTransition={workspaceTransition.progress}
-      />
-      <MaterialTopTabs
+    <CalendarWorkspaceScrollProvider value={scrollContext}>
+      <View style={{ flex: 1, backgroundColor: '#0F0F0F' }}>
+        <Animated.View
+          onLayout={handleCalendarLayout}
+          style={[styles.calendarHeader, { transform: [{ translateY: calendarCollapse }] }]}
+        >
+          <PersistentCalendar
+            workspace={workspaceTransition.to}
+            previousWorkspace={workspaceTransition.from}
+            markerTransition={workspaceTransition.progress}
+          />
+        </Animated.View>
+        <MaterialTopTabs
         tabBar={(props: MaterialTopTabBarProps) => (
-          <SubTabBar {...props} onWorkspaceChange={handleWorkspaceChange} />
+          <SubTabBar
+            {...props}
+            onWorkspaceChange={handleWorkspaceChange}
+            collapseOffset={calendarCollapse}
+            calendarHeight={calendarHeight}
+          />
         )}
         screenOptions={{
           swipeEnabled: true,
@@ -356,13 +396,19 @@ export default function CalendarFinanceLayout() {
         <MaterialTopTabs.Screen name="calendar" options={{ title: '行事曆' }} />
         <MaterialTopTabs.Screen name="work" options={{ title: '工時' }} />
         <MaterialTopTabs.Screen name="finance" options={{ title: '財務' }} />
-      </MaterialTopTabs>
-    </View>
+        </MaterialTopTabs>
+      </View>
+    </CalendarWorkspaceScrollProvider>
   );
 }
 
 const styles = StyleSheet.create({
   subTabBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 20,
     flexDirection: 'row',
     backgroundColor: '#0F0F0F',
     height: 44,
@@ -370,6 +416,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderBottomWidth: 1,
     borderBottomColor: '#252525',
+  },
+  calendarHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
   },
   subTabItem: {
     height: 44,

@@ -8,6 +8,7 @@ import { useIsFocused } from '@react-navigation/native';
 import TaskCard from '../../../components/tasks/TaskCard';
 import TaskForm from '../../../components/tasks/TaskForm';
 import CalendarEventForm from '../../../components/calendar/CalendarEventForm';
+import { useCalendarWorkspaceScroll } from '../../../contexts/CalendarWorkspaceScrollContext';
 import IconButton from '../../../components/ui/IconButton';
 import TechIcon from '../../../components/ui/TechIcon';
 import { useCalendar } from '../../../contexts/CalendarContext';
@@ -36,6 +37,7 @@ import { useForegroundRefresh } from '../../../hooks/useForegroundRefresh';
 type SourceFilter = 'all' | 'tasks' | 'calendar';
 
 export default function CalendarScreen() {
+  const { contentInset, onScroll } = useCalendarWorkspaceScroll();
   const router = useRouter();
   const isFocused = useIsFocused();
   const { selectedDate, bumpRefresh } = useCalendar();
@@ -271,43 +273,44 @@ export default function CalendarScreen() {
 
   return (
     <View style={styles.safe}>
-      <View style={styles.daySection}>
-        <Text style={styles.dayLabel}>
-          {dateMonth}月{dateDay}日
-          {selectedDate === todayStr ? '  今天' : ''}
-        </Text>
-        <View style={styles.dayActions}>
-          <IconButton
-            icon="calendar"
-            label="日曆連動設定"
-            onPress={() => router.push('/calendar-settings')}
-            color="#8A929A"
-            size={32}
-            iconSize={16}
-          />
-          <IconButton
-            icon="plus"
-            label={`新增 ${dateMonth} 月 ${dateDay} 日的任務或行程`}
-            onPress={() => setCreateMenuVisible(true)}
-            color="#FFFFFF"
-            size={32}
-            iconSize={17}
-          />
-        </View>
-      </View>
-
       {loading ? (
-        <View style={styles.center}>
+        <View style={[styles.center, { paddingTop: contentInset }]}>
           <ActivityIndicator color="#FFFFFF" />
         </View>
       ) : (
         <FlatList
           data={visibleTasks}
           keyExtractor={item => item.id}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingTop: contentInset }]}
+          onScroll={onScroll('calendar')}
+          scrollEventThrottle={16}
           ItemSeparatorComponent={() => <View style={{ height: 2 }} />}
           ListHeaderComponent={
             <View>
+              <View style={styles.daySection}>
+                <Text style={styles.dayLabel}>
+                  {dateMonth}月{dateDay}日
+                  {selectedDate === todayStr ? '  今天' : ''}
+                </Text>
+                <View style={styles.dayActions}>
+                  <IconButton
+                    icon="calendar"
+                    label="日曆連動設定"
+                    onPress={() => router.push('/calendar-settings')}
+                    color="#8A929A"
+                    size={32}
+                    iconSize={16}
+                  />
+                  <IconButton
+                    icon="plus"
+                    label={`新增 ${dateMonth} 月 ${dateDay} 日的任務或行程`}
+                    onPress={() => setCreateMenuVisible(true)}
+                    color="#FFFFFF"
+                    size={32}
+                    iconSize={17}
+                  />
+                </View>
+              </View>
               {calendarLoadError && (
                 <View style={styles.calendarWarning}>
                   <View style={styles.calendarWarningCopy}>
