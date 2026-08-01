@@ -16,7 +16,7 @@
 - 共用月曆改為可折疊頁首：在行事曆、工時或財務向上捲動時月曆同步離開畫面，三工作區切換列收合後固定於頂端；每頁各自記錄捲動／收合位置，切換不強制重設。
 - 行事曆日期工具列移入同一份 `FlatList`，工時與財務既有 `ScrollView` 接上共用收合狀態；沒有加入新的第三方依賴，避免 Android 巢狀捲動與額外相容風險。
 - `npm.cmd run check`、Expo public config、`git diff --check` 通過；尚未升版、build 或實機安裝，待 Android 驗收垂直捲動、水平切頁、短內容與 Modal 手勢。
-- 2026-08-02 嘗試產 APK 時確認目前 `asus` 環境只有 Java 8，且未找到 Android SDK／既有 JDK 21；本地 build 暫停，沒有產出或覆蓋 APK，環境差異已補入 `ENVIRONMENT.md`。
+- 2026-08-02 已在 `asus` 安裝 JDK 21、Android Platform／Build Tools 36 與 NDK 27.1；arm64 release build 成功（10 分 35 秒）。APK 複製至桌面 `Lumi-0.4.81-calendar-scroll.apk`，34.23 MB，v2 簽章驗證通過，SHA-256 `691F63010414CB66964C604B8FB99914D4D4205C631048AAFCC7063768EA23A2`。
 
 ### 日曆子頁記憶（未 bump 版號，2026-07-31）
 - 使用者回報：在日曆 tab 停在某子頁（行事曆／工時／財務）後離開再回來，底部「行事曆」鍵會硬把子頁重設回「行事曆」。

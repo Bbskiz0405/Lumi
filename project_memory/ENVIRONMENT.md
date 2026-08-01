@@ -7,7 +7,7 @@
 ## 環境
 
 > 本機（帳號 `user`）路徑；舊機器帳號為 `Brayden`，見 LOG 早期紀錄。
-- 2026-08-02 目前工作區位於帳號 `asus`；只偵測到 Java 8，`%LOCALAPPDATA%\Android\Sdk` 與既有 JDK 21 路徑皆不存在，不能直接沿用下列 `user` 機器的本地 Gradle SOP。建 APK 前需先確認／安裝 JDK 21 與 Android SDK，或使用可登入的 EAS build。
+- 2026-08-02 目前工作區位於帳號 `asus`；已安裝 Microsoft OpenJDK 21 至 `C:\Program Files\Microsoft\jdk-21.0.12.8-hotspot`，Android SDK 位於 `C:\Users\asus\AppData\Local\Android\Sdk`（Platform 36、Build Tools 36.0.0、NDK 27.1.12297006）。`android/local.properties` 使用該 SDK 路徑。
 - adb 路徑：`C:\Users\user\AppData\Local\Android\Sdk\platform-tools\adb.exe`
 - Build 前需在同一 PowerShell session 設定：
   - `$env:JAVA_HOME = "C:\Program Files\Microsoft\jdk-21.0.11.10-hotspot"`（本機無 Android Studio jbr，用 Microsoft OpenJDK 21）
@@ -43,3 +43,4 @@
 - `gemini-1.5-flash` 已於 2025/09 從 v1beta 下架；`gemini-2.0-flash` free tier RPD 被砍極低 → 現用 `gemini-2.5-flash-lite`。
 - `MaterialCommunityIcons.ttf` 曾被刪導致 MCI icon 全變問號 → 改自製圓圈 + Unicode（`✓`/`↑`/`$`/`!`）。
 - 帳號與工作區搬到新電腦後不要照抄舊 `JAVA_HOME`／`ANDROID_HOME`：先用 `java -version`、`Test-Path $env:LOCALAPPDATA\Android\Sdk` 驗證；Java 8 無法建置目前 Expo 55 Android 專案。
+- `asus` 首次安裝 SDK 時 `sdkmanager` 在不穩定網路會反覆得到截斷 ZIP（`Unexpected end of ZLIB input stream`）；改從 Google `repository2-3.xml` 取得官方 URL／SHA-1，以 `curl -C -` 續傳並驗證後解壓。首次 arm64 release 約 10 分 35 秒，後續可沿用 Gradle 快取。
