@@ -10,6 +10,18 @@
 
 **版號：0.4.81（標準工時＋固定休息制度）**
 
+### 記帳與財務分析拆頁 + 完整財務中心（未 bump 版號，2026-08-17）
+- ⭐定案：底部「行事曆」改名「日曆」，群組內維持三子頁但「財務」更名「記帳」；底部「財務」改成**獨立財務分析頁**，不掛共用月曆。理由：原本記帳與報表擠在同一頁又被月曆壓著，兩種使用情境（逐筆輸入 vs 彙總判讀）互相干擾。
+- 路由：`app/(tabs)/(calendar-finance)/` → `(calendar)/`，其中 `finance.tsx` → `bookkeeping.tsx`（讓出 URL `/finance`）；新增 `app/(tabs)/finance.tsx`。`CalendarWorkspace` / `ScrollWorkspace` / `CalendarGrid.mode` 的 `'finance'` 一律改 `'bookkeeping'`。
+- ⭐定案：分類色票與標籤集中到 `types/finance.ts` 的 `ExpenseCategoryMeta` + `financeService.DEFAULT_EXPENSE_CATEGORIES`，畫面一律 `findCategoryMeta()` 查表。原因：service 有 10 個分類，但 PieChart／TransactionCard／BudgetMeter 各自硬編 4 個，日用品／醫療／教育／娛樂／通訊／居住 全畫成同一灰並顯示英文 slug。
+- 修好三個既有壞掉的東西：新增分類的 state 與 handler 早就寫好但**沒有任何 JSX 渲染**（使用者加不了自訂分類）；`BudgetMeter.tsx` 零 import，`budgets` 表永遠空但 `geminiService` 仍讀它餵 AI 顧問；記帳日期欄設 `keyboardType="numeric"`，Android 數字鍵盤打不出 `-`。
+- DB migration v7：`transactions.income_kind`（fixed／extra／NULL）、`savings_goals` 表。`backupService` schema 4→5，舊備份匯入時 `income_kind` 補 null、`savings_goals` 補空陣列。
+- 新增 `services/financeAnalyticsService.ts`：KPI＋前期比較、補零月趨勢、分類排行含月對月、TOP 5、收入結構、緩衝區、預算用量、儲蓄目標 CRUD 與反推。
+- ⭐定案：日均支出除以「已過天數」而非期間總天數，否則月初永遠看起來很省。⭐定案：緩衝區用歷來累計結餘 ÷ 近月均支出當近似值，並在 UI 明寫「非實際存款」——App 沒有帳戶餘額概念。⭐定案：儲蓄目標的已存金額手動維護，不自動從結餘扣。
+- 記帳頁明細改 `FlatList`（原本「全部」模式用 `.map()` 全渲染）、儲存失敗訊息從「項目名稱」欄底下移到按鈕上方、編輯儲存加防連點、清掉月曆化之後殘留的 `monthNav`／`sectionHint`／`budgetContainer` 死樣式。
+- `TechIcon` 新增 `target`（儲蓄目標用），維持既有線框語言。
+- 分 6 個 commit（`abfdbd1` → `67eede7`），每段 `npm run typecheck` 通過；Expo public config 通過。**尚未 build、未實機驗收、未 bump 版號。**
+
 ### 底部主功能歸屬與可收合共用月曆（未 bump 版號，2026-08-02）
 - ⭐定案：財務維持底部獨立大項，保留主打功能能見度；內層仍維持「行事曆｜工時｜財務」三工作區與左右滑動，因三者共享日期情境但不代表財務隸屬行事曆。
 - 修正先前雙重入口矛盾：「行事曆」只記住行事曆／工時，從財務離開後再點行事曆會回到上次的時間工作區；財務路徑只亮底部財務，滑回行事曆／工時則亮底部行事曆。
