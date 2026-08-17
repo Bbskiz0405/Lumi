@@ -10,6 +10,16 @@
 
 **版號：0.4.81（標準工時＋固定休息制度）**
 
+### 目前存款與對帳（未 bump 版號，2026-08-17）
+- 起因：使用者問「沒有人設計可以輸入目前存款嗎」。原本緩衝區拿「歷來收入減支出」當存款近似值，只要裝 App 前就有錢、或有漏記，數字就是錯的。
+- ⭐定案：**不做獨立的期初餘額設定，只做對帳調整**。`目前存款 = Σ(收入) − Σ(支出)`（含調整）；使用者輸入實際餘額，差額寫成一筆調整交易。理由：餘額只有一種算法、不必維護兩個事實來源，而且每次校正都留在歷史裡可查。第一次「設定存款」與之後的「對帳」是同一個動作。
+- ⭐定案：**統計排除調整、餘額包含調整**。調整不是收入也不是支出，算進去的話「這個月花了多少」會被校正金額污染。實作用 `financeService.EXCLUDE_ADJUSTMENTS` 常數統一條件。
+- 評估過但不做的：多帳戶（Mint / MoneyMoney 式）。`transactions` 要加 `account_id`、要 `accounts` 表、要轉帳型別，而轉帳會讓現有所有只認 income/expense 的統計雙重灌水，`financeAnalyticsService` 每個查詢都得改。以目前階段（A/B/D 未完、bundle ID 未改）不划算。
+- migration v8：`transactions.is_adjustment INTEGER NOT NULL DEFAULT 0` + 索引。backup schema 5→6，舊備份補 0。
+- 調整交易**保留**在記帳明細（標「不計入收支」灰藍標籤），但排除於 `eventStreamService`（時間軸／問 Lumi）與 `recentService`（首頁最近動態）——那兩處講的是「使用者做了什麼」，記帳機制不該佔位。
+- 新增 `components/finance/analytics/BalanceCard.tsx`：存款數字 + 對帳 bottom sheet，未對過帳時明寫「目前只是收支淨額」。緩衝區文案同步改掉「非實際存款」。
+- commit `c16b04f`，`npm run typecheck` 通過。**未 build、未實機驗收。**
+
 ### 記帳與財務分析拆頁 + 完整財務中心（未 bump 版號，2026-08-17）
 - ⭐定案：底部「行事曆」改名「日曆」，群組內維持三子頁但「財務」更名「記帳」；底部「財務」改成**獨立財務分析頁**，不掛共用月曆。理由：原本記帳與報表擠在同一頁又被月曆壓著，兩種使用情境（逐筆輸入 vs 彙總判讀）互相干擾。
 - 路由：`app/(tabs)/(calendar-finance)/` → `(calendar)/`，其中 `finance.tsx` → `bookkeeping.tsx`（讓出 URL `/finance`）；新增 `app/(tabs)/finance.tsx`。`CalendarWorkspace` / `ScrollWorkspace` / `CalendarGrid.mode` 的 `'finance'` 一律改 `'bookkeeping'`。
