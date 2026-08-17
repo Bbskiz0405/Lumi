@@ -20,7 +20,9 @@
 - ⭐定案：日均支出除以「已過天數」而非期間總天數，否則月初永遠看起來很省。⭐定案：緩衝區用歷來累計結餘 ÷ 近月均支出當近似值，並在 UI 明寫「非實際存款」——App 沒有帳戶餘額概念。⭐定案：儲蓄目標的已存金額手動維護，不自動從結餘扣。
 - 記帳頁明細改 `FlatList`（原本「全部」模式用 `.map()` 全渲染）、儲存失敗訊息從「項目名稱」欄底下移到按鈕上方、編輯儲存加防連點、清掉月曆化之後殘留的 `monthNav`／`sectionHint`／`budgetContainer` 死樣式。
 - `TechIcon` 新增 `target`（儲蓄目標用），維持既有線框語言。
-- 分 6 個 commit（`abfdbd1` → `67eede7`），每段 `npm run typecheck` 通過；Expo public config 通過。**尚未 build、未實機驗收、未 bump 版號。**
+- 分 6 個 commit（`abfdbd1` → `67eede7`），每段 `npm run typecheck` 通過；Expo public config 通過。
+- 2026-08-17 已 push 至 GitHub（`c249ab4..7b04674`，8 個 commit，含前面兩個 chore：splash 圖進版控、testresult/ 與 temp.png 進 .gitignore）。
+- 2026-08-17 在 `Brayden` 機建 arm64 release 成功：**1 分 22 秒**（Gradle 快取熱，430 tasks 僅 21 executed），APK 35 MB，`adb install -r` 回 `Success`，已進 Pixel 8a（`42231JEKB12273`）。此機環境（Android Studio jbr JDK 21.0.10 + `C:\Users\Brayden\...\Android\Sdk`）已補進 `ENVIRONMENT.md`。**未 bump 版號，待實機驗收。**
 
 ### 底部主功能歸屬與可收合共用月曆（未 bump 版號，2026-08-02）
 - ⭐定案：財務維持底部獨立大項，保留主打功能能見度；內層仍維持「行事曆｜工時｜財務」三工作區與左右滑動，因三者共享日期情境但不代表財務隸屬行事曆。
