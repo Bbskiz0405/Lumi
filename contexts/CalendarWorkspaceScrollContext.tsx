@@ -1,7 +1,7 @@
 import React, { createContext, useContext } from 'react';
 import { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 
-export type ScrollWorkspace = 'calendar' | 'work' | 'finance';
+export type ScrollWorkspace = 'calendar' | 'work' | 'bookkeeping';
 
 interface CalendarWorkspaceScrollState {
   contentInset: number;

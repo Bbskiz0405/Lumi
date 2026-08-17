@@ -499,7 +499,7 @@ export default function HomeScreen() {
             <CalendarModule onPress={() => router.push('/(tabs)/calendar')} refreshKey={refreshKey} />
           </View>
           <View style={styles.row}>
-            <FinanceModule onPress={() => router.push('/(tabs)/finance/')} refreshKey={refreshKey} />
+            <FinanceModule onPress={() => router.push('/finance')} refreshKey={refreshKey} />
             <View style={styles.gap} />
             <NotesModule onPress={() => router.push('/(tabs)/notes')} refreshKey={refreshKey} />
           </View>
@@ -513,7 +513,7 @@ export default function HomeScreen() {
               const cfg = RECENT_TYPE_CONFIG[item.type];
               function handleRecentPress() {
                 if (item.type === 'task') router.push(`/task/${item.id}`);
-                else if (item.type === 'finance') router.push('/(tabs)/finance/');
+                else if (item.type === 'finance') router.push('/(tabs)/(calendar)/bookkeeping');
                 else if (item.type === 'note') router.push('/(tabs)/notes');
               }
               return (

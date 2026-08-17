@@ -40,7 +40,7 @@ function toMonthStr(year: number, month: number): string {
   return `${year}-${String(month + 1).padStart(2, '0')}`;
 }
 
-export default function FinanceScreen() {
+export default function BookkeepingScreen() {
   const { contentInset, onScroll } = useCalendarWorkspaceScroll();
   const { year, month, selectedDate, bumpRefresh } = useCalendar();
 
@@ -279,7 +279,7 @@ export default function FinanceScreen() {
         <ScrollView
           contentContainerStyle={[styles.scroll, { paddingTop: contentInset }]}
           showsVerticalScrollIndicator={false}
-          onScroll={onScroll('finance')}
+          onScroll={onScroll('bookkeeping')}
           scrollEventThrottle={16}
         >
           {/* Toolbar: mode toggle + action buttons */}

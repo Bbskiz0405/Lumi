@@ -13,11 +13,11 @@ function CustomTabBar({ insets }: { insets: EdgeInsets }) {
   const router = useRouter();
   const pathname = usePathname();
   const { lastWorkspace } = useCalendar();
-  // 「行事曆」tab 記住上次停在的子頁（行事曆／工時／財務）。
+  // 「日曆」tab 記住上次停在的子頁（行事曆／工時）。記帳只能從子頁列進入。
   const tabs: { name: string; label: string; icon: TechIconName; route: string }[] = [
     { name: 'index', label: '首頁', icon: 'grid', route: '/' },
-    { name: 'calendar', label: '行事曆', icon: 'calendar', route: `/(calendar-finance)/${lastWorkspace}` },
-    { name: 'finance', label: '財務', icon: 'wallet', route: '/(calendar-finance)/finance' },
+    { name: 'calendar', label: '日曆', icon: 'calendar', route: `/(calendar)/${lastWorkspace}` },
+    { name: 'finance', label: '財務', icon: 'wallet', route: '/finance' },
     { name: 'tasks', label: '任務', icon: 'check-square', route: '/tasks' },
     { name: 'notes', label: '筆記', icon: 'file-text', route: '/notes' },
   ];
@@ -27,7 +27,8 @@ function CustomTabBar({ insets }: { insets: EdgeInsets }) {
       {tabs.map((tab) => {
         const isActive =
           (tab.name === 'index' && pathname === '/') ||
-          (tab.name === 'calendar' && (pathname.includes('/calendar') || pathname.includes('/work'))) ||
+          (tab.name === 'calendar' &&
+            (pathname.includes('/calendar') || pathname.includes('/work') || pathname.includes('/bookkeeping'))) ||
           (tab.name === 'finance' && pathname.includes('/finance')) ||
           (tab.name === 'tasks' && pathname.includes('/tasks')) ||
           (tab.name === 'notes' && pathname.includes('/notes'));
@@ -71,7 +72,8 @@ export default function TabsLayout() {
         }}
       >
         <MaterialTopTabs.Screen name="index" />
-        <MaterialTopTabs.Screen name="(calendar-finance)" />
+        <MaterialTopTabs.Screen name="(calendar)" />
+        <MaterialTopTabs.Screen name="finance" />
         <MaterialTopTabs.Screen name="tasks" />
         <MaterialTopTabs.Screen name="notes" />
       </MaterialTopTabs>

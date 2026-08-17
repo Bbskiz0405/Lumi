@@ -23,7 +23,7 @@ import { CalendarWorkspaceScrollProvider } from '../../../contexts/CalendarWorks
 const { Navigator } = createMaterialTopTabNavigator();
 const MaterialTopTabs = withLayoutContext(Navigator);
 
-type CalendarWorkspace = 'calendar' | 'work' | 'finance';
+type CalendarWorkspace = 'calendar' | 'work' | 'bookkeeping';
 
 interface WorkspaceTransition {
   id: number;
@@ -208,7 +208,7 @@ function SubTabBar({
 }) {
   useEffect(() => {
     const routeName = state.routes[state.index]?.name;
-    if (routeName === 'calendar' || routeName === 'work' || routeName === 'finance') {
+    if (routeName === 'calendar' || routeName === 'work' || routeName === 'bookkeeping') {
       onWorkspaceChange(routeName);
     }
   }, [state.index, state.routes, onWorkspaceChange]);
@@ -302,7 +302,7 @@ export default function CalendarFinanceLayout() {
   const nextTransitionId = useRef(0);
   const activeMarkerAnimation = useRef<Animated.CompositeAnimation | null>(null);
   const headerOffset = useRef(new Animated.Value(0)).current;
-  const offsets = useRef<Record<CalendarWorkspace, number>>({ calendar: 0, work: 0, finance: 0 });
+  const offsets = useRef<Record<CalendarWorkspace, number>>({ calendar: 0, work: 0, bookkeeping: 0 });
   const [calendarHeight, setCalendarHeight] = useState(0);
 
   const handleWorkspaceChange = useCallback((workspace: CalendarWorkspace) => {
@@ -395,7 +395,7 @@ export default function CalendarFinanceLayout() {
       >
         <MaterialTopTabs.Screen name="calendar" options={{ title: '行事曆' }} />
         <MaterialTopTabs.Screen name="work" options={{ title: '工時' }} />
-        <MaterialTopTabs.Screen name="finance" options={{ title: '財務' }} />
+        <MaterialTopTabs.Screen name="bookkeeping" options={{ title: '記帳' }} />
         </MaterialTopTabs>
       </View>
     </CalendarWorkspaceScrollProvider>

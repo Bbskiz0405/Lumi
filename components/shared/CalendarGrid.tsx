@@ -9,9 +9,11 @@ import { WorkDateStatus } from '../../types/workTime';
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
 const MONTHS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
 
+export type CalendarGridMode = 'calendar' | 'work' | 'bookkeeping';
+
 interface Props {
-  mode?: 'calendar' | 'work' | 'finance';
-  previousMode?: 'calendar' | 'work' | 'finance';
+  mode?: CalendarGridMode;
+  previousMode?: CalendarGridMode;
   taskDates?: Set<string>;
   financeDates?: Set<string>;
   externalDates?: Set<string>;
@@ -78,7 +80,7 @@ export default function CalendarGrid({
     : 0;
 
   function renderMarkers(
-    markerMode: 'calendar' | 'work' | 'finance',
+    markerMode: CalendarGridMode,
     dateStr: string,
     hasTask: boolean | undefined,
     hasFinance: boolean | undefined,
@@ -103,14 +105,14 @@ export default function CalendarGrid({
         {markerMode === 'work' && workStatus && (
           <View style={[styles.workDot, { backgroundColor: WORK_STATUS_COLORS[workStatus] }]} />
         )}
-        {markerMode === 'finance' && hasFinance && (
+        {markerMode === 'bookkeeping' && hasFinance && (
           <View style={[styles.dot, { backgroundColor: '#55DDAA' }]} />
         )}
       </>
     );
   }
 
-  function renderLegend(legendMode: 'calendar' | 'work' | 'finance') {
+  function renderLegend(legendMode: CalendarGridMode) {
     if (legendMode === 'calendar') {
       return (
         <>
