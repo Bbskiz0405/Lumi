@@ -28,8 +28,9 @@ import {
   resetAllFinance,
   getExpenseCategories,
   saveExpenseCategories,
+  createCategoryMeta,
 } from '../../../services/financeService';
-import { Transaction, ExpenseCategory } from '../../../types/finance';
+import { Transaction, ExpenseCategory, ExpenseCategoryMeta } from '../../../types/finance';
 import { isValidLocalDateString } from '../../../utils/date';
 
 type ViewMode = 'month' | 'year' | 'all';
@@ -50,7 +51,7 @@ export default function BookkeepingScreen() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('month');
-  const [expenseCategories, setExpenseCategories] = useState<{ value: string; label: string }[]>([]);
+  const [expenseCategories, setExpenseCategories] = useState<ExpenseCategoryMeta[]>([]);
   const [addingCat, setAddingCat] = useState(false);
   const [newCatLabel, setNewCatLabel] = useState('');
 
@@ -165,15 +166,25 @@ export default function BookkeepingScreen() {
   );
 
   async function handleAddCategory() {
-    const label = newCatLabel.trim();
-    if (!label) return;
-    const value = label.toLowerCase().replace(/\s/g, '_');
-    if (expenseCategories.some(c => c.value === value)) return;
-    const updated = [...expenseCategories, { value, label }];
+    const created = createCategoryMeta(newCatLabel, expenseCategories);
+    if (!created) return;
+    if (expenseCategories.some(c => c.label === created.label)) {
+      setAddingCat(false);
+      setNewCatLabel('');
+      return;
+    }
+    const updated = [...expenseCategories, created];
     setExpenseCategories(updated);
-    await saveExpenseCategories(updated);
+    try {
+      await saveExpenseCategories(updated);
+    } catch {
+      setExpenseCategories(expenseCategories);
+      Alert.alert('新增分類失敗', '請稍後再試。');
+      return;
+    }
     setNewCatLabel('');
     setAddingCat(false);
+    if (formType === 'expense') setFormCategory(created.value);
   }
 
   function openModal() {
@@ -355,7 +366,7 @@ export default function BookkeepingScreen() {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>支出分佈</Text>
           </View>
-          <ExpensePieChart data={categoryExpense} />
+          <ExpensePieChart data={categoryExpense} categories={expenseCategories} />
 
           {/* Transactions */}
           <View style={styles.sectionHeader}>
@@ -370,7 +381,13 @@ export default function BookkeepingScreen() {
             </View>
           ) : (
             transactions.map(tx => (
-              <TransactionCard key={tx.id} transaction={tx} onDelete={handleDelete} onEdit={openEditTx} />
+              <TransactionCard
+                key={tx.id}
+                transaction={tx}
+                categories={expenseCategories}
+                onDelete={handleDelete}
+                onEdit={openEditTx}
+              />
             ))
           )}
         </ScrollView>
@@ -416,7 +433,8 @@ export default function BookkeepingScreen() {
                 onChangeText={setEditDate}
                 placeholder="YYYY-MM-DD"
                 placeholderTextColor="#444"
-                keyboardType="numeric"
+                autoCapitalize="none"
+                autoCorrect={false}
               />
               <View style={styles.amountRow}>
                 <TextInput
@@ -441,10 +459,14 @@ export default function BookkeepingScreen() {
                   {expenseCategories.map(cat => (
                     <TouchableOpacity
                       key={cat.value}
-                      style={[styles.catBtn, editCategory === cat.value && styles.catBtnActive]}
+                      style={[
+                        styles.catBtn,
+                        editCategory === cat.value && { borderColor: cat.color, backgroundColor: `${cat.color}1A` },
+                      ]}
                       onPress={() => setEditCategory(cat.value)}
                     >
-                      <Text style={[styles.catBtnText, editCategory === cat.value && styles.catBtnTextActive]}>
+                      <View style={[styles.catDot, { backgroundColor: cat.color }]} />
+                      <Text style={[styles.catBtnText, editCategory === cat.value && { color: cat.color }]}>
                         {cat.label}
                       </Text>
                     </TouchableOpacity>
@@ -532,7 +554,8 @@ export default function BookkeepingScreen() {
                 onChangeText={setFormDate}
                 placeholder="YYYY-MM-DD"
                 placeholderTextColor="#444"
-                keyboardType="numeric"
+                autoCapitalize="none"
+                autoCorrect={false}
               />
               {!!formDateError && <Text style={styles.errorText}>{formDateError}</Text>}
 
@@ -563,15 +586,48 @@ export default function BookkeepingScreen() {
                     {expenseCategories.map(cat => (
                       <TouchableOpacity
                         key={cat.value}
-                        style={[styles.catBtn, formCategory === cat.value && styles.catBtnActive]}
+                        style={[
+                          styles.catBtn,
+                          formCategory === cat.value && { borderColor: cat.color, backgroundColor: `${cat.color}1A` },
+                        ]}
                         onPress={() => setFormCategory(cat.value)}
                       >
-                        <Text style={[styles.catBtnText, formCategory === cat.value && styles.catBtnTextActive]}>
+                        <View style={[styles.catDot, { backgroundColor: cat.color }]} />
+                        <Text style={[styles.catBtnText, formCategory === cat.value && { color: cat.color }]}>
                           {cat.label}
                         </Text>
                       </TouchableOpacity>
                     ))}
+                    <TouchableOpacity
+                      style={styles.catAddBtn}
+                      onPress={() => setAddingCat(true)}
+                      accessibilityRole="button"
+                      accessibilityLabel="新增分類"
+                    >
+                      <TechIcon name="plus" size={13} color="#8C949C" />
+                    </TouchableOpacity>
                   </View>
+
+                  {addingCat && (
+                    <View style={styles.catAddRow}>
+                      <TextInput
+                        style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                        value={newCatLabel}
+                        onChangeText={setNewCatLabel}
+                        placeholder="新分類名稱"
+                        placeholderTextColor="#444"
+                        autoFocus
+                        onSubmitEditing={handleAddCategory}
+                        returnKeyType="done"
+                      />
+                      <TouchableOpacity style={styles.catAddCancel} onPress={() => { setAddingCat(false); setNewCatLabel(''); }}>
+                        <Text style={styles.cancelText}>取消</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.catAddConfirm} onPress={handleAddCategory}>
+                        <Text style={styles.submitText}>加入</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
                 </>
               )}
 
@@ -754,12 +810,26 @@ const styles = StyleSheet.create({
 
   catRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 },
   catBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
     borderWidth: 1, borderColor: '#3A3A3A', borderRadius: 7,
     paddingHorizontal: 12, paddingVertical: 6, marginRight: 8, marginBottom: 8,
   },
-  catBtnActive: { borderColor: '#55DDAA', backgroundColor: '#101A14' },
-  catBtnText: { color: '#444', fontSize: 12 },
-  catBtnTextActive: { color: '#55DDAA' },
+  catDot: { width: 5, height: 5, borderRadius: 3 },
+  catBtnText: { color: '#7A8189', fontSize: 12 },
+  catAddBtn: {
+    borderWidth: 1, borderColor: '#2B2F34', borderRadius: 7, backgroundColor: '#121417',
+    paddingHorizontal: 12, paddingVertical: 6, marginBottom: 8,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  catAddRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  catAddCancel: {
+    borderWidth: 1, borderColor: '#3A3A3A', borderRadius: 8,
+    paddingHorizontal: 12, paddingVertical: 10,
+  },
+  catAddConfirm: {
+    backgroundColor: '#FFFFFF', borderRadius: 8,
+    paddingHorizontal: 12, paddingVertical: 10,
+  },
 
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: 8, marginBottom: 24, gap: 12 },
   deleteBtn: {

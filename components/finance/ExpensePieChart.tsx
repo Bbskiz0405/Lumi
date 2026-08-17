@@ -1,18 +1,14 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
+import { ExpenseCategoryMeta } from '../../types/finance';
+import { findCategoryMeta } from '../../services/financeService';
 
 interface Props {
   data: Record<string, number>;
+  categories: ExpenseCategoryMeta[];
   size?: number;
 }
-
-const CATEGORY_CONFIG: Record<string, { label: string; color: string }> = {
-  food: { label: '餐飲', color: '#FF6655' },
-  interest: { label: '興趣', color: '#88AAFF' },
-  transport: { label: '交通', color: '#FF9944' },
-  other: { label: '其他', color: '#666666' },
-};
 
 function polarToCartesian(cx: number, cy: number, r: number, angle: number) {
   const rad = ((angle - 90) * Math.PI) / 180;
@@ -26,7 +22,7 @@ function arcPath(cx: number, cy: number, r: number, startAngle: number, endAngle
   return `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} 0 ${end.x} ${end.y} L ${cx} ${cy} Z`;
 }
 
-export default function ExpensePieChart({ data, size = 120 }: Props) {
+export default function ExpensePieChart({ data, categories, size = 120 }: Props) {
   const total = Object.values(data).reduce((sum, v) => sum + v, 0);
   if (total === 0) {
     return (
@@ -58,23 +54,17 @@ export default function ExpensePieChart({ data, size = 120 }: Props) {
           const endAngle = currentAngle + sliceAngle;
           currentAngle = endAngle;
 
+          const color = findCategoryMeta(categories, category).color;
+
           if (sliceAngle >= 359.5) {
-            return (
-              <Circle
-                key={category}
-                cx={cx}
-                cy={cy}
-                r={r}
-                fill={CATEGORY_CONFIG[category]?.color ?? '#444'}
-              />
-            );
+            return <Circle key={category} cx={cx} cy={cy} r={r} fill={color} />;
           }
 
           return (
             <Path
               key={category}
               d={arcPath(cx, cy, r, startAngle, endAngle)}
-              fill={CATEGORY_CONFIG[category]?.color ?? '#444'}
+              fill={color}
             />
           );
         })}
@@ -83,12 +73,12 @@ export default function ExpensePieChart({ data, size = 120 }: Props) {
 
       <View style={styles.legend}>
         {slices.map(([category, amount]) => {
-          const config = CATEGORY_CONFIG[category];
+          const meta = findCategoryMeta(categories, category);
           const pct = Math.round((amount / total) * 100);
           return (
             <View key={category} style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: config?.color ?? '#444' }]} />
-              <Text style={styles.legendLabel}>{config?.label ?? category}</Text>
+              <View style={[styles.legendDot, { backgroundColor: meta.color }]} />
+              <Text style={styles.legendLabel}>{meta.label}</Text>
               <Text style={styles.legendPct}>{pct}%</Text>
             </View>
           );

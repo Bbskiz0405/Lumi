@@ -1,28 +1,24 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Transaction } from '../../types/finance';
+import { Transaction, ExpenseCategoryMeta } from '../../types/finance';
+import { findCategoryMeta } from '../../services/financeService';
 import TechIcon from '../ui/TechIcon';
 
 interface Props {
   transaction: Transaction;
+  categories: ExpenseCategoryMeta[];
   onDelete?: (id: string) => void;
   onEdit?: (tx: Transaction) => void;
 }
-
-const CATEGORY_LABELS: Record<string, string> = {
-  food: '餐飲',
-  interest: '興趣',
-  transport: '交通',
-  other: '其他',
-};
 
 function formatDate(isoStr: string): string {
   const d = new Date(isoStr);
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
-export default function TransactionCard({ transaction: tx, onDelete, onEdit }: Props) {
+export default function TransactionCard({ transaction: tx, categories, onDelete, onEdit }: Props) {
   const isIncome = tx.type === 'income';
+  const categoryMeta = tx.category ? findCategoryMeta(categories, tx.category) : null;
 
   return (
     <TouchableOpacity
@@ -42,9 +38,10 @@ export default function TransactionCard({ transaction: tx, onDelete, onEdit }: P
         </View>
         <View style={styles.bottom}>
           <Text style={styles.date}>{formatDate(tx.created_at)}</Text>
-          {tx.category && (
-            <View style={styles.tag}>
-              <Text style={styles.tagText}>{CATEGORY_LABELS[tx.category] ?? tx.category}</Text>
+          {categoryMeta && (
+            <View style={[styles.tag, { borderColor: `${categoryMeta.color}55` }]}>
+              <View style={[styles.tagDot, { backgroundColor: categoryMeta.color }]} />
+              <Text style={styles.tagText}>{categoryMeta.label}</Text>
             </View>
           )}
         </View>
@@ -111,13 +108,21 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   tag: {
-    backgroundColor: '#1A1A2A',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
     borderRadius: 4,
     paddingHorizontal: 6,
     paddingVertical: 2,
   },
+  tagDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+  },
   tagText: {
-    color: '#6688CC',
+    color: '#8C949C',
     fontSize: 10,
   },
   deleteBtn: {

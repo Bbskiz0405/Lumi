@@ -1,20 +1,13 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Modal } from 'react-native';
-import { ExpenseCategory } from '../../types/finance';
+import { ExpenseCategory, ExpenseCategoryMeta } from '../../types/finance';
 
 interface Props {
-  category: ExpenseCategory;
+  category: ExpenseCategoryMeta;
   spent: number;
   limit: number;
   onUpdateLimit?: (category: ExpenseCategory, newLimit: number) => void;
 }
-
-const CATEGORY_LABELS: Record<ExpenseCategory, string> = {
-  food: '餐飲',
-  interest: '興趣',
-  transport: '交通',
-  other: '其他',
-};
 
 export default function BudgetMeter({ category, spent, limit, onUpdateLimit }: Props) {
   const [editing, setEditing] = useState(false);
@@ -23,7 +16,7 @@ export default function BudgetMeter({ category, spent, limit, onUpdateLimit }: P
   const hasLimit = limit > 0;
   const ratio = hasLimit ? Math.min(spent / limit, 1) : 0;
   const isOver = hasLimit && spent > limit;
-  const barColor = isOver ? '#FF4444' : ratio > 0.8 ? '#FF8844' : '#55DDAA';
+  const barColor = isOver ? '#FF4444' : ratio > 0.8 ? '#FF8844' : category.color;
   const barWidth = `${ratio * 100}%` as `${number}%`;
 
   function openEdit() {
@@ -34,7 +27,7 @@ export default function BudgetMeter({ category, spent, limit, onUpdateLimit }: P
   function handleSave() {
     const n = parseFloat(inputVal);
     if (!isNaN(n) && n > 0 && onUpdateLimit) {
-      onUpdateLimit(category, n);
+      onUpdateLimit(category.value, n);
     }
     setEditing(false);
   }
@@ -43,7 +36,10 @@ export default function BudgetMeter({ category, spent, limit, onUpdateLimit }: P
     <>
       <TouchableOpacity style={styles.container} onPress={openEdit} activeOpacity={0.7}>
         <View style={styles.header}>
-          <Text style={styles.label}>{CATEGORY_LABELS[category]}</Text>
+          <View style={styles.labelRow}>
+            <View style={[styles.labelDot, { backgroundColor: category.color }]} />
+            <Text style={styles.label}>{category.label}</Text>
+          </View>
           <Text style={[styles.amounts, isOver && styles.overText]}>
             {hasLimit
               ? `${spent.toLocaleString()} / ${limit.toLocaleString()}`
@@ -60,7 +56,7 @@ export default function BudgetMeter({ category, spent, limit, onUpdateLimit }: P
       <Modal visible={editing} transparent animationType="fade" onRequestClose={() => setEditing(false)}>
         <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => setEditing(false)}>
           <View style={styles.dialog}>
-            <Text style={styles.dialogTitle}>{CATEGORY_LABELS[category]} 預算上限</Text>
+            <Text style={styles.dialogTitle}>{category.label} 預算上限</Text>
             <TextInput
               style={styles.dialogInput}
               value={inputVal}
@@ -94,6 +90,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 5,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  labelDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
   },
   label: {
     color: '#888',

@@ -1,6 +1,13 @@
 export type TransactionType = 'income' | 'expense';
 export type ExpenseCategory = string;
 
+/** 分類的顯示資料。色票只存在這裡，畫面一律查表，不各自硬編。 */
+export interface ExpenseCategoryMeta {
+  value: ExpenseCategory;
+  label: string;
+  color: string;
+}
+
 export interface Transaction {
   id: string;
   entry_id: string | null;
