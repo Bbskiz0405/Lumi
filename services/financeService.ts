@@ -40,18 +40,19 @@ export async function createTransaction(input: CreateTransactionInput): Promise<
     item,
     amount: input.amount,
     category: input.type === 'expense' ? (input.category ?? 'other') : null,
+    income_kind: input.type === 'income' ? (input.income_kind ?? null) : null,
     created_at: input.created_at ?? now,
   };
   await db.runAsync(
-    `INSERT INTO transactions (id, entry_id, type, item, amount, category, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [tx.id, tx.entry_id, tx.type, tx.item, tx.amount, tx.category, tx.created_at]
+    `INSERT INTO transactions (id, entry_id, type, item, amount, category, income_kind, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [tx.id, tx.entry_id, tx.type, tx.item, tx.amount, tx.category, tx.income_kind, tx.created_at]
   );
   return tx;
 }
 
 export async function updateTransaction(
   id: string,
-  updates: Partial<Pick<Transaction, 'type' | 'item' | 'amount' | 'category' | 'created_at'>>
+  updates: Partial<Pick<Transaction, 'type' | 'item' | 'amount' | 'category' | 'income_kind' | 'created_at'>>
 ): Promise<void> {
   const sanitized = { ...updates };
   if (sanitized.item !== undefined) {

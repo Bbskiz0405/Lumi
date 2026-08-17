@@ -8,6 +8,9 @@ export interface ExpenseCategoryMeta {
   color: string;
 }
 
+/** 收入是每月固定的還是一次性的。支出一律為 null。 */
+export type IncomeKind = 'fixed' | 'extra';
+
 export interface Transaction {
   id: string;
   entry_id: string | null;
@@ -15,6 +18,7 @@ export interface Transaction {
   item: string;
   amount: number;
   category: ExpenseCategory | null;
+  income_kind: IncomeKind | null;
   created_at: string;
 }
 
@@ -31,6 +35,18 @@ export interface CreateTransactionInput {
   item: string;
   amount: number;
   category: ExpenseCategory | null;
+  income_kind?: IncomeKind | null;
   entry_id?: string | null;
   created_at?: string;
+}
+
+export interface SavingsGoal {
+  id: string;
+  title: string;
+  target_amount: number;
+  saved_amount: number;
+  target_date: string | null;
+  status: 'active' | 'done';
+  created_at: string;
+  updated_at: string;
 }
