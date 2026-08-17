@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import {
-  View, ScrollView, StyleSheet, TouchableOpacity, Text,
+  View, ScrollView, FlatList, StyleSheet, TouchableOpacity, Text,
   Modal, TextInput, ActivityIndicator, Alert,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
@@ -30,12 +30,16 @@ import {
   saveExpenseCategories,
   createCategoryMeta,
 } from '../../../services/financeService';
-import { Transaction, ExpenseCategory, ExpenseCategoryMeta } from '../../../types/finance';
+import { Transaction, ExpenseCategory, ExpenseCategoryMeta, IncomeKind } from '../../../types/finance';
 import { isValidLocalDateString } from '../../../utils/date';
 
 type ViewMode = 'month' | 'year' | 'all';
 
-const MONTHS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+/** 收入分固定／額外，餵給財務分析頁的收入結構。留空代表未標記。 */
+const INCOME_KINDS: { value: IncomeKind; label: string; color: string }[] = [
+  { value: 'fixed', label: '固定收入', color: '#55DDAA' },
+  { value: 'extra', label: '額外收入', color: '#88AAFF' },
+];
 
 function toMonthStr(year: number, month: number): string {
   return `${year}-${String(month + 1).padStart(2, '0')}`;
@@ -63,7 +67,9 @@ export default function BookkeepingScreen() {
   const [editAmount, setEditAmount] = useState('');
   const [editType, setEditType] = useState<'income' | 'expense'>('expense');
   const [editCategory, setEditCategory] = useState<ExpenseCategory>('food');
+  const [editIncomeKind, setEditIncomeKind] = useState<IncomeKind | null>(null);
   const [editDate, setEditDate] = useState('');
+  const [editSubmitting, setEditSubmitting] = useState(false);
 
   function openEditTx(tx: Transaction) {
     setEditTx(tx);
@@ -71,11 +77,12 @@ export default function BookkeepingScreen() {
     setEditAmount(String(tx.amount));
     setEditType(tx.type);
     setEditCategory((tx.category as ExpenseCategory) ?? 'other');
+    setEditIncomeKind(tx.income_kind);
     setEditDate(tx.created_at.split('T')[0]);
   }
 
   async function handleSaveEdit() {
-    if (!editTx) return;
+    if (!editTx || editSubmitting) return;
     const amt = parseFloat(editAmount);
     if (!editItem.trim() || isNaN(amt) || amt <= 0 || !isValidLocalDateString(editDate)) {
       Alert.alert('無法儲存', '請輸入項目名稱、有效金額與日期。');
@@ -84,17 +91,21 @@ export default function BookkeepingScreen() {
     const originalTime = editTx.created_at.includes('T')
       ? editTx.created_at.slice(editTx.created_at.indexOf('T'))
       : 'T12:00:00.000';
+    setEditSubmitting(true);
     try {
       await updateTransaction(editTx.id, {
         item: editItem.trim(),
         amount: amt,
         type: editType,
         category: editType === 'expense' ? editCategory : null,
+        income_kind: editType === 'income' ? editIncomeKind : null,
         created_at: `${editDate}${originalTime}`,
       });
     } catch {
       Alert.alert('儲存失敗', '請稍後再試。');
       return;
+    } finally {
+      setEditSubmitting(false);
     }
     setEditTx(null);
     bumpRefresh();
@@ -107,10 +118,13 @@ export default function BookkeepingScreen() {
   const [formItem, setFormItem] = useState('');
   const [formAmount, setFormAmount] = useState('');
   const [formCategory, setFormCategory] = useState<ExpenseCategory>('food');
+  const [formIncomeKind, setFormIncomeKind] = useState<IncomeKind | null>(null);
   const [formDate, setFormDate] = useState(selectedDate);
   const [formItemError, setFormItemError] = useState('');
   const [formAmountError, setFormAmountError] = useState('');
   const [formDateError, setFormDateError] = useState('');
+  // 儲存失敗與欄位驗證分開，否則錯誤會長在「項目名稱」底下，看起來像是名稱有問題。
+  const [formSubmitError, setFormSubmitError] = useState('');
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [showCalc, setShowCalc] = useState(false);
   const [calcTarget, setCalcTarget] = useState<'add' | 'edit'>('add');
@@ -192,14 +206,17 @@ export default function BookkeepingScreen() {
     setFormItem('');
     setFormAmount('');
     setFormCategory('food');
+    setFormIncomeKind(null);
     setFormDate(selectedDate);
     setFormItemError('');
     setFormAmountError('');
     setFormDateError('');
+    setFormSubmitError('');
     setModalVisible(true);
   }
 
   async function handleSubmit() {
+    setFormSubmitError('');
     let valid = true;
     if (!formItem.trim()) { setFormItemError('請輸入項目'); valid = false; }
     else setFormItemError('');
@@ -221,10 +238,11 @@ export default function BookkeepingScreen() {
         item: formItem.trim(),
         amount: amt,
         category: formType === 'expense' ? formCategory : null,
+        income_kind: formType === 'income' ? formIncomeKind : null,
         created_at: useDate,
       });
     } catch {
-      setFormItemError('儲存失敗，請稍後再試');
+      setFormSubmitError('儲存失敗，請稍後再試');
       return;
     } finally {
       setFormSubmitting(false);
@@ -282,115 +300,118 @@ export default function BookkeepingScreen() {
 
   const balance = summary.income - summary.expense;
 
+  // 「全部」模式下這份清單可以長到歷來每一筆，交給 FlatList 虛擬化，
+  // 表頭放進 ListHeaderComponent 才能跟著同一份捲動與共用月曆收合。
+  const listHeader = (
+    <>
+      {/* Toolbar: mode toggle + action buttons */}
+      <View style={styles.toolbar}>
+        <View style={styles.modeRow}>
+          {(['month', 'year', 'all'] as ViewMode[]).map(m => (
+            <TouchableOpacity
+              key={m}
+              style={[styles.modePill, viewMode === m && styles.modePillActive]}
+              onPress={() => setViewMode(m)}
+            >
+              <Text style={[styles.modePillText, viewMode === m && styles.modePillTextActive]}>
+                {m === 'month' ? '月' : m === 'year' ? '年' : '全部'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <View style={styles.toolbarActions}>
+          <IconButton
+            icon="command"
+            label="開啟 AI 財務顧問"
+            onPress={() => setAdvisorVisible(true)}
+            color="#55DDAA"
+          />
+          <IconButton
+            icon="rotate-ccw"
+            label="重置所有記帳資料"
+            onPress={handleReset}
+            color="#6D737A"
+          />
+          <IconButton icon="plus" label="新增記帳" onPress={openModal} />
+        </View>
+      </View>
+
+      {loadError && (
+        <View style={styles.loadErrorBanner}>
+          <Text style={styles.loadErrorText}>資料可能不是最新，讀取失敗。</Text>
+          <TouchableOpacity onPress={() => void loadAll(viewMode)}>
+            <Text style={styles.loadErrorRetry}>重試</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Summary */}
+      <View style={styles.summaryRow}>
+        <View style={styles.summaryItem}>
+          <Text style={styles.summaryLabel}>收入</Text>
+          <Text style={[styles.summaryAmount, { color: '#55DDAA' }]}>
+            {summary.income.toLocaleString()}
+          </Text>
+        </View>
+        <View style={styles.summaryDivider} />
+        <View style={styles.summaryItem}>
+          <Text style={styles.summaryLabel}>支出</Text>
+          <Text style={[styles.summaryAmount, { color: '#FF6655' }]}>
+            {summary.expense.toLocaleString()}
+          </Text>
+        </View>
+        <View style={styles.summaryDivider} />
+        <View style={styles.summaryItem}>
+          <Text style={styles.summaryLabel}>結餘</Text>
+          <Text style={[styles.summaryAmount, { color: balance >= 0 ? '#FFFFFF' : '#FF4444' }]}>
+            {balance.toLocaleString()}
+          </Text>
+        </View>
+      </View>
+
+      {/* Pie Chart */}
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>支出分佈</Text>
+      </View>
+      <ExpensePieChart data={categoryExpense} categories={expenseCategories} />
+
+      {/* Transactions */}
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>
+          {viewMode === 'month' ? '本月記錄' : viewMode === 'year' ? '本年記錄' : '所有記錄'}
+        </Text>
+      </View>
+    </>
+  );
+
   return (
     <View style={styles.safe}>
       {loading ? (
         <View style={[styles.center, { paddingTop: contentInset }]}><ActivityIndicator color="#FFFFFF" /></View>
       ) : (
-        <ScrollView
+        <FlatList
+          data={transactions}
+          keyExtractor={tx => tx.id}
+          renderItem={({ item }) => (
+            <TransactionCard
+              transaction={item}
+              categories={expenseCategories}
+              onDelete={handleDelete}
+              onEdit={openEditTx}
+            />
+          )}
+          ListHeaderComponent={listHeader}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Text style={styles.emptyText}>還沒有記錄</Text>
+            </View>
+          }
           contentContainerStyle={[styles.scroll, { paddingTop: contentInset }]}
           showsVerticalScrollIndicator={false}
           onScroll={onScroll('bookkeeping')}
           scrollEventThrottle={16}
-        >
-          {/* Toolbar: mode toggle + action buttons */}
-          <View style={styles.toolbar}>
-            <View style={styles.modeRow}>
-              {(['month', 'year', 'all'] as ViewMode[]).map(m => (
-                <TouchableOpacity
-                  key={m}
-                  style={[styles.modePill, viewMode === m && styles.modePillActive]}
-                  onPress={() => setViewMode(m)}
-                >
-                  <Text style={[styles.modePillText, viewMode === m && styles.modePillTextActive]}>
-                    {m === 'month' ? '月' : m === 'year' ? '年' : '全部'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <IconButton
-                icon="command"
-                label="開啟 AI 財務顧問"
-                onPress={() => setAdvisorVisible(true)}
-                color="#55DDAA"
-              />
-              <IconButton
-                icon="rotate-ccw"
-                label="重置所有記帳資料"
-                onPress={handleReset}
-                color="#6D737A"
-              />
-              <IconButton
-                icon="plus"
-                label="新增記帳"
-                onPress={openModal}
-              />
-            </View>
-          </View>
-
-          {loadError && (
-            <View style={styles.loadErrorBanner}>
-              <Text style={styles.loadErrorText}>資料可能不是最新，讀取失敗。</Text>
-              <TouchableOpacity onPress={() => void loadAll(viewMode)}>
-                <Text style={styles.loadErrorRetry}>重試</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* Summary */}
-          <View style={styles.summaryRow}>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>收入</Text>
-              <Text style={[styles.summaryAmount, { color: '#55DDAA' }]}>
-                {summary.income.toLocaleString()}
-              </Text>
-            </View>
-            <View style={styles.summaryDivider} />
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>支出</Text>
-              <Text style={[styles.summaryAmount, { color: '#FF6655' }]}>
-                {summary.expense.toLocaleString()}
-              </Text>
-            </View>
-            <View style={styles.summaryDivider} />
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>結餘</Text>
-              <Text style={[styles.summaryAmount, { color: balance >= 0 ? '#FFFFFF' : '#FF4444' }]}>
-                {balance.toLocaleString()}
-              </Text>
-            </View>
-          </View>
-
-          {/* Pie Chart */}
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>支出分佈</Text>
-          </View>
-          <ExpensePieChart data={categoryExpense} categories={expenseCategories} />
-
-          {/* Transactions */}
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>
-              {viewMode === 'month' ? '本月記錄' : viewMode === 'year' ? '本年記錄' : '所有記錄'}
-            </Text>
-          </View>
-
-          {transactions.length === 0 ? (
-            <View style={styles.empty}>
-              <Text style={styles.emptyText}>還沒有記錄</Text>
-            </View>
-          ) : (
-            transactions.map(tx => (
-              <TransactionCard
-                key={tx.id}
-                transaction={tx}
-                categories={expenseCategories}
-                onDelete={handleDelete}
-                onEdit={openEditTx}
-              />
-            ))
-          )}
-        </ScrollView>
+          keyboardShouldPersistTaps="handled"
+        />
       )}
 
       {/* Edit modal */}
@@ -454,6 +475,25 @@ export default function BookkeepingScreen() {
                   <TechIcon name="calculator" size={18} color="#55DDAA" />
                 </TouchableOpacity>
               </View>
+              {editType === 'income' && (
+                <View style={styles.catRow}>
+                  {INCOME_KINDS.map(kind => (
+                    <TouchableOpacity
+                      key={kind.value}
+                      style={[
+                        styles.catBtn,
+                        editIncomeKind === kind.value && { borderColor: kind.color, backgroundColor: `${kind.color}1A` },
+                      ]}
+                      onPress={() => setEditIncomeKind(editIncomeKind === kind.value ? null : kind.value)}
+                    >
+                      <View style={[styles.catDot, { backgroundColor: kind.color }]} />
+                      <Text style={[styles.catBtnText, editIncomeKind === kind.value && { color: kind.color }]}>
+                        {kind.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
               {editType === 'expense' && (
                 <View style={styles.catRow}>
                   {expenseCategories.map(cat => (
@@ -486,8 +526,8 @@ export default function BookkeepingScreen() {
                 <TouchableOpacity style={styles.cancelBtn} onPress={() => setEditTx(null)}>
                   <Text style={styles.cancelText}>取消</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.submitBtn} onPress={handleSaveEdit}>
-                  <Text style={styles.submitText}>儲存</Text>
+                <TouchableOpacity style={styles.submitBtn} onPress={handleSaveEdit} disabled={editSubmitting}>
+                  <Text style={styles.submitText}>{editSubmitting ? '儲存中...' : '儲存'}</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -579,6 +619,29 @@ export default function BookkeepingScreen() {
               </View>
               {!!formAmountError && <Text style={styles.errorText}>{formAmountError}</Text>}
 
+              {formType === 'income' && (
+                <>
+                  <Text style={styles.fieldLabel}>收入性質</Text>
+                  <View style={styles.catRow}>
+                    {INCOME_KINDS.map(kind => (
+                      <TouchableOpacity
+                        key={kind.value}
+                        style={[
+                          styles.catBtn,
+                          formIncomeKind === kind.value && { borderColor: kind.color, backgroundColor: `${kind.color}1A` },
+                        ]}
+                        onPress={() => setFormIncomeKind(formIncomeKind === kind.value ? null : kind.value)}
+                      >
+                        <View style={[styles.catDot, { backgroundColor: kind.color }]} />
+                        <Text style={[styles.catBtnText, formIncomeKind === kind.value && { color: kind.color }]}>
+                          {kind.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </>
+              )}
+
               {formType === 'expense' && (
                 <>
                   <Text style={styles.fieldLabel}>分類</Text>
@@ -630,6 +693,8 @@ export default function BookkeepingScreen() {
                   )}
                 </>
               )}
+
+              {!!formSubmitError && <Text style={styles.errorText}>{formSubmitError}</Text>}
 
               <View style={styles.modalActions}>
                 <TouchableOpacity style={styles.cancelBtn} onPress={() => setModalVisible(false)}>
@@ -685,6 +750,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
+  toolbarActions: { flexDirection: 'row', gap: 8 },
   modePill: {
     borderWidth: 1,
     borderColor: '#3A3A3A',
@@ -712,16 +778,6 @@ const styles = StyleSheet.create({
   loadErrorText: { flex: 1, color: '#CC7777', fontSize: 12 },
   loadErrorRetry: { color: '#FFFFFF', fontSize: 13, padding: 10 },
 
-  monthNav: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingBottom: 12,
-  },
-  navBtn: { padding: 8 },
-  navText: { color: '#FFFFFF', fontSize: 24, fontWeight: '200' },
-  monthTitle: { flex: 1, textAlign: 'center', color: '#FFFFFF', fontSize: 15, fontWeight: '300', letterSpacing: 1 },
-
   summaryRow: {
     flexDirection: 'row',
     marginHorizontal: 16,
@@ -745,12 +801,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   sectionTitle: { color: '#333', fontSize: 11, letterSpacing: 2, textTransform: 'uppercase' },
-  sectionHint: { color: '#222', fontSize: 10, marginLeft: 8 },
-
-  budgetContainer: {
-    marginHorizontal: 20,
-    marginBottom: 20,
-  },
 
   empty: { alignItems: 'center', paddingTop: 32 },
   emptyText: { color: '#555555', fontSize: 13, letterSpacing: 1 },

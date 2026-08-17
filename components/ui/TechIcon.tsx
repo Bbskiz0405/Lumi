@@ -28,6 +28,7 @@ export type TechIconName =
   | 'rotate-ccw'
   | 'send'
   | 'settings'
+  | 'target'
   | 'trash'
   | 'wallet';
 
@@ -83,6 +84,14 @@ export default function TechIcon({
             <Circle {...common} cx="12" cy="12" r="9" />
             <Line {...common} x1="12" y1="7" x2="12" y2="12" />
             <Line {...common} x1="12" y1="12" x2="16" y2="14" />
+          </>
+        );
+      case 'target':
+        return (
+          <>
+            <Circle {...common} cx="12" cy="12" r="8.5" />
+            <Circle {...common} cx="12" cy="12" r="4.5" />
+            <Line {...common} x1="12" y1="12" x2="12.01" y2="12" />
           </>
         );
       case 'wallet':
