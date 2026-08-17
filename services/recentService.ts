@@ -19,7 +19,8 @@ export async function getRecentActivity(limit: number = 8): Promise<RecentItem[]
   const transactions = await db.getAllAsync<{
     id: string; item: string; type: string; amount: number; created_at: string;
   }>(
-    'SELECT id, item, type, amount, created_at FROM transactions ORDER BY created_at DESC LIMIT ?',
+    // 對帳調整不是使用者「做了什麼」，不該佔用首頁最近動態的位置。
+    'SELECT id, item, type, amount, created_at FROM transactions WHERE is_adjustment = 0 ORDER BY created_at DESC LIMIT ?',
     [limit]
   );
 

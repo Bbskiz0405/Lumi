@@ -18,7 +18,9 @@ function formatDate(isoStr: string): string {
 
 export default function TransactionCard({ transaction: tx, categories, onDelete, onEdit }: Props) {
   const isIncome = tx.type === 'income';
+  const isAdjustment = tx.is_adjustment === 1;
   const categoryMeta = tx.category ? findCategoryMeta(categories, tx.category) : null;
+  const accent = isAdjustment ? '#7E97B8' : isIncome ? '#55DDAA' : '#FF6655';
 
   return (
     <TouchableOpacity
@@ -28,16 +30,22 @@ export default function TransactionCard({ transaction: tx, categories, onDelete,
       accessibilityRole="button"
       accessibilityLabel={`編輯${isIncome ? '收入' : '支出'}：${tx.item}，${tx.amount}`}
     >
-      <View style={[styles.indicator, { backgroundColor: isIncome ? '#55DDAA' : '#FF6655' }]} />
+      <View style={[styles.indicator, { backgroundColor: accent }]} />
       <View style={styles.body}>
         <View style={styles.top}>
           <Text style={styles.item} numberOfLines={1}>{tx.item}</Text>
-          <Text style={[styles.amount, { color: isIncome ? '#55DDAA' : '#FF6655' }]}>
+          <Text style={[styles.amount, { color: accent }]}>
             {isIncome ? '+' : '-'}{tx.amount.toLocaleString('zh-TW')}
           </Text>
         </View>
         <View style={styles.bottom}>
           <Text style={styles.date}>{formatDate(tx.created_at)}</Text>
+          {isAdjustment && (
+            <View style={[styles.tag, { borderColor: '#7E97B855' }]}>
+              <View style={[styles.tagDot, { backgroundColor: '#7E97B8' }]} />
+              <Text style={styles.tagText}>不計入收支</Text>
+            </View>
+          )}
           {categoryMeta && (
             <View style={[styles.tag, { borderColor: `${categoryMeta.color}55` }]}>
               <View style={[styles.tagDot, { backgroundColor: categoryMeta.color }]} />
@@ -101,6 +109,7 @@ const styles = StyleSheet.create({
   bottom: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
   },
   date: {
     color: '#444',

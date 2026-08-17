@@ -84,7 +84,9 @@ export async function getEventStream(opts: EventStreamOptions = {}): Promise<Uni
 
   if (types.includes('finance')) {
     const rows = await db.getAllAsync<RawRow>(
-      `SELECT id AS refId, type AS type_col, item, amount, category, created_at FROM transactions${perTypeLimit}`
+      // 對帳調整是記帳機制，不是生活事件，別餵給時間軸敘事與問 Lumi。
+      `SELECT id AS refId, type AS type_col, item, amount, category, created_at
+       FROM transactions WHERE is_adjustment = 0${perTypeLimit}`
     );
     for (const r of rows) {
       events.push({

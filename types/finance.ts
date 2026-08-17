@@ -19,6 +19,11 @@ export interface Transaction {
   amount: number;
   category: ExpenseCategory | null;
   income_kind: IncomeKind | null;
+  /**
+   * 1 = 對帳調整，用來把帳面餘額校正成實際存款。
+   * 它不是真的收入或支出，所有統計都排除，只有餘額計入。
+   */
+  is_adjustment: number;
   created_at: string;
 }
 
@@ -36,6 +41,7 @@ export interface CreateTransactionInput {
   amount: number;
   category: ExpenseCategory | null;
   income_kind?: IncomeKind | null;
+  is_adjustment?: boolean;
   entry_id?: string | null;
   created_at?: string;
 }

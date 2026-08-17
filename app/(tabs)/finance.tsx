@@ -4,6 +4,7 @@ import { useFocusEffect } from 'expo-router';
 import PeriodBar from '../../components/finance/analytics/PeriodBar';
 import Section from '../../components/finance/analytics/Section';
 import KpiSummary from '../../components/finance/analytics/KpiSummary';
+import BalanceCard from '../../components/finance/analytics/BalanceCard';
 import SavingsGoals, { SavingsGoalDraft } from '../../components/finance/analytics/SavingsGoals';
 import IncomeStructure from '../../components/finance/analytics/IncomeStructure';
 import BudgetSection from '../../components/finance/analytics/BudgetSection';
@@ -20,6 +21,7 @@ import {
   BufferEstimate,
   BudgetUsageItem,
   SavingsGoalProgress,
+  CurrentBalance,
   monthKey,
   getFinanceOverview,
   getMonthlyTrend,
@@ -27,6 +29,8 @@ import {
   getTopExpenses,
   getIncomeBreakdown,
   getBufferEstimate,
+  getCurrentBalance,
+  reconcileBalance,
   getBudgetUsage,
   getSavingsGoals,
   getAvgMonthlySurplus,
@@ -63,6 +67,7 @@ export default function FinanceAnalyticsScreen() {
   const [topExpenses, setTopExpenses] = useState<Transaction[]>([]);
   const [income, setIncome] = useState<IncomeBreakdown | null>(null);
   const [buffer, setBuffer] = useState<BufferEstimate | null>(null);
+  const [balance, setBalance] = useState<CurrentBalance | null>(null);
   const [budgets, setBudgets] = useState<BudgetUsageItem[]>([]);
   const [goals, setGoals] = useState<SavingsGoalProgress[]>([]);
 
@@ -89,6 +94,7 @@ export default function FinanceAnalyticsScreen() {
       nextBudgets,
       rawGoals,
       avgSurplus,
+      nextBalance,
     ] = await Promise.all([
       getExpenseCategories(),
       getFinanceOverview(period),
@@ -100,6 +106,7 @@ export default function FinanceAnalyticsScreen() {
       getBudgetUsage(anchorMonth),
       getSavingsGoals(),
       getAvgMonthlySurplus(anchorMonth),
+      getCurrentBalance(),
     ]);
 
     setCategories(nextCategories);
@@ -111,6 +118,7 @@ export default function FinanceAnalyticsScreen() {
     setBuffer(nextBuffer);
     setBudgets(nextBudgets);
     setGoals(rawGoals.map(goal => buildGoalProgress(goal, avgSurplus)));
+    setBalance(nextBalance);
     setLoading(false);
   }, [period, anchorMonth]);
 
@@ -123,6 +131,12 @@ export default function FinanceAnalyticsScreen() {
       });
     }, [load])
   );
+
+  async function handleReconcile(actualBalance: number): Promise<number> {
+    const diff = await reconcileBalance(actualBalance);
+    await load().catch(() => setLoadError(true));
+    return diff;
+  }
 
   async function handleUpdateBudget(category: ExpenseCategory, limit: number) {
     try {
@@ -194,6 +208,8 @@ export default function FinanceAnalyticsScreen() {
             </TouchableOpacity>
           </View>
         )}
+
+        {balance && <BalanceCard balance={balance} onReconcile={handleReconcile} />}
 
         {overview && <KpiSummary overview={overview} />}
 

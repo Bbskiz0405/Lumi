@@ -65,8 +65,9 @@ export default function IncomeStructure({ breakdown, buffer }: Props) {
         </Text>
       </View>
       <Text style={styles.bufferNote}>
-        以累計結餘 {formatAmount(buffer.cumulativeBalance)} ÷ 近月均支出{' '}
-        {formatAmount(buffer.avgMonthlyExpense)} 估算，非實際存款。
+        以存款 {formatAmount(buffer.currentBalance)} ÷ 近月均支出{' '}
+        {formatAmount(buffer.avgMonthlyExpense)} 估算。
+        {!buffer.hasReconciled && ' 尚未對帳，存款目前只是收支淨額。'}
       </Text>
     </View>
   );

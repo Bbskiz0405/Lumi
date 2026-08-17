@@ -1,7 +1,7 @@
 import { getDb, LATEST_DATABASE_VERSION } from './db';
 
 export const BACKUP_FORMAT = 'lumi-backup';
-export const BACKUP_SCHEMA_VERSION = 5;
+export const BACKUP_SCHEMA_VERSION = 6;
 export const BACKUP_APP_VERSION = '0.4.81';
 
 type SqlValue = string | number | null;
@@ -117,7 +117,17 @@ const TABLES: TableSpec[] = [
   { name: 'notes', columns: ['id', 'entry_id', 'content', 'category', 'tag', 'created_at'] },
   {
     name: 'transactions',
-    columns: ['id', 'entry_id', 'type', 'item', 'amount', 'category', 'income_kind', 'created_at'],
+    columns: [
+      'id',
+      'entry_id',
+      'type',
+      'item',
+      'amount',
+      'category',
+      'income_kind',
+      'is_adjustment',
+      'created_at',
+    ],
   },
   {
     name: 'budgets',
@@ -218,6 +228,11 @@ function parseBackup(value: unknown): LumiBackup {
         if (isObject(transaction)) transaction.income_kind = null;
       });
     }
+  }
+  if (value.schemaVersion <= 5 && Array.isArray(value.data.transactions)) {
+    value.data.transactions.forEach(transaction => {
+      if (isObject(transaction)) transaction.is_adjustment = 0;
+    });
   }
 
   for (const table of TABLES) {

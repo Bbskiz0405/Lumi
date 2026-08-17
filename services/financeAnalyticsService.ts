@@ -1,4 +1,5 @@
 import { getDb } from './db';
+import { EXCLUDE_ADJUSTMENTS, createTransaction } from './financeService';
 import { Transaction, SavingsGoal } from '../types/finance';
 import * as Crypto from 'expo-crypto';
 
@@ -25,14 +26,21 @@ interface PeriodFilter {
   params: string[];
 }
 
+/** 這裡的期間篩選一律用於統計，所以都帶上排除對帳調整的條件。 */
 function periodFilter(period: Period): PeriodFilter {
   if (period.mode === 'month') {
-    return { where: `strftime('%Y-%m', created_at) = ?`, params: [period.month] };
+    return {
+      where: `${EXCLUDE_ADJUSTMENTS} AND strftime('%Y-%m', created_at) = ?`,
+      params: [period.month],
+    };
   }
   if (period.mode === 'year') {
-    return { where: `strftime('%Y', created_at) = ?`, params: [period.year] };
+    return {
+      where: `${EXCLUDE_ADJUSTMENTS} AND strftime('%Y', created_at) = ?`,
+      params: [period.year],
+    };
   }
-  return { where: '1 = 1', params: [] };
+  return { where: EXCLUDE_ADJUSTMENTS, params: [] };
 }
 
 function pad2(n: number): string {
@@ -98,7 +106,7 @@ async function daysElapsed(period: Period): Promise<number> {
 
   const db = await getDb();
   const row = await db.getFirstAsync<{ first: string | null }>(
-    'SELECT MIN(created_at) AS first FROM transactions'
+    `SELECT MIN(created_at) AS first FROM transactions WHERE ${EXCLUDE_ADJUSTMENTS}`
   );
   if (!row?.first) return 1;
   const start = new Date(row.first);
@@ -154,7 +162,7 @@ export async function getMonthlyTrend(anchorMonth: string, count = 6): Promise<M
   const rows = await db.getAllAsync<{ month: string; type: string; total: number }>(
     `SELECT strftime('%Y-%m', created_at) AS month, type, SUM(amount) AS total
      FROM transactions
-     WHERE strftime('%Y-%m', created_at) BETWEEN ? AND ?
+     WHERE ${EXCLUDE_ADJUSTMENTS} AND strftime('%Y-%m', created_at) BETWEEN ? AND ?
      GROUP BY month, type`,
     [months[0], months[months.length - 1]]
   );
@@ -254,18 +262,19 @@ export async function getIncomeBreakdown(period: Period): Promise<IncomeBreakdow
   return breakdown;
 }
 
-export interface BufferEstimate {
-  /** 歷來收入減支出。App 沒有帳戶餘額，這是能拿到最接近存款的數字。 */
-  cumulativeBalance: number;
-  avgMonthlyExpense: number;
-  /** 累計結餘可支撐幾個月。沒有支出紀錄時為 null。 */
-  months: number | null;
+export interface CurrentBalance {
+  /** 目前存款 = 所有交易的收入減支出，**含**對帳調整。 */
+  balance: number;
+  /** 是否對過帳。沒對過的話這個數字只是流水淨額，不等於實際存款。 */
+  hasReconciled: boolean;
+  /** 最後一次對帳時間，ISO 字串。 */
+  lastReconciledAt: string | null;
 }
 
-export async function getBufferEstimate(anchorMonth: string, window = 3): Promise<BufferEstimate> {
+export async function getCurrentBalance(): Promise<CurrentBalance> {
   const db = await getDb();
   const rows = await db.getAllAsync<{ type: string; total: number }>(
-    `SELECT type, SUM(amount) AS total FROM transactions GROUP BY type`
+    'SELECT type, SUM(amount) AS total FROM transactions GROUP BY type'
   );
   let income = 0;
   let expense = 0;
@@ -274,17 +283,62 @@ export async function getBufferEstimate(anchorMonth: string, window = 3): Promis
     else if (row.type === 'expense') expense = row.total;
   }
 
+  const last = await db.getFirstAsync<{ created_at: string | null }>(
+    'SELECT MAX(created_at) AS created_at FROM transactions WHERE is_adjustment = 1'
+  );
+
+  return {
+    balance: income - expense,
+    hasReconciled: !!last?.created_at,
+    lastReconciledAt: last?.created_at ?? null,
+  };
+}
+
+/**
+ * 把帳面餘額校正成使用者輸入的實際存款：差額寫成一筆調整交易。
+ * 用交易而不是存一個「期初餘額」設定值，是為了留下校正紀錄，
+ * 而且餘額永遠只有一個算法（所有交易加總），不必兩套邏輯對齊。
+ */
+export async function reconcileBalance(actualBalance: number): Promise<number> {
+  if (!Number.isFinite(actualBalance)) throw new Error('餘額必須是數字');
+
+  const { balance } = await getCurrentBalance();
+  const diff = actualBalance - balance;
+  if (Math.abs(diff) < 0.005) return 0;
+
+  await createTransaction({
+    type: diff > 0 ? 'income' : 'expense',
+    item: '對帳調整',
+    amount: Math.abs(diff),
+    category: null,
+    is_adjustment: true,
+  });
+  return diff;
+}
+
+export interface BufferEstimate {
+  /** 目前存款，含對帳調整。 */
+  currentBalance: number;
+  avgMonthlyExpense: number;
+  /** 存款可支撐幾個月。沒有支出紀錄時為 null。 */
+  months: number | null;
+  hasReconciled: boolean;
+}
+
+export async function getBufferEstimate(anchorMonth: string, window = 3): Promise<BufferEstimate> {
+  const { balance, hasReconciled } = await getCurrentBalance();
+
   const trend = await getMonthlyTrend(anchorMonth, window);
   const monthsWithSpending = trend.filter(point => point.expense > 0);
   const avgMonthlyExpense = monthsWithSpending.length > 0
     ? monthsWithSpending.reduce((sum, point) => sum + point.expense, 0) / monthsWithSpending.length
     : 0;
 
-  const cumulativeBalance = income - expense;
   return {
-    cumulativeBalance,
+    currentBalance: balance,
     avgMonthlyExpense,
-    months: avgMonthlyExpense > 0 ? cumulativeBalance / avgMonthlyExpense : null,
+    months: avgMonthlyExpense > 0 ? balance / avgMonthlyExpense : null,
+    hasReconciled,
   };
 }
 

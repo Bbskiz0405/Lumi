@@ -8,6 +8,13 @@ import {
 } from '../types/finance';
 import * as Crypto from 'expo-crypto';
 
+/**
+ * 對帳調整不是收入也不是支出，是把帳面校正到實際存款的補正。
+ * 收支統計一律加上這個條件，否則「這個月花了多少」會被補正金額污染；
+ * 餘額計算則相反，必須含進去才會等於實際存款。
+ */
+export const EXCLUDE_ADJUSTMENTS = 'is_adjustment = 0';
+
 function nowISO(): string {
   const d = new Date();
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -41,11 +48,23 @@ export async function createTransaction(input: CreateTransactionInput): Promise<
     amount: input.amount,
     category: input.type === 'expense' ? (input.category ?? 'other') : null,
     income_kind: input.type === 'income' ? (input.income_kind ?? null) : null,
+    is_adjustment: input.is_adjustment ? 1 : 0,
     created_at: input.created_at ?? now,
   };
   await db.runAsync(
-    `INSERT INTO transactions (id, entry_id, type, item, amount, category, income_kind, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [tx.id, tx.entry_id, tx.type, tx.item, tx.amount, tx.category, tx.income_kind, tx.created_at]
+    `INSERT INTO transactions (id, entry_id, type, item, amount, category, income_kind, is_adjustment, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      tx.id,
+      tx.entry_id,
+      tx.type,
+      tx.item,
+      tx.amount,
+      tx.category,
+      tx.income_kind,
+      tx.is_adjustment,
+      tx.created_at,
+    ]
   );
   return tx;
 }
@@ -82,7 +101,8 @@ export async function deleteTransaction(id: string): Promise<void> {
 export async function getMonthSummary(month: string): Promise<{ income: number; expense: number }> {
   const db = await getDb();
   const rows = await db.getAllAsync<{ type: string; total: number }>(
-    `SELECT type, SUM(amount) as total FROM transactions WHERE strftime('%Y-%m', created_at) = ? GROUP BY type`,
+    `SELECT type, SUM(amount) as total FROM transactions
+     WHERE ${EXCLUDE_ADJUSTMENTS} AND strftime('%Y-%m', created_at) = ? GROUP BY type`,
     [month]
   );
   let income = 0, expense = 0;
@@ -254,7 +274,8 @@ export async function getAllTransactions(): Promise<Transaction[]> {
 export async function getYearSummary(year: string): Promise<{ income: number; expense: number }> {
   const db = await getDb();
   const rows = await db.getAllAsync<{ type: string; total: number }>(
-    `SELECT type, SUM(amount) as total FROM transactions WHERE strftime('%Y', created_at) = ? GROUP BY type`,
+    `SELECT type, SUM(amount) as total FROM transactions
+     WHERE ${EXCLUDE_ADJUSTMENTS} AND strftime('%Y', created_at) = ? GROUP BY type`,
     [year]
   );
   let income = 0, expense = 0;
@@ -268,7 +289,7 @@ export async function getYearSummary(year: string): Promise<{ income: number; ex
 export async function getAllTimeSummary(): Promise<{ income: number; expense: number }> {
   const db = await getDb();
   const rows = await db.getAllAsync<{ type: string; total: number }>(
-    'SELECT type, SUM(amount) as total FROM transactions GROUP BY type'
+    `SELECT type, SUM(amount) as total FROM transactions WHERE ${EXCLUDE_ADJUSTMENTS} GROUP BY type`
   );
   let income = 0, expense = 0;
   for (const r of rows) {
@@ -282,7 +303,7 @@ export async function getExpenseByCategoryForYear(year: string): Promise<Record<
   const db = await getDb();
   const rows = await db.getAllAsync<{ category: string; total: number }>(
     `SELECT category, SUM(amount) as total FROM transactions
-     WHERE type = 'expense' AND strftime('%Y', created_at) = ?
+     WHERE type = 'expense' AND ${EXCLUDE_ADJUSTMENTS} AND strftime('%Y', created_at) = ?
      GROUP BY category`,
     [year]
   );
@@ -295,7 +316,7 @@ export async function getExpenseByCategoryAllTime(): Promise<Record<string, numb
   const db = await getDb();
   const rows = await db.getAllAsync<{ category: string; total: number }>(
     `SELECT category, SUM(amount) as total FROM transactions
-     WHERE type = 'expense' GROUP BY category`
+     WHERE type = 'expense' AND ${EXCLUDE_ADJUSTMENTS} GROUP BY category`
   );
   const result: Record<string, number> = {};
   for (const r of rows) result[r.category] = r.total;
@@ -306,7 +327,7 @@ export async function getExpenseByCategory(month: string): Promise<Record<string
   const db = await getDb();
   const rows = await db.getAllAsync<{ category: string; total: number }>(
     `SELECT category, SUM(amount) as total FROM transactions
-     WHERE type = 'expense' AND strftime('%Y-%m', created_at) = ?
+     WHERE type = 'expense' AND ${EXCLUDE_ADJUSTMENTS} AND strftime('%Y-%m', created_at) = ?
      GROUP BY category`,
     [month]
   );
