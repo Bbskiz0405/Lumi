@@ -1,7 +1,7 @@
 import { getDb, LATEST_DATABASE_VERSION } from './db';
 
 export const BACKUP_FORMAT = 'lumi-backup';
-export const BACKUP_SCHEMA_VERSION = 4;
+export const BACKUP_SCHEMA_VERSION = 5;
 export const BACKUP_APP_VERSION = '0.4.81';
 
 type SqlValue = string | number | null;
@@ -18,6 +18,7 @@ interface BackupData {
   goals: BackupRow[];
   goal_milestones: BackupRow[];
   goal_tasks: BackupRow[];
+  savings_goals: BackupRow[];
   settings: BackupRow[];
 }
 
@@ -39,6 +40,7 @@ export interface BackupCounts {
   transactions: number;
   budgets: number;
   goals: number;
+  savingsGoals: number;
   settings: number;
   total: number;
 }
@@ -115,7 +117,7 @@ const TABLES: TableSpec[] = [
   { name: 'notes', columns: ['id', 'entry_id', 'content', 'category', 'tag', 'created_at'] },
   {
     name: 'transactions',
-    columns: ['id', 'entry_id', 'type', 'item', 'amount', 'category', 'created_at'],
+    columns: ['id', 'entry_id', 'type', 'item', 'amount', 'category', 'income_kind', 'created_at'],
   },
   {
     name: 'budgets',
@@ -127,6 +129,19 @@ const TABLES: TableSpec[] = [
     columns: ['id', 'goal_id', 'title', 'order_index', 'completed'],
   },
   { name: 'goal_tasks', columns: ['id', 'goal_id', 'task_id', 'is_recurring'] },
+  {
+    name: 'savings_goals',
+    columns: [
+      'id',
+      'title',
+      'target_amount',
+      'saved_amount',
+      'target_date',
+      'status',
+      'created_at',
+      'updated_at',
+    ],
+  },
   { name: 'settings', columns: ['key', 'value'] },
 ];
 
@@ -194,6 +209,16 @@ function parseBackup(value: unknown): LumiBackup {
       }
     });
   }
+  if (value.schemaVersion <= 4) {
+    if (!Array.isArray(value.data.savings_goals)) {
+      value.data.savings_goals = [];
+    }
+    if (Array.isArray(value.data.transactions)) {
+      value.data.transactions.forEach(transaction => {
+        if (isObject(transaction)) transaction.income_kind = null;
+      });
+    }
+  }
 
   for (const table of TABLES) {
     const rows = value.data[table.name];
@@ -220,6 +245,7 @@ function buildCounts(lengths: Record<keyof BackupData, number>): BackupCounts {
     transactions: lengths.transactions,
     budgets: lengths.budgets,
     goals: lengths.goals,
+    savingsGoals: lengths.savings_goals,
     settings: lengths.settings,
   };
   return {
@@ -235,6 +261,7 @@ function buildCounts(lengths: Record<keyof BackupData, number>): BackupCounts {
       counts.goals +
       lengths.goal_milestones +
       lengths.goal_tasks +
+      counts.savingsGoals +
       counts.settings,
   };
 }
@@ -319,6 +346,7 @@ export async function importBackup(
         DELETE FROM goal_tasks;
         DELETE FROM goal_milestones;
         DELETE FROM goals;
+        DELETE FROM savings_goals;
         DELETE FROM budgets;
         DELETE FROM transactions;
         DELETE FROM notes;
