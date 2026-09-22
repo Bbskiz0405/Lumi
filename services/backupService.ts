@@ -1,7 +1,8 @@
 import { getDb, LATEST_DATABASE_VERSION } from './db';
+import { parseTrackerModule, parseTrackerRecord, TrackerModuleRow, TrackerRecordRow } from './trackerModuleService';
 
 export const BACKUP_FORMAT = 'lumi-backup';
-export const BACKUP_SCHEMA_VERSION = 6;
+export const BACKUP_SCHEMA_VERSION = 7;
 export const BACKUP_APP_VERSION = '0.4.81';
 
 type SqlValue = string | number | null;
@@ -19,6 +20,8 @@ interface BackupData {
   goal_milestones: BackupRow[];
   goal_tasks: BackupRow[];
   savings_goals: BackupRow[];
+  tracker_modules: BackupRow[];
+  tracker_records: BackupRow[];
   settings: BackupRow[];
 }
 
@@ -41,6 +44,8 @@ export interface BackupCounts {
   budgets: number;
   goals: number;
   savingsGoals: number;
+  trackerModules: number;
+  trackerRecords: number;
   settings: number;
   total: number;
 }
@@ -152,6 +157,14 @@ const TABLES: TableSpec[] = [
       'updated_at',
     ],
   },
+  {
+    name: 'tracker_modules',
+    columns: ['id', 'name', 'description', 'schema_json', 'created_at', 'updated_at'],
+  },
+  {
+    name: 'tracker_records',
+    columns: ['id', 'module_id', 'data_json', 'recorded_at', 'created_at'],
+  },
   { name: 'settings', columns: ['key', 'value'] },
 ];
 
@@ -234,6 +247,10 @@ function parseBackup(value: unknown): LumiBackup {
       if (isObject(transaction)) transaction.is_adjustment = 0;
     });
   }
+  if (value.schemaVersion <= 6) {
+    if (!Array.isArray(value.data.tracker_modules)) value.data.tracker_modules = [];
+    if (!Array.isArray(value.data.tracker_records)) value.data.tracker_records = [];
+  }
 
   for (const table of TABLES) {
     const rows = value.data[table.name];
@@ -244,6 +261,23 @@ function parseBackup(value: unknown): LumiBackup {
   }
 
   const backup = value as unknown as LumiBackup;
+  const modules = new Map<string, ReturnType<typeof parseTrackerModule>>();
+  const recordIds = new Set<string>();
+  for (const row of backup.data.tracker_modules) {
+    if (typeof row.id !== 'string' || !row.id || modules.has(row.id)) throw new Error('模組 ID 無效或重複');
+    for (const key of ['created_at', 'updated_at']) {
+      if (typeof row[key] !== 'string' || !Number.isFinite(new Date(row[key] as string).getTime())) throw new Error('模組時間無效');
+    }
+    modules.set(row.id, parseTrackerModule(row as unknown as TrackerModuleRow));
+  }
+  for (const row of backup.data.tracker_records) {
+    if (typeof row.id !== 'string' || !row.id || recordIds.has(row.id)) throw new Error('模組紀錄 ID 無效或重複');
+    recordIds.add(row.id);
+    const module = typeof row.module_id === 'string' ? modules.get(row.module_id) : undefined;
+    if (!module) throw new Error('模組紀錄缺少所屬模組');
+    if (typeof row.created_at !== 'string' || !Number.isFinite(new Date(row.created_at).getTime())) throw new Error('模組紀錄時間無效');
+    parseTrackerRecord(row as unknown as TrackerRecordRow, module);
+  }
   if (backup.data.settings.some(row => row.key === 'ai_config')) {
     throw new Error('備份檔含有不應匯入的 API Key 設定');
   }
@@ -261,6 +295,8 @@ function buildCounts(lengths: Record<keyof BackupData, number>): BackupCounts {
     budgets: lengths.budgets,
     goals: lengths.goals,
     savingsGoals: lengths.savings_goals,
+    trackerModules: lengths.tracker_modules,
+    trackerRecords: lengths.tracker_records,
     settings: lengths.settings,
   };
   return {
@@ -277,6 +313,8 @@ function buildCounts(lengths: Record<keyof BackupData, number>): BackupCounts {
       lengths.goal_milestones +
       lengths.goal_tasks +
       counts.savingsGoals +
+      counts.trackerModules +
+      counts.trackerRecords +
       counts.settings,
   };
 }
@@ -356,8 +394,19 @@ export async function importBackup(
   let skipped = 0;
 
   await db.withExclusiveTransactionAsync(async tx => {
+    if (mode === 'merge') {
+      for (const row of backup.data.tracker_modules) {
+        const existing = await tx.getFirstAsync<TrackerModuleRow>('SELECT * FROM tracker_modules WHERE id = ?', [row.id]);
+        if (existing && JSON.stringify(parseTrackerModule(existing).fields) !==
+          JSON.stringify(parseTrackerModule(row as unknown as TrackerModuleRow).fields)) {
+          throw new Error('「' + existing.name + '」的欄位與備份不同，無法合併。請先匯出本機資料再選擇還原方式');
+        }
+      }
+    }
     if (mode === 'replace') {
       await tx.execAsync(`
+        DELETE FROM tracker_records;
+        DELETE FROM tracker_modules;
         DELETE FROM goal_tasks;
         DELETE FROM goal_milestones;
         DELETE FROM goals;

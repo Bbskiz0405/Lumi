@@ -8,6 +8,7 @@ export interface ClassificationResult {
   parsed?: {
     amount?: number;
     category?: string;
+    newCategoryLabel?: string;
     transactionType?: 'income' | 'expense';
     dueDate?: string;
   };
@@ -87,12 +88,24 @@ export function parseMultipleTransactions(text: string): ParsedTransaction[] {
 
 function guessExpenseCategory(text: string): string {
   const foodWords = ['餐', '吃', '飯', '麵', '早餐', '午餐', '晚餐', '宵夜', '飲料', '咖啡', '便當', '外送', '火鍋', '壽司', '拉麵', '牛排', '茶'];
-  const transportWords = ['車', '油', '停車', '捷運', '公車', '高鐵', '計程', 'uber', '加油', '票'];
+  const transportWords = ['車', '油', '停車', '捷運', '公車', '高鐵', '計程', 'uber', '加油', '車票', '機票'];
   const interestWords = ['遊戲', 'game', '漫畫', '動漫', '模型', '卡', '抽', '課金', '訂閱', '會員'];
+  const dailyWords = ['日用品', '衛生紙', '洗衣', '清潔', '牙膏', '牙刷', '洗髮', '沐浴', '全聯', '家樂福', '超市'];
+  const medicalWords = ['醫療', '醫院', '診所', '看醫生', '掛號', '藥局', '藥品', '牙醫', '復健', '健檢'];
+  const educationWords = ['教育', '學費', '書籍', '買書', '課程', '補習', '講義', '文具', '學習'];
+  const entertainmentWords = ['娛樂', '電影', 'ktv', '唱歌', '展覽', '演唱會', 'netflix', 'disney+', '旅遊', '旅行'];
+  const communicationWords = ['通訊', '電話費', '手機費', '網路費', '電信', '門號', '寬頻'];
+  const housingWords = ['居住', '房租', '租金', '水電', '電費', '水費', '瓦斯', '管理費', '房貸', '修繕'];
 
   for (const w of foodWords) if (text.includes(w)) return 'food';
   for (const w of transportWords) if (text.includes(w)) return 'transport';
   for (const w of interestWords) if (text.includes(w)) return 'interest';
+  for (const w of dailyWords) if (text.includes(w)) return 'daily';
+  for (const w of medicalWords) if (text.includes(w)) return 'medical';
+  for (const w of educationWords) if (text.includes(w)) return 'education';
+  for (const w of entertainmentWords) if (text.includes(w)) return 'entertainment';
+  for (const w of communicationWords) if (text.includes(w)) return 'communication';
+  for (const w of housingWords) if (text.includes(w)) return 'housing';
   return 'other';
 }
 

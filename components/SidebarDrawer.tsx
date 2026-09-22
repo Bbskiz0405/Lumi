@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'expo-router';
 import {
   Animated,
   Dimensions,
@@ -320,6 +321,7 @@ interface Props {
 }
 
 export default function SidebarDrawer({ visible, onClose }: Props) {
+  const router = useRouter();
   const translateX = useRef(new Animated.Value(DRAWER_WIDTH)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const [section, setSection] = useState<Section>('menu');
@@ -385,6 +387,17 @@ export default function SidebarDrawer({ visible, onClose }: Props) {
 
           {section === 'menu' && (
             <View style={styles.menuList}>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  handleClose();
+                  router.push('/modules');
+                }}
+              >
+                <View style={styles.menuIcon}><TechIcon name="grid" size={18} color="#55DDAA" /></View>
+                <Text style={styles.menuLabel}>自訂模組</Text>
+                <TechIcon name="chevron-right" size={16} color="#444" />
+              </TouchableOpacity>
               <TouchableOpacity style={styles.menuItem} onPress={() => setSection('settings')}>
                 <View style={styles.menuIcon}><TechIcon name="settings" size={18} color="#888" /></View>
                 <Text style={styles.menuLabel}>AI 設定</Text>

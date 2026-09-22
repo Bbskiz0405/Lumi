@@ -12,6 +12,7 @@ import {
 import TechIcon, { TechIconName } from '../components/ui/TechIcon';
 
 const TYPE_META: Record<string, { icon: TechIconName; color: string; label: string }> = {
+  tracker: { icon: 'grid', color: '#55DDAA', label: '自訂模組' },
   task: { icon: 'check-square', color: '#FF9944', label: '任務' },
   note: { icon: 'file-text', color: '#88AAFF', label: '筆記' },
   income: { icon: 'wallet', color: '#55DDAA', label: '收入' },
@@ -92,7 +93,7 @@ export default function TimelineScreen() {
       setLoading(true);
       setLoadError(false);
       Promise.all([
-        getEventStream({ types: ['task', 'finance', 'note'], limit: 300 }),
+        getEventStream({ types: ['task', 'finance', 'note', 'tracker'], limit: 300 }),
         getCachedNarrative(currentMonth()),
       ])
         .then(([events, cachedNarrative]) => {
@@ -156,7 +157,7 @@ export default function TimelineScreen() {
           <>
             <Text style={styles.narrativeEmpty}>讓 Lumi 把這個月的紀錄串成一段回顧。</Text>
             <Text style={styles.narrativePrivacy}>
-              生成時會把本月任務、記帳與筆記內容傳送到目前的 AI 供應商。
+              生成時會把本月任務、記帳、筆記與自訂模組紀錄傳送到目前的 AI 供應商。
             </Text>
             <TouchableOpacity style={styles.genBtn} onPress={handleGenerate}>
               <Text style={styles.genBtnText}>生成本月回顧</Text>
@@ -239,6 +240,10 @@ export default function TimelineScreen() {
                         {e.category ? `  ·  ${e.category}` : ''}
                       </Text>
                     )}
+                    {e.type === 'tracker' && <TouchableOpacity onPress={() => router.push({ pathname: '/module/[id]', params: { id: e.moduleId! } })}>
+                      <Text style={styles.narrativeEmpty}>{e.raw}</Text>
+                      <Text style={styles.genBtnText}>查看模組</Text>
+                    </TouchableOpacity>}
                   </View>
                 </View>
               );

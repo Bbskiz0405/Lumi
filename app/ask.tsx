@@ -18,7 +18,7 @@ const SUGGESTIONS = [
   '這個月花最多的是什麼？',
   '我有哪些還沒完成的任務？',
   '上次記的筆記是什麼時候？',
-  '我這週花了多少錢？',
+  '今天是什麼日子？',
 ];
 
 export default function AskScreen() {
@@ -92,11 +92,11 @@ export default function AskScreen() {
             <View style={styles.intro}>
               <Text style={styles.introTitle}>問 Lumi 任何事</Text>
               <Text style={styles.introSub}>
-                我會翻你的任務、記帳、筆記紀錄回答你。
+                我會翻你的任務、記帳、筆記、紀念日與自訂模組紀錄回答你。可以先在首頁輸入「今天是我們交往紀念日」。
               </Text>
               <View style={styles.privacyNotice}>
                 <Text style={styles.privacyText}>
-                  提問時，最多 250 筆近期任務、記帳與筆記內容會傳送到你選擇的 AI 供應商。
+                  提問時，最多 250 筆近期任務、記帳、筆記與自訂模組紀錄，以及全部已記錄的紀念日與當地日期，會傳送到你選擇的 AI 供應商。
                 </Text>
               </View>
               {!checkingConfig && !hasApiConfig && (
@@ -242,9 +242,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#161616',
   },
   chipText: { color: '#AAAAAA', fontSize: 14, fontWeight: '300' },
-  strip: { maxHeight: 44, borderTopWidth: 1, borderTopColor: '#1A1A1A' },
+  // Let content/font scaling determine height; only the conversation area should shrink.
+  strip: { flexGrow: 0, flexShrink: 0, borderTopWidth: 1, borderTopColor: '#1A1A1A' },
   stripContent: { paddingHorizontal: 12, paddingVertical: 8, gap: 8, alignItems: 'center' },
   stripChip: {
+    minHeight: 44,
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#2A2A2A',
     borderRadius: 16,
@@ -252,7 +255,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     backgroundColor: '#161616',
   },
-  stripChipText: { color: '#999999', fontSize: 13, fontWeight: '300' },
+  stripChipText: { color: '#999999', fontSize: 13, lineHeight: 20, fontWeight: '300' },
   bubbleRow: { marginBottom: 12, flexDirection: 'row' },
   rowRight: { justifyContent: 'flex-end' },
   rowLeft: { justifyContent: 'flex-start' },

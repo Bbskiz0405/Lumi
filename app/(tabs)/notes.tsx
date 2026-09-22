@@ -7,6 +7,7 @@ import { useFocusEffect } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getAllNotes, createNote, deleteNote, updateNote, getCustomTags, saveCustomTags } from '../../services/noteService';
 import { Note, NoteCategory } from '../../types/note';
+import { ANNIVERSARY_CATEGORY } from '../../services/anniversaryService';
 import IconButton from '../../components/ui/IconButton';
 import TechIcon from '../../components/ui/TechIcon';
 
@@ -103,8 +104,8 @@ export default function NotesScreen() {
         ));
       }
       closeModal();
-    } catch {
-      setModalError('儲存失敗，內容已保留，請再試一次。');
+    } catch (error) {
+      setModalError(error instanceof Error ? error.message : '儲存失敗，內容已保留，請再試一次。');
     } finally {
       setSaving(false);
     }
@@ -113,6 +114,10 @@ export default function NotesScreen() {
   async function handleAddTag() {
     const name = newTagName.trim();
     if (!name || tags.includes(name)) return;
+    if (name === ANNIVERSARY_CATEGORY) {
+      Alert.alert('紀念日已移至日曆', '請在日曆當天按「＋」新增紀念日。');
+      return;
+    }
     const updated = [...tags, name];
     try {
       await saveCustomTags(updated);
@@ -125,6 +130,10 @@ export default function NotesScreen() {
   }
 
   function handleDeleteTag(tag: string) {
+    if (tag === ANNIVERSARY_CATEGORY) {
+      Alert.alert('紀念日', '這是固定分類。可在列表中編輯或刪除個別紀念日。');
+      return;
+    }
     Alert.alert('刪除標籤', `確定要刪除「${tag}」嗎？`, [
       { text: '取消', style: 'cancel' },
       {

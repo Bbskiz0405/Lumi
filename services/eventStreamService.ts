@@ -1,4 +1,6 @@
 import { getDb } from './db';
+import { ANNIVERSARY_CATEGORY } from './anniversaryService';
+import { parseTrackerModule, parseTrackerRecord, TrackerModuleRow, TrackerRecordRow } from './trackerModuleService';
 
 /**
  * 統一事件流 — ABD 三條差異化路線（時間軸敘事 / 行為迴路偵測 / 問 Lumi）共用基建。
@@ -8,7 +10,7 @@ import { getDb } from './db';
  * tasks 另外保留 dueDate，A 時間軸敘事可選用到期日定位。
  */
 
-export type EventType = 'task' | 'finance' | 'note' | 'entry';
+export type EventType = 'task' | 'finance' | 'note' | 'entry' | 'tracker';
 
 export interface UnifiedEvent {
   id: string;            // `${type}:${refId}` 全域唯一
@@ -23,6 +25,7 @@ export interface UnifiedEvent {
   tag?: string;          // task / note tag
   completed?: boolean;   // task
   dueDate?: string;      // task 到期日
+  moduleId?: string;     // tracker 所屬模組
 }
 
 export interface EventStreamOptions {
@@ -58,7 +61,7 @@ interface RawRow {
 
 export async function getEventStream(opts: EventStreamOptions = {}): Promise<UnifiedEvent[]> {
   const db = await getDb();
-  const types: EventType[] = opts.types ?? ['task', 'finance', 'note', 'entry'];
+  const types: EventType[] = opts.types ?? ['task', 'finance', 'note', 'entry', 'tracker'];
   const events: UnifiedEvent[] = [];
   const perTypeLimit =
     opts.limit && opts.limit > 0 ? ` ORDER BY created_at DESC LIMIT ${Math.floor(opts.limit)}` : '';
@@ -105,7 +108,8 @@ export async function getEventStream(opts: EventStreamOptions = {}): Promise<Uni
 
   if (types.includes('note')) {
     const rows = await db.getAllAsync<RawRow>(
-      `SELECT id AS refId, content, category, tag, created_at FROM notes${perTypeLimit}`
+      `SELECT id AS refId, content, category, tag, created_at FROM notes WHERE category IS NULL OR category != ?${perTypeLimit}`,
+      [ANNIVERSARY_CATEGORY]
     );
     for (const r of rows) {
       events.push({
@@ -135,6 +139,22 @@ export async function getEventStream(opts: EventStreamOptions = {}): Promise<Uni
         refId: r.refId,
         category: r.classified_type ?? undefined,
       });
+    }
+  }
+
+  if (types.includes('tracker')) {
+    const rows = await db.getAllAsync<TrackerRecordRow & TrackerModuleRow>(
+      `SELECT r.*, m.name, m.description, m.schema_json, m.updated_at
+       FROM tracker_records r JOIN tracker_modules m ON m.id = r.module_id
+       ORDER BY r.created_at DESC`
+    );
+    for (const row of rows) {
+      const module = parseTrackerModule({ ...row, id: row.module_id });
+      const record = parseTrackerRecord(row, module);
+      const raw = module.fields.filter(field => record.data[field.key] !== undefined)
+        .map(field => `${field.label}：${record.data[field.key]}${field.unit ? ` ${field.unit}` : ''}`).join('；');
+      events.push({ id: `tracker:${row.id}`, type: 'tracker', timestamp: row.created_at,
+        title: module.name, raw: `${module.name}｜${raw}`, refId: row.id, moduleId: row.module_id });
     }
   }
 

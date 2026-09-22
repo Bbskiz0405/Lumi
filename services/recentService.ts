@@ -1,4 +1,6 @@
 import { getDb } from './db';
+import { ANNIVERSARY_CATEGORY } from './anniversaryService';
+import { findCategoryMeta, getExpenseCategories } from './financeService';
 
 export interface RecentItem {
   id: string;
@@ -17,16 +19,17 @@ export async function getRecentActivity(limit: number = 8): Promise<RecentItem[]
   );
 
   const transactions = await db.getAllAsync<{
-    id: string; item: string; type: string; amount: number; created_at: string;
+    id: string; item: string; type: string; amount: number; category: string | null; created_at: string;
   }>(
     // 對帳調整不是使用者「做了什麼」，不該佔用首頁最近動態的位置。
-    'SELECT id, item, type, amount, created_at FROM transactions WHERE is_adjustment = 0 ORDER BY created_at DESC LIMIT ?',
+    'SELECT id, item, type, amount, category, created_at FROM transactions WHERE is_adjustment = 0 ORDER BY created_at DESC LIMIT ?',
     [limit]
   );
+  const expenseCategories = await getExpenseCategories();
 
   const notes = await db.getAllAsync<{ id: string; content: string; created_at: string }>(
-    'SELECT id, content, created_at FROM notes ORDER BY created_at DESC LIMIT ?',
-    [limit]
+    'SELECT id, content, created_at FROM notes WHERE category IS NULL OR category != ? ORDER BY created_at DESC LIMIT ?',
+    [ANNIVERSARY_CATEGORY, limit]
   );
 
   const items: RecentItem[] = [
@@ -40,7 +43,9 @@ export async function getRecentActivity(limit: number = 8): Promise<RecentItem[]
       id: t.id,
       type: 'finance' as const,
       title: t.item,
-      subtitle: `${t.type === 'income' ? '+' : '-'}$${t.amount}`,
+      subtitle: t.type === 'income'
+        ? `+$${t.amount}`
+        : `-$${t.amount} · ${findCategoryMeta(expenseCategories, t.category).label}`,
       created_at: t.created_at,
     })),
     ...notes.map(n => ({

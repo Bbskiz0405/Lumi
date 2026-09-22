@@ -1,4 +1,4 @@
-export type NoteCategory = 'vtuber' | 'cardgame' | 'tech' | 'life' | 'goal';
+export type NoteCategory = 'vtuber' | 'cardgame' | 'tech' | 'life' | 'goal' | '紀念日';
 
 export interface Note {
   id: string;

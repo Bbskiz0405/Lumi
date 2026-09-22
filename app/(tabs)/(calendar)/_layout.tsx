@@ -15,6 +15,7 @@ import {
 import { getTransactionsForMonth } from '../../../services/financeService';
 import { getCalendarEventsForRange } from '../../../services/calendarIntegrationService';
 import { getLumiEventsForMonth } from '../../../services/calendarEventService';
+import { getAnniversaryDatesForMonth } from '../../../services/anniversaryService';
 import { getWorkDateStatusMap } from '../../../services/workTimeService';
 import { WorkDateStatus } from '../../../types/workTime';
 import { useForegroundRefresh } from '../../../hooks/useForegroundRefresh';
@@ -45,6 +46,7 @@ function PersistentCalendar({
   const [financeDates, setFinanceDates] = useState<Set<string>>(new Set());
   const [externalDates, setExternalDates] = useState<Set<string>>(new Set());
   const [lumiEventDates, setLumiEventDates] = useState<Set<string>>(new Set());
+  const [anniversaryDates, setAnniversaryDates] = useState<Set<string>>(new Set());
   const [workDateStatusMap, setWorkDateStatusMap] = useState<Map<string, WorkDateStatus>>(new Map());
   const [taskPriorityMap, setTaskPriorityMap] = useState<Map<string, 'high' | 'medium' | 'low'>>(new Map());
   const [taskTagMap, setTaskTagMap] = useState<Map<string, string>>(new Map());
@@ -57,7 +59,7 @@ function PersistentCalendar({
     try {
       const rangeStart = new Date(year, month, 1);
       const rangeEnd = new Date(year, month + 1, 1);
-      const [taskList, priorityMap, tagMap, txs, externalEvents, lumiEvents, workStatuses] = await Promise.all([
+      const [taskList, priorityMap, tagMap, txs, externalEvents, lumiEvents, workStatuses, anniversaries] = await Promise.all([
         getDatesWithTasks(),
         getTaskDatesByPriority(),
         getTaskDatesByTag(),
@@ -65,9 +67,11 @@ function PersistentCalendar({
         getCalendarEventsForRange(rangeStart, rangeEnd).catch(() => []),
         getLumiEventsForMonth(year, month),
         getWorkDateStatusMap(m),
+        getAnniversaryDatesForMonth(year, month),
       ]);
       if (requestId !== dateLoadRequestId.current) return;
       setTaskDates(new Set(taskList));
+      setAnniversaryDates(anniversaries);
       setTaskPriorityMap(priorityMap);
       setTaskTagMap(tagMap);
       setFinanceDates(new Set(txs.map(t => t.created_at.split('T')[0])));
@@ -102,6 +106,7 @@ function PersistentCalendar({
           financeDates={financeDates}
           externalDates={externalDates}
           eventDates={lumiEventDates}
+          anniversaryDates={anniversaryDates}
           workDateStatusMap={workDateStatusMap}
           taskPriorityMap={taskPriorityMap}
           taskTagMap={taskTagMap}

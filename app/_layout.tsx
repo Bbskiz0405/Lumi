@@ -86,6 +86,26 @@ export default function RootLayout() {
             presentation: 'card',
           }}
         />
+        <Stack.Screen
+          name="modules"
+          options={{
+            headerShown: true,
+            headerTitle: '自訂模組',
+            headerStyle: { backgroundColor: '#0F0F0F' },
+            headerTintColor: '#FFFFFF',
+            presentation: 'card',
+          }}
+        />
+        <Stack.Screen
+          name="module/[id]"
+          options={{
+            headerShown: true,
+            headerTitle: '模組',
+            headerStyle: { backgroundColor: '#0F0F0F' },
+            headerTintColor: '#FFFFFF',
+            presentation: 'card',
+          }}
+        />
       </Stack>
     </CalendarProvider>
   );

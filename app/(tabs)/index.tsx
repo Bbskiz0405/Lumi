@@ -13,7 +13,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { createTask } from '../../services/taskService';
 import { createNote } from '../../services/noteService';
-import { createTransaction } from '../../services/financeService';
+import { Anniversary, ANNIVERSARY_CATEGORY, formatAnniversary, parseAnniversaryInput } from '../../services/anniversaryService';
+import {
+  createCategoryMeta,
+  createTransaction,
+  findCategoryMeta,
+  getExpenseCategories,
+  saveExpenseCategories,
+} from '../../services/financeService';
 import {
   classifyWithHabits,
   classifyByKeywords,
@@ -33,6 +40,7 @@ import FinanceModule from '../../components/modules/FinanceModule';
 import NotesModule from '../../components/modules/NotesModule';
 import IconButton from '../../components/ui/IconButton';
 import TechIcon, { TechIconName } from '../../components/ui/TechIcon';
+import { getTrackerModules, matchingTrackerModules } from '../../services/trackerModuleService';
 
 function formatDate(): string {
   const now = new Date();
@@ -55,7 +63,6 @@ const RECENT_TYPE_CONFIG: Record<string, { icon: TechIconName; color: string }> 
 };
 
 const SELECTABLE_TYPES: ClassifiedType[] = ['TASK', 'FINANCE', 'IDEA'];
-
 function canSaveClassification(text: string, result: ClassificationResult): boolean {
   if (result.type !== 'FINANCE') return true;
   if (parseMultipleTransactions(text).length >= 2) return true;
@@ -88,6 +95,7 @@ export default function HomeScreen() {
   const [recentItems, setRecentItems] = useState<RecentItem[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [classifySource, setClassifySource] = useState<'ai' | 'local'>('local');
+  const [expenseCategories, setExpenseCategories] = useState<Awaited<ReturnType<typeof getExpenseCategories>>>([]);
   const sourceRef = useRef<'ai' | 'local'>('local');
   const [lastSaved, setLastSaved] = useState<{ entryId: string; message: string } | null>(null);
   const [undoing, setUndoing] = useState(false);
@@ -122,15 +130,55 @@ export default function HomeScreen() {
     let result: ClassificationResult | null = null;
 
     try {
-      const ai = await classifyTextWithAI(trimmed);
+      let anniversary: Anniversary | null;
+      try { anniversary = parseAnniversaryInput(trimmed); }
+      catch (error) {
+        showFeedback(error instanceof Error ? error.message : '紀念日日期無效', false);
+        return;
+      }
+      if (anniversary) {
+        sourceRef.current = 'local';
+        setClassifySource('local');
+        await doSave(trimmed, { type: 'IDEA', confidence: 'high' }, anniversary);
+        return;
+      }
+      const matchingModules = matchingTrackerModules(trimmed, await getTrackerModules());
+      const tracker = matchingModules.length === 1 ? matchingModules[0] : null;
+      if (tracker) {
+        setClassification(null);
+        router.push({ pathname: '/module/[id]', params: { id: tracker.id, draft: trimmed } });
+        return;
+      }
+      if (matchingModules.length > 1) {
+        router.push({ pathname: '/modules', params: { draft: trimmed } });
+        return;
+      }
+      const expenseCategories = await getExpenseCategories();
+      setExpenseCategories(expenseCategories);
+      const ai = await classifyTextWithAI(trimmed, expenseCategories);
       if (ai) {
         if (ai.type === 'FINANCE') {
+          const localFinance = classifyByKeywords(trimmed);
+          const localCategory = localFinance.type === 'FINANCE'
+            ? localFinance.parsed?.category
+            : undefined;
+          const aiCategory = ai.category && expenseCategories.some(category => category.value === ai.category)
+            ? ai.category
+            : undefined;
+          const resolvedCategory = !aiCategory || (aiCategory === 'other' && localCategory !== 'other')
+            ? localCategory
+            : aiCategory;
+          const newCategoryLabel = !aiCategory && localCategory === 'other'
+            ? ai.newCategoryLabel
+            : undefined;
           result = {
             type: 'FINANCE',
             confidence: 'high',
             parsed: {
               amount: ai.amount,
-              category: ai.category,
+              // AI 漏掉分類或只給 other 時，保留本機能辨識出的更具體分類。
+              category: ai.transactionType === 'income' ? undefined : resolvedCategory,
+              newCategoryLabel: ai.transactionType === 'income' ? undefined : newCategoryLabel,
               transactionType: ai.transactionType,
             },
           };
@@ -186,7 +234,7 @@ export default function HomeScreen() {
     setClassification({ type: newType, confidence: 'high', parsed });
   }
 
-  async function doSave(trimmed: string, result: ClassificationResult) {
+  async function doSave(trimmed: string, result: ClassificationResult, anniversary?: Anniversary) {
     if (!canSaveClassification(trimmed, result)) {
       showFeedback('請在輸入內容中補上有效金額', false);
       return;
@@ -231,21 +279,42 @@ export default function HomeScreen() {
             if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0) {
               throw new Error('記帳金額無效');
             }
+            let category = p?.transactionType === 'income' ? null : p?.category ?? 'other';
+            let updatedCategories: Awaited<ReturnType<typeof getExpenseCategories>> | null = null;
+            if (p?.transactionType !== 'income' && p?.newCategoryLabel) {
+              const categories = await getExpenseCategories();
+              const existing = categories.find(
+                item => item.label.localeCompare(p.newCategoryLabel!, 'zh-Hant', { sensitivity: 'base' }) === 0
+              );
+              if (existing) {
+                category = existing.value;
+              } else {
+                const created = createCategoryMeta(p.newCategoryLabel, categories);
+                if (created) {
+                  category = created.value;
+                  updatedCategories = [...categories, created];
+                }
+              }
+            }
             await createTransaction({
               type: p?.transactionType ?? 'expense',
               item: trimmed.replace(/\d+(?:\.\d+)?\s*(?:元|塊|NT\$?|\$)?/g, '').trim() || trimmed,
               amount,
-              category: p?.transactionType === 'income' ? null : p?.category ?? 'other',
+              category,
               entry_id: entryId,
             });
-            feedback = '已記帳';
+            if (updatedCategories) await saveExpenseCategories(updatedCategories);
+            feedback = updatedCategories
+              ? `已記帳並建立「${p?.newCategoryLabel}」分類`
+              : '已記帳';
           }
           break;
         }
 
         case 'IDEA':
-          await createNote({ content: trimmed, entry_id: entryId });
-          feedback = '已儲存筆記';
+          await createNote({ content: anniversary ? formatAnniversary(anniversary) : trimmed,
+            category: anniversary ? ANNIVERSARY_CATEGORY : null, entry_id: entryId });
+          feedback = anniversary ? `已加入日曆「${anniversary.name}」：${anniversary.date}（每年紀念）` : '已儲存筆記';
           break;
 
         default:
@@ -382,6 +451,10 @@ export default function HomeScreen() {
           )}
         </View>
 
+        <TouchableOpacity disabled={classifying || submitting} onPress={() => router.push({ pathname: '/modules', params: { draft: text.trim() } })} style={{ minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start', paddingHorizontal: 4 }}>
+          <Text style={{ color: '#55DDAA', fontSize: 12 }}>{hasText ? '選擇自訂模組記錄這句話' : '自訂模組'}</Text>
+        </TouchableOpacity>
+
         {/* 分類結果 */}
         {showClassification && classification && (
           <View style={styles.classificationCard}>
@@ -436,15 +509,10 @@ export default function HomeScreen() {
                     : `${classification.parsed.transactionType === 'income' ? '收入' : '支出'}${
                         classification.parsed.amount ? ` $${classification.parsed.amount}` : '（請確認金額）'
                       }${
-                        classification.parsed.category
-                          ? ` · ${
-                              {
-                                food: '餐飲',
-                                transport: '交通',
-                                interest: '興趣',
-                                other: '其他',
-                              }[classification.parsed.category] ?? classification.parsed.category
-                            }`
+                        classification.parsed.newCategoryLabel
+                          ? ` · 新分類：${classification.parsed.newCategoryLabel}`
+                          : classification.parsed.category
+                          ? ` · ${findCategoryMeta(expenseCategories, classification.parsed.category).label}`
                           : ''
                       }`}
                 </Text>

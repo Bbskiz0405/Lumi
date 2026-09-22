@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,7 +14,13 @@ import {
 } from 'react-native';
 import {
   ApiProvider,
+  AIConnectionTestMode,
   getApiConfig,
+  getEffectiveModel,
+  getModelForTask,
+  testAIConnection,
+  testAIFeatures,
+  checkGeminiModelAvailability,
   removeApiConfig,
   setApiConfig,
 } from '../services/geminiService';
@@ -32,6 +38,10 @@ export default function ApiSettings() {
   const [keyInput, setKeyInput] = useState('');
   const [savedProvider, setSavedProvider] = useState<ApiProvider | null>(null);
   const [showKeyField, setShowKeyField] = useState(false);
+  const [savedModel, setSavedModel] = useState('');
+  const [testing, setTesting] = useState(false);
+  const [testStage, setTestStage] = useState('');
+  const testBusy = useRef(false);
 
   useEffect(() => {
     refresh();
@@ -44,6 +54,7 @@ export default function ApiSettings() {
       if (config) {
         setHasKey(true);
         setSavedProvider(config.provider);
+        setSavedModel(getEffectiveModel(config));
         setSelectedProvider(config.provider);
         setShowKeyField(false);
       } else {
@@ -74,6 +85,41 @@ export default function ApiSettings() {
     } catch {
       Alert.alert('儲存失敗', '無法安全儲存 API Key，請稍後再試。');
     }
+  }
+
+  async function handleTest(mode: AIConnectionTestMode = 'configured') {
+    if (testBusy.current) return;
+    testBusy.current = true;
+    setTesting(true);
+    try {
+      const model = await testAIConnection(setTestStage, mode);
+      Alert.alert('連線成功', `${model} 已成功回應。`);
+    } catch (error) {
+      Alert.alert('連線測試失敗', error instanceof Error ? error.message : '請稍後重試');
+    } finally { testBusy.current = false; setTesting(false); setTestStage(''); }
+  }
+
+  async function handleFeatureTest() {
+    if (testBusy.current) return;
+    testBusy.current = true;
+    setTesting(true);
+    try {
+      const result = await testAIFeatures(setTestStage);
+      Alert.alert(result.passed ? 'AI 功能測試通過' : 'AI 功能測試未全數通過', result.report);
+    } catch (error) {
+      Alert.alert('AI 功能測試失敗', error instanceof Error ? error.message : '請稍後重試');
+    } finally { testBusy.current = false; setTesting(false); setTestStage(''); }
+  }
+
+  async function handleModelCheck() {
+    if (testBusy.current) return;
+    testBusy.current = true;
+    setTesting(true);
+    try {
+      Alert.alert('模型實測結果', await checkGeminiModelAvailability(setTestStage));
+    } catch (error) {
+      Alert.alert('模型檢查未完成', error instanceof Error ? error.message : '請稍後重試');
+    } finally { testBusy.current = false; setTesting(false); setTestStage(''); }
   }
 
   function handleRemove() {
@@ -119,17 +165,40 @@ export default function ApiSettings() {
               <Text style={styles.statusDot}>●</Text>
               <Text style={styles.statusText}>已設定 · {savedProvider}</Text>
             </View>
+            <Text style={styles.statusHint}>保存模型（連線診斷用）：{savedModel}</Text>
             <Text style={styles.statusHint}>
-              首頁的智慧分類與財務顧問都會使用此 key。
+              {savedProvider === 'gemini'
+                ? `依功能自動分流\n主畫面分類／新分類建議／紀錄帶入：${getModelForTask({provider:'gemini'}, 'quick')}\n財務分析／問 Lumi／月回顧／建立模組：${getModelForTask({provider:'gemini'}, 'deep')}\n沿用同一把 Key，不改保存設定。`
+                : '智慧分類、財務分析、自訂模組與問 Lumi 都會使用此模型。'}
             </Text>
             <View style={styles.actionRow}>
-              <TouchableOpacity style={styles.secondaryBtn} onPress={() => setShowKeyField(true)}>
+              <TouchableOpacity disabled={testing} style={styles.secondaryBtn} onPress={() => setShowKeyField(true)}>
                 <Text style={styles.secondaryBtnText}>更換 key</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.dangerBtn} onPress={handleRemove}>
+              <TouchableOpacity disabled={testing} style={styles.dangerBtn} onPress={handleRemove}>
                 <Text style={styles.dangerBtnText}>移除</Text>
               </TouchableOpacity>
             </View>
+            <TouchableOpacity disabled={testing} style={[styles.secondaryBtn, { marginTop: 12 }]} onPress={() => handleTest()}>
+              <Text style={styles.secondaryBtnText}>{testing ? testStage || '測試中…' : '測試模型連線'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity disabled={testing} style={[styles.secondaryBtn, { marginTop: 12 }]} onPress={handleFeatureTest}>
+              <Text style={styles.secondaryBtnText}>驗證分類與模組（不儲存資料）</Text>
+            </TouchableOpacity>
+            {savedProvider === 'gemini' && (
+              <>
+              <TouchableOpacity disabled={testing} style={[styles.secondaryBtn, { marginTop: 12 }]} onPress={handleModelCheck}>
+                <Text style={styles.secondaryBtnText}>檢查可用模型（3 款各測 2 次）</Text>
+              </TouchableOpacity>
+              <TouchableOpacity disabled={testing} style={[styles.secondaryBtn, { marginTop: 12 }]} onPress={() => handleTest('basic')}>
+                <Text style={styles.secondaryBtnText}>基本請求測試（同一模型）</Text>
+              </TouchableOpacity>
+              <TouchableOpacity disabled={testing} style={[styles.secondaryBtn, { marginTop: 12 }]} onPress={() => handleTest('previous')}>
+                <Text style={styles.secondaryBtnText}>對照測試 2.5 Flash-Lite（不切換模型）</Text>
+              </TouchableOpacity>
+              </>
+            )}
+            <Text style={[styles.statusHint, { marginTop: 8 }]}>測試僅傳送合成資料，會使用 API 配額。功能測試依上述分流；連線診斷測保存模型。Gemini 暫時失敗最多嘗試 3 次，不因失敗改用另一模型。</Text>
           </View>
         )}
 

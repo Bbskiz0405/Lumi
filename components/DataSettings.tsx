@@ -42,7 +42,8 @@ function formatBackupSummary(preview: BackupPreview): string {
     `筆記 ${counts.notes} 筆`,
     `原始輸入 ${counts.entries} 筆`,
     `預算 ${counts.budgets} 筆`,
-    `其他資料 ${counts.total - counts.tasks - counts.events - counts.workRecords - counts.transactions - counts.notes - counts.entries - counts.budgets} 筆`,
+    `自訂模組 ${counts.trackerModules} 個／紀錄 ${counts.trackerRecords} 筆`,
+    `其他資料 ${counts.total - counts.tasks - counts.events - counts.workRecords - counts.transactions - counts.notes - counts.entries - counts.budgets - counts.trackerModules - counts.trackerRecords} 筆`,
   ].join('\n');
 }
 
@@ -112,7 +113,7 @@ export default function DataSettings() {
   function confirmReplace(preview: BackupPreview) {
     Alert.alert(
       '完全取代本機資料？',
-      '任務、記帳、筆記與自訂設定會先清除，再換成備份內容。API Key 不受影響。這個動作無法復原，建議先匯出目前資料。',
+      '任務、記帳、筆記、自訂模組及紀錄等本機資料會先清除，再換成備份內容。API Key 不受影響。這個動作無法復原，建議先匯出目前資料。',
       [
         { text: '取消', style: 'cancel' },
         {
@@ -203,6 +204,10 @@ export default function DataSettings() {
               <Text style={styles.summaryName}>筆記</Text>
               <Text style={styles.summaryValue}>{counts.notes}</Text>
             </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryName}>自訂模組</Text>
+              <Text style={styles.summaryValue}>{counts.trackerModules}／{counts.trackerRecords} 筆</Text>
+            </View>
             <View style={[styles.summaryRow, styles.summaryTotal]}>
               <Text style={styles.summaryName}>全部紀錄</Text>
               <Text style={styles.summaryValue}>{counts.total}</Text>
@@ -254,7 +259,7 @@ export default function DataSettings() {
       <View style={styles.privacyCard}>
         <Text style={styles.privacyTitle}>隱私保護</Text>
         <Text style={styles.privacyText}>
-          備份只包含任務、行程、工時、記帳、筆記、預算與非敏感設定。AI API Key
+          備份只包含任務、行程、工時、記帳、筆記、預算、自訂模組與非敏感設定。AI API Key
           會被明確排除，不會寫入備份檔。
         </Text>
       </View>

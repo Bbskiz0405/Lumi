@@ -10,6 +10,126 @@
 
 **版號：0.4.81（標準工時＋固定休息制度）**
 
+### UI 修正版 S26 Ultra 安裝驗收（2026-09-22 晚間）
+
+- USB重新授權後連線成功。核對calendar-ask-layout APK SHA256與前輪一致，install -r回傳Success；lastUpdateTime=2026-09-22 20:33:10。
+- 實機截图確認日曆事件顏色圖例已移除、日期色點保留。問Lumi送出「今天是什麼日子？」後，等待中與回覆後快速提問文字完整；開啟鍵盤時也無上下裁切。AI本次回覆今日無已記錄紀念日，與當前日曆無紀念日卡片一致；未重建早先測試紀念日，也未操作新增／修改／刪除紀錄。
+- 目前程序AndroidRuntime／ReactNativeJS／SQLiteLog error無輸出。截图在桌面lumi-calendar-layout.png、lumi-ask-layout.png、lumi-ask-keyboard.png。已關閉鍵盤；未更改字體大小，其他裝置／大字體仍未測。
+- 按verify-and-stop技能完成兩項既定UI驗收即停止，未改產品程式、未commit／push。
+
+### 日曆圖例與問 Lumi 快速提問裁切修正（2026-09-22）
+
+- 使用者確認紀念日功能成功後，要求移除日曆顏色的事件文字說明，並回報對話開始後快速提問文字被切半。
+- 最小範圍修正：CalendarGrid僅calendar模式不渲染圖例列，日期色點、accessible labels、切換與其他模式圖例保留。Ask strip原maxHeight44不足容納上下留白／邊框／文字，改內容決定高度並flexGrow0／flexShrink0；chip最小高度44與文字lineHeight20，保留點擊和水平捲動。依surgical-patch採局部修補，未改聊天或AI流程。
+- TypeScript、兩支新增render回歸檢查`check-calendar-grid.cjs`／`check-ask-layout.cjs`、Expo public config、diff check通過。render mocks不代表Android像素驗收。32組tracker與8組transport為前輪結果，本輪未重跑。
+- arm64 release BUILD SUCCESSFUL in1m10s，430tasks；v2簽章通過。產物`C:\Users\Brayden\Desktop\Lumi-0.4.81-calendar-ask-layout.apk`，36,778,694 bytes，SHA256 `0E5F902E29DDDB1BD494156773BEAF76EDF0240E413F34C9240D683739FBBD3B`。
+- ADB無裝置，未安裝新版／未完成手機快速提問、鍵盤或字體放大驗收。已安裝仍為calendar-anniversaries版（14:36:43）。無資料／Key變更、無升版、無commit／push。
+
+### 紀念日改由日曆管理（2026-09-22）
+- 建置1分12秒／430tasks成功，APK `C:\Users\Brayden\Desktop\Lumi-0.4.81-calendar-anniversaries.apk` 36,779,322 bytes，SHA256 `4178DA9577485BAEF55C7705147A9B2F7CB80CFFDFFF5133661C1C4297018F70`，v2簽章通過。install -r Success，手機lastUpdateTime14:36:43；Play Protect上傳詢問選不要傳送，未停用防護。
+- 實機日曆9/22顯示原Lumi測試紀念日、2026-09-22原日期，粉色點／圖例可見；編輯bottom sheet名稱日期正確、取消未改資料，截圖已目視確認。筆記頁顯示還沒有筆記、無紀念日分類。問Lumi「今天是什麼日子？」真實回覆「今天是你的『Lumi測試紀念日』（2026/09/22）。」error logs無輸出。未實機提交CRUD或刪除使用者原紀念日；不宣稱所有尺寸／键盤已驗收。
+- 使用者確認首頁已記住紀念日，但不希望混在筆記，明確要求改放日曆。保留notes內原有紀念日格式與ID，不搬移／重建資料，因此不需DB或backup升版；新增日曆專用讀取／日期匹配／CRUD服務，更新與刪除皆限category=紀念日，避免動到普通筆記。
+- 日曆格加入粉色紀念日標記及圖例，當日列表顯示紀念日卡片；「＋」新增紀念日，獨立bottom sheet提供名稱／日期、有效日期檢查、防重複儲存、鍵盤避讓、捲動、安全區、放棄修改與刪除確認。每年同月同日顯示、起始年份前不顯示、2/29只在閏年；首頁月曆卡顯示今日紀念日數。
+- 一般筆記list／recent／count／分類及首頁最近動態、事件流的note來源排除紀念日；問Lumi仍透過專用完整context讀取，備份／復原維持原格式。首頁宣告改提示已加入日曆，普通筆記不能新增同名分類入口。
+- lean-build沿用既有日曆／儲存；UI/UX技能搜尋腳本缺檔，採已讀規範與專案現有樣式實作。TypeScript、32組tracker（新加舊紀念日顯示、排除筆記數量、月份標記、calendar CRUD、普通筆記保護、備份還原）＋8組transport通過；Expo config、diff check通過。待新APK建置與手機驗收；未commit／push。
+
+### S26 Ultra 安裝紀念日版，分流實測通過（2026-09-22）
+- 手機從unauthorized轉device，核對anniversaries APK SHA256 `77D23529221FDA6B3370FC25E17B5EFAFDA4CC09CA40549D3286AD6429A7B0D5`及v2簽章後install -r成功；lastUpdateTime14:23:09，版本0.4.81。Play Protect詢問是否上傳未知App，選不要傳送，未停用防護；未清資料或讀出Key。
+- 啟動設定頁97ms，原Gemini設定仍在，分流文字正常。真實「驗證分類與模組」顯示通過：分類2.5 Flash-Lite午餐250→餐飲1.4秒；模組設計3.8 Flash體重格式驗證2.9秒。測試不儲存資料；不能推論長期可靠性／模組CRUD已驗收。已返回首頁，下一步請使用者輸入中文測試紀念日，再驗證保存與問Lumi回覆；未改產品程式。
+
+### 無手機時的安裝就緒複核（2026-09-21）
+- 依使用者要求僅驗證，不改產品程式碼。TypeScript、30組tracker、8組transport重新通過，diff check通過。桌面anniversaries APK與Gradle產物均SHA256 `77D23529221FDA6B3370FC25E17B5EFAFDA4CC09CA40549D3286AD6429A7B0D5`。
+- 新APK v2簽章有效，與9/18 model-check APK簽署憑證SHA256相同：`fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c`。套件com.anonymous.lumi、versionCode81、minSDK24／target36、arm64-v8a；內含assets/index.android.bundle。準備可保留資料覆蓋安裝，無須另跑開發伺服器。手機不在，未操作或安裝；不能保證當下API額度／網路或實機UI。提醒插USB不會自動更新，仍須安裝新版。
+
+### 紀念日記憶與問 Lumi 查詢（2026-09-21）
+- arm64 APK建置1分28秒／430tasks成功，v2簽章驗證通過；`C:\Users\Brayden\Desktop\Lumi-0.4.81-anniversaries.apk`，36,770,910 bytes，SHA256 `77D23529221FDA6B3370FC25E17B5EFAFDA4CC09CA40549D3286AD6429A7B0D5`。含9/19分流；再次查ADB為空，未安裝。STATUS已整理為目前狀態，舊版詳細歷史保留本LOG。
+- 使用者要求首頁記錄「今天是什麼紀念日」，之後問Lumi能查日期／今天的日子。依lean-build沿用notes與現有編輯／刪除／復原／備份，新增固定「紀念日」分類，無新表／依賴／migration，App0.4.81、DB9、backup7不變。
+- `anniversaryService` 嚴格辨識「今天／昨天／明天是…紀念日／生日」、完整西元日期與中文月日、反向「…紀念日是日期」。當地日期於記錄時固定，非法日期阻擋，不把明確問題或消費敘述當紀念日。內容為名稱、日期：YYYY-MM-DD、每年紀念三行；筆記編輯校驗、固定分類提示與格式說明。首頁直接本地辨識，其他輸入維持2.5分類。
+- 問Lumi仍3.8，額外查全部紀念日，不受近期250筆限制；傳入當地今天與本機計算今日匹配，明確區分紀念日與建立時間，同名衝突列出詢問，未來起始日期不提前紀念、2/29僅閏年匹配。介面告知所有紀念日會送至使用者設定的AI供應商。日期年份只代表記錄指定年份，不能推論出生／交往年份。未增加推播／農曆／自動遷移舊自由文字筆記。
+- 本機TypeScript、30組tracker與8組transport通過；新測試涵蓋本地日期、跨年／閏日、無效日期、問句／消費排除、CRUD／undo、251筆較新筆記不遮蔽舊紀念日、問Lumi請求context、備份還原／刪除／修改。Expo config與diff check通過。ADB無裝置，尚未实機驗收或真實AI問答，不能以模擬AI測試宣稱回覆正確率。未commit／push。
+
+### 依功能選用 Gemini 模型（2026-09-19）
+- arm64建置1分10秒／430tasks成功，v2簽章與diff check通過。APK `C:\Users\Brayden\Desktop\Lumi-0.4.81-task-routing.apk`，36,765,050 bytes，SHA256 `983449ACDF2EBAE379A90B765EF226A06925A05C366A6F33913EDC23E0C25716`。再次確認ADB無裝置，未安裝。
+- 使用者明確要求主畫面用2.5、分析／建立模組用3.8。以小範圍修補在共用服務新增 `getModelForTask`：quick=2.5 Flash-Lite（分類、新分類建議、既有模組紀錄帶入），deep=3.8 Flash（財務顧問、快速分析、問Lumi、月回顧、模組設計）。不靠改寫全域設定切換，避免請求互相干擾；其他provider、key、DB及計費未動。
+- 設定頁清楚顯示分工；合成功能測試使用真實分流路徑，報告分別標示模型。連線／模型比較診斷仍能測原保存或指定模型，不被業務分流蓋掉。失敗不跨模型重試，分類12秒＋本機fallback、深度65秒有限重試維持。
+- 型別檢查、25組tracker與8組transport測試通過，含分類／紀錄／模組／問Lumi／財務分析／月回顧請求URL、設定保存不變與其他provider模型保留；Expo public config通過。手機未連線，尚無新版實機驗收。未commit／push，版本仍0.4.81／DB9／backup7。
+
+### S26 Ultra 模型比較與合成功能實測（2026-09-18）
+- 使用者「開始吧」後，確認 R5GL75NTH4Y device；model-check APK SHA256 `3CEE137BC7768B63E0ADC5C935BCD09FA7D1F702D3AD342491342AEFC00093E2` 與v2簽章驗證通過，`adb install -r` Success；lastUpdateTime=19:12:33。保留資料／key，未改模型、網路、計費，未commit／push。
+- 19:13帳號模型清單＋各兩次真實生成：3.8 Flash成功2/2（12.6、24.0秒）；3.7 Flash成功0/2（兩次30秒逾時）；2.5 Flash-Lite成功2/2（0.9、0.9秒）。每輪maxAttempts=1，不用重試掩蓋失敗。不能由此推論長期穩定／免費。
+- 保存模型仍3.8：功能測試顯示通過，午餐250→餐飲11.2秒（函式亦檢查FINANCE／expense／250）；體重模組設計與格式驗證13.2秒（有效定義且有date、number欄位）。全部合成資料、未儲存；未驗證財務分析、完整欄位語義或模組實際CRUD。分類接近12秒上限，仍須處理延遲風險。
+- 本次重新跑TypeScript、23組tracker、8組transport全通過；目前程序AndroidRuntime／ReactNativeJS／SQLiteLog error查詢無輸出。依完成前驗證規範，僅回報已實測範圍，不宣稱全面完成。
+
+### Gemini 有限重試、功能測試與帳號模型查核（2026-09-18，未安裝）
+- 使用者要求繼續修，後追加「確認到底哪個模型可以用」。依官方troubleshooting實作有限退避，避免無限重試；不自動降版、不修改帳號計費或網路。
+- 新增 `services/geminiTransport.ts`：Gemini共用完整fetch＋body期限、單次30秒／總65秒、最多3次；暫時HTTP408／500／502／503／504與連線錯誤可重試，遵守Retry-After；金鑰／權限／模型／429額度錯誤不重試。錯誤不暴露key、raw provider body或個人內容。首頁分類維持12秒總budget，失敗回本機分類。
+- AI設定新增合成資料功能測試（午餐250必須AI回food／expense／250、模組必須有效date＋number欄位），不讀個人財務歷史、不寫入模組／記帳。測試按鈕共用ref防連點。
+- 新增帳號可用模型查核：models.list分頁最多3頁／每頁1000，只測已列且支援generateContent的3.8 Flash、3.7 Flash、2.5 Flash-Lite，各2輪每輪30秒且maxAttempts=1；列出成功數、時間與失敗原因，不以重試掩蓋失敗，保存模型不變。三款官方pricing列有Free Tier，但不因此斷言使用者專案免費／配額可用。
+- 本機TypeScript、23組tracker與8組transport測試通過；修正VM測試中各模組Error realm不一致的測試環境問題。ADB為空，已請使用者重接手機；尚未做新一輪真實模型查核或安裝，不能宣稱3.7成功。
+- arm64 release build1分28秒、430tasks成功，v2簽章驗證、Expo public config、diff check通過。APK `C:\Users\Brayden\Desktop\Lumi-0.4.81-model-check.apk`，36,764,534 bytes，SHA256 `3CEE137BC7768B63E0ADC5C935BCD09FA7D1F702D3AD342491342AEFC00093E2`；ADB仍無裝置，未安裝。未commit／push，App仍0.4.81、DBv9、backup7。
+
+### S26 Ultra 安裝compat版，3.8兩次成功但後續複測失敗（2026-09-16）
+- 手機 `R5GL75NTH4Y` 已授權；核對compat APK SHA256與v2簽章後，`adb install -r` Success，原資料／key保留。Play Protect上傳檢查詢問選「不要傳送」，未停用防護。裝置lastUpdateTime為18:09:47，版號仍0.4.81(81)。
+- 正常「測試模型連線」連續兩次回 `gemini-3.8-flash 已成功回應。`，第二次按下到觀察成功5.6秒。此路徑用實際保存的Gemini key、3.8、LOW thinking與systemInstruction，沒有2.5備援。修正後實際生成成功，但沒有同時A/B，不能斷言舊逾時全由temperature造成。
+- TypeScript、21組隔離測試與diff check再次通過；目前程序AndroidRuntime／ReactNativeJS／SQLiteLog error為空。嘗試模組預覽測試時鍵盤輸入／導航未完成，未提交模組設計、未建立測試資料；分類／模組等實際工作流程仍待驗收。
+- 額外同模型基本請求（僅contents、無LOW或其他選用參數）收到Google HTTP503，UI顯示「模型查詢成功，但文字生成失敗：Gemini 請求失敗（503）」。這是與正常設定兩次成功不同的結果，不能把基本測試算作成功，亦不能保證每次請求都穩定。
+- 最後再跑正常設定（第三次）仍45秒逾時。已明確告知使用者：正常測試2成功／1逾時、基本測試1次503，3.8已能回覆但還不穩定，未宣稱完全修好。不能忽略最後的失敗，只引用前兩次成功。未繼續消耗配額做無限重試。
+
+### Gemini 3.8 參數相容性修正，待接手機驗證（2026-09-16）
+- 使用者要求使3.8真正可用。重新查官方 https://ai.google.dev/gemini-api/docs/latest-model ，Migration checklist要求移除temperature／top_p／top_k，與先前泛用Gemini3指南temperature=1不同。本機僅針對 `gemini-3.8` 系列移除temperature，保留舊模型與其他供應商；未宣稱這已解決逾時。
+- 新增「基本請求測試（同一模型）」：只傳合成Reply OK的contents，不加systemInstruction／generationConfig，等待上限90秒；不保存測試結果為使用者資料、不改模型／金鑰。正常測試45秒、業務20秒、分類12秒均維持。用於下一次實機排除選用參數影響。
+- 21組SQLite／mock API測試、TypeScript、Expo public config、diff check、arm64 release build19秒與v2簽章通過；新增測試覆蓋3.8不傳temperature、2.5保留原值、基本請求只有合成contents且不改設定。
+- APK `C:\Users\Brayden\Desktop\Lumi-0.4.81-gemini38-compat.apk`，36,756,142 bytes，SHA256 `03080D36E255CB6AD3D8671753E09C7D341EC02EDB83C025BECFB57F6628F50C`。ADB多次查詢均無裝置，尚未安裝／真實驗證；已請使用者接回S26 Ultra。未commit／push，未改計費或手機網路。
+
+### Gemini 逾時診斷與 VPN 誤判更正（2026-09-16）
+- 使用者澄清沒有VPN。重新解析Android預設network121：Transports WIFI、NOT_VPN；原字串比對 `-match 'VPN'` 是誤判，已修正紀錄。未改手機網路／DNS／代理。手機shell正常HTTPS約0.14秒回未授權403；使用刻意無效的測試key呼叫generateContent約0.16秒回400，未讀出真實key。
+- AI設定新增分階段診斷：metadata查詢15秒，文字生成測試45秒；顯示目前階段並區分哪一步失敗。新增「對照測試2.5 Flash-Lite（不切換模型）」：只在記憶體覆寫該次請求的model，不寫入設定。兩種測試均只傳合成的Reply OK，不送個人記錄。
+- 實機證據：3.8 metadata查詢成功，隨後generateContent45秒逾時；相同裝置／key的2.5 Flash-Lite對照測試約數秒成功。關閉結果後UI仍顯示 `目前模型：gemini-3.8-flash`。只定位至3.8生成請求／服務，未證實Google根因；不宣稱3.8已可用、不擅自降版。待使用者選擇明確提示的舊模型備援或暫時切回。
+- 20組隔離SQLite／mock API測試、TypeScript、Expo config、diff check通過；arm64 release build20秒、430 tasks，v2簽章驗證通過，覆蓋安裝Success，原資料及key保留。AndroidRuntime／ReactNativeJS／SQLiteLog目前程序error查詢為空。
+- 最新APK `C:\Users\Brayden\Desktop\Lumi-0.4.81-gemini38-diagnostics.apk`，36,755,442 bytes，SHA256 `7D40D2A5AC35D7C6D1F39BE7599CE720B1CA58E293E5942B77AF1246077311D5`。未commit／push，未改App／DB／backup版號。
+
+### Gemini 3.8 Flash 升級（未 bump，2026-09-16）
+- 使用者要求升級至最新有免費額度的 Gemini。查核 Google 官方模型頁確認 `gemini-3.8-flash` stable、支援 generateContent／structured outputs／LOW、MEDIUM、HIGH；MINIMAL 不支援。官方價格列有 Free Tier，但實際配額／計費依專案，本次未調整計費。
+- `services/geminiService.ts` 預設改為 3.8 Flash；沒有指定 model 的既有 Gemini 設定自動套用新預設，保留 API Key、自訂 model 與其他供應商。Gemini 3 設定 temperature=1、thinkingConfig LOW、maxOutputTokens 最少4096，首頁分類逾時從6秒到12秒。systemInstruction 取代舊的假財務開場對話；金鑰移至 header；回應合併文字並排除 thought，截斷／空回應／非正常結束明確報錯。
+- AI 設定頁新增實際模型名稱與「測試模型連線」，只傳簡短測試文字，不送個人資料。18 組隔離 SQLite／mock API 測試、TypeScript、Expo config、diff check 與 arm64 release build 通過；build 1分4秒、430 tasks。新增測試覆蓋 default／override、Gemini3 參數／header、分類多片段／thought、429 fallback、截斷與空回應。
+- APK `C:\Users\Brayden\Desktop\Lumi-0.4.81-gemini38.apk`（36,754,206 bytes，SHA-256 `CD411A6FF7AA46A786A0B851232E6B8DAF0C7D3BA1E4A39609F88568DFE0F5F7`）v2 簽章驗證通過，ADB 覆蓋安裝至 S26 Ultra 成功，冷啟動81ms，設定頁顯示已設定 Gemini 與 gemini-3.8-flash。
+- 真實連線測試兩次都在20秒逾時，未取得成功回應。原先誤報手機預設網路121為VPN，後續確認是 WIFI、NOT_VPN（字串比對錯誤），不需使用者關閉VPN。未讀出金鑰、未建立測試個人紀錄、未commit／push。
+
+### S26 Ultra 安裝 r2 與啟動驗證（2026-09-16）
+- 連線確認 `R5GL75NTH4Y`／`SM-S9480` 已授權；核對桌面 r2 APK SHA-256 與前次建置一致。`adb install -r` 回 `Success`，未清除 App 資料；Play Protect 出現是否上傳 App 檢查的詢問，選「不要傳送」後安裝完成。
+- 裝置顯示 `0.4.81 (81)`，lastUpdateTime `2026-09-16 17:20:21`；冷啟動 `Status: ok`、81 ms，程序存活。以 `lumi://modules` 開啟自訂模組頁，UI 顯示設計輸入、建立按鈕與「還沒有自訂模組」，未顯示載入失敗。
+- 目前 App 程序的 AndroidRuntime／ReactNativeJS／SQLiteLog error 查詢為空。準備輸入測試需求時手機已切至其他 App，停止後續畫面操作。未確認真實 AI 請求、未建立測試模組，CRUD／鍵盤／舊資料內容仍待實機驗收。
+
+### 自訂模組 r2：審查修正、編輯與整合（未 bump，2026-09-15）
+- 審查重現原型接受 `2026-99-99`／`2026-02-30`、壞掉的 schema JSON 仍通過備份預覽、頁面失敗無提示，以及缺少編輯功能。使用者要求繼續修到可用。
+- 統一驗證模組 schema 與欄位值：真實日期／閏年、有限數值、必填、選項、未知欄位、欄位與內容長度、保留 key；新增與修改都重新读取目前模組並以 transaction 儲存，避免使用過期模組。
+- 備份先驗證模組 schema、records JSON、重複 ID 與歸屬；不相容欄位的同 ID 模組不能合併。完全取代中途失敗可回滾；舊 schema 6 可合併或取代。刪除模組明確先刪所屬 records，避免依賴連線 FK 設定。
+- 預覽改為可編輯名稱／說明／欄位（增刪、類型、必填、選項、單位），中文標籤、捲動與鍵盤避讓；歷史紀錄點擊編輯、明確刪除入口；既有模組設定允許名稱／說明／欄位標題修改，保留結構與單位以免改變歷史資料語意。載入失敗和不存在顯示訊息／重試，非同步操作有防連點與錯誤處理。
+- 新增模組內「AI 整理並帶入」，只傳該次文字與 schema；結果先驗證再帶入，仍需使用者確認儲存。首頁依模組名稱／短名（如「體重追蹤」→「體重 70.5」）轉到草稿；同名衝突先選模組，另有手動選模組入口。
+- 統一事件流新增 tracker，時間軸、問 Lumi 與月回顧納入有欄位名稱／單位的模組紀錄，並更新資料傳送說明。仍以紀錄建立時間排列時間軸；實際填寫日期包含於內容。
+- 新增 `scripts/check-tracker.cjs`／`npm.cmd run check:tracker`：實際 in-memory SQLite＋模擬 AI 回應，15 組測試通過，含 0→9／8→9 migration、CRUD、日期、backup merge／replace／rollback、首頁配對、事件流和 AI 整理。沒有讀寫使用者資料或發送真實網路請求。
+- TypeScript、Expo public config、diff check、arm64 release build（24 秒）通過。APK `C:\Users\Brayden\Desktop\Lumi-0.4.81-ai-modules-r2.apk`，36,751,654 bytes，SHA-256 `7C677FC3A409878E5105D7F5B6968A81401C12A914F00F892656483284EB3802`，v2 簽章驗證成功。ADB 清單為空，尚未安裝；真實 API／鍵盤／實機驗收待重接 S26 Ultra。未 commit／push。
+
+### AI 自訂追蹤模組 v1（未 bump 版號，2026-09-15）
+- 新增側邊欄「自訂模組」：使用者以自然語言描述需求，既有 Gemini／OpenRouter 設定會產生名稱、說明與 1–8 個受控欄位；確認 bottom sheet 會先列出 AI 建議，再由使用者決定是否建立。
+- ⭐定案：AI 只產生資料 schema，不產生或執行 JavaScript、SQL、公式、網路連線或跨模組自動化。v1 欄位限文字、數字、日期、單選，並由本機再次驗證欄位數、名稱、類型、單位與選項。
+- 每個模組可新增／刪除紀錄、查看歷史；數值欄位顯示最新值與平均。模組刪除時會連同所屬紀錄刪除並先確認。
+- DB migration v9 新增 `tracker_modules`、`tracker_records` 與日期索引；backup schema 6→7，舊備份自動補空陣列，合併／完全取代都涵蓋模組資料。
+- `npm.cmd run check`、Expo public config、`git diff --check` 與 arm64 release build 通過（430 tasks，BUILD SUCCESSFUL）。APK `C:\Users\Brayden\Desktop\Lumi-0.4.81-ai-modules.apk`（36,731,598 bytes，SHA-256 `0FCDBD781D13DF01986FB1744FC6D9977528D3A2FA092F35ECDBD47184ACAF3E`）。建置後 ADB 裝置清單為空，尚待 S26 Ultra 重接後覆蓋安裝、migration 與真實 AI 呼叫驗收。
+
+### AI 建立財務分類（未 bump 版號，2026-09-15）
+- 首頁智慧輸入會把目前的內建與自訂支出分類一併交給 AI；AI 必須優先選現有分類，避免產生近義重複項目。
+- 現有分類確實不適合時，AI 可回傳簡短繁中 `newCategoryLabel`。Lumi 僅在交易實際儲存時建立自訂分類、配置穩定色票，並將該筆交易歸入新分類；預覽或取消不會留下空分類。
+- 新分類名稱會驗證長度與控制字元；若同名分類已存在則直接沿用。多筆智慧記帳仍維持既有本機分類流程，本次未擴張。
+- 本機關鍵字補齊全部十種內建支出分類；回歸案例涵蓋餐飲、交通、興趣、日用品、醫療、教育、娛樂、通訊、居住，並修正單字「票」讓「電影票」誤判交通的衝突。首頁最近動態現在會顯示支出分類，預覽也能顯示動態／自訂分類名稱。
+- 沿用 `settings.expense_categories`，不需 DB migration。`npm.cmd run check`、Expo public config、`git diff --check`、十類關鍵字回歸與 arm64 release build 通過；APK `C:\Users\Brayden\Desktop\Lumi-0.4.81-smart-categories.apk`（36,708,186 bytes，SHA-256 `EB08EBB0BE690F534BF340B25CE91D468D4BE2CF2CAE77DBF3E151EC59147676`）通過 v2 簽章驗證。建置時手機未連線，待覆蓋安裝與帶 API Key 實機驗收。
+- 2026-09-15 已透過 ADB 安裝至 Samsung S26 Ultra（`SM-S9480`／序號 `R5GL75NTH4Y`），`adb install -r` 回 `Success`。`0.4.81 (81)` 冷啟動 87 ms、程序存活，AndroidRuntime／ReactNativeJS／SQLite fatal log 為空；首頁與 Google 外部行事曆可正常開啟。新手機沒有 Lumi 本機資料與舊機 SecureStore API Key，AI 真實呼叫仍待使用者設定 Key 後驗收。
+
+### 首頁智慧記帳分類補強（未 bump 版號，2026-09-14）
+- 修正首頁優先採用 AI 分類時，AI 只回傳 `FINANCE`／金額／收支方向但漏掉 `category`，交易便被預設存成 `other` 的問題。
+- AI 支出分類缺失、不在允許值內，或只回 `other` 但本機能判出更具體分類時，現在會以既有本機關鍵字結果補齊；例如「午餐 250」會補為 `food`（餐飲）。收入維持不設定支出分類。
+- 修改範圍限於首頁 AI 與本機分類結果的交界；`npm.cmd run check`、Expo public config 與 `git diff --check` 通過，待實機驗收。
+
 ### 目前存款與對帳（未 bump 版號，2026-08-17）
 - 起因：使用者問「沒有人設計可以輸入目前存款嗎」。原本緩衝區拿「歷來收入減支出」當存款近似值，只要裝 App 前就有錢、或有漏記，數字就是錯的。
 - ⭐定案：**不做獨立的期初餘額設定，只做對帳調整**。`目前存款 = Σ(收入) − Σ(支出)`（含調整）；使用者輸入實際餘額，差額寫成一筆調整交易。理由：餘額只有一種算法、不必維護兩個事實來源，而且每次校正都留在歷史裡可查。第一次「設定存款」與之後的「對帳」是同一個動作。

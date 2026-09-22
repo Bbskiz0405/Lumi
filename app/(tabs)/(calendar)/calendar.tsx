@@ -33,6 +33,8 @@ import {
   updateLumiEvent,
 } from '../../../services/calendarEventService';
 import { useForegroundRefresh } from '../../../hooks/useForegroundRefresh';
+import AnniversarySheet from '../../../components/calendar/AnniversarySheet';
+import { getAnniversariesForDate, SavedAnniversary } from '../../../services/anniversaryService';
 
 type SourceFilter = 'all' | 'tasks' | 'calendar';
 
@@ -40,7 +42,10 @@ export default function CalendarScreen() {
   const { contentInset, onScroll } = useCalendarWorkspaceScroll();
   const router = useRouter();
   const isFocused = useIsFocused();
-  const { selectedDate, bumpRefresh } = useCalendar();
+  const { selectedDate, bumpRefresh, refreshKey } = useCalendar();
+  const [anniversaries, setAnniversaries] = useState<SavedAnniversary[]>([]);
+  const [anniversaryOpen, setAnniversaryOpen] = useState(false);
+  const [editingAnniversary, setEditingAnniversary] = useState<SavedAnniversary | null>(null);
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [calendarEvents, setCalendarEvents] = useState<CalendarAgendaEvent[]>([]);
@@ -79,9 +84,10 @@ export default function CalendarScreen() {
       setCalendarLoadError(false);
       const requestId = ++dayLoadRequestId.current;
       getDayData(selectedDate)
-        .then(({ taskData, eventData, lumiEventData, externalLoadFailed }) => {
+        .then(({ taskData, eventData, lumiEventData, externalLoadFailed, anniversaryData }) => {
           if (!active || requestId !== dayLoadRequestId.current) return;
           setTasks(taskData);
+          setAnniversaries(anniversaryData);
           setCalendarEvents(eventData);
           setLumiEvents(lumiEventData);
           setCalendarLoadError(externalLoadFailed);
@@ -94,19 +100,21 @@ export default function CalendarScreen() {
           if (active) setLoading(false);
         });
       return () => { active = false; };
-    }, [selectedDate])
+    }, [selectedDate, refreshKey])
   );
 
   async function getDayData(date: string) {
-    const [taskData, externalResult, lumiEventData] = await Promise.all([
+    const [taskData, externalResult, lumiEventData, anniversaryData] = await Promise.all([
       getTasksForDate(date),
       getCalendarEventsForDate(date)
         .then(data => ({ data, failed: false }))
         .catch(() => ({ data: [] as CalendarAgendaEvent[], failed: true })),
       getLumiEventsForDate(date),
+      getAnniversariesForDate(date),
     ]);
     return {
       taskData,
+      anniversaryData,
       eventData: externalResult.data.filter(event => !event.isLinkedToLumi),
       lumiEventData,
       externalLoadFailed: externalResult.failed,
@@ -115,9 +123,10 @@ export default function CalendarScreen() {
 
   async function loadDayData(date: string) {
     const requestId = ++dayLoadRequestId.current;
-    const { taskData, eventData, lumiEventData, externalLoadFailed } = await getDayData(date);
+    const { taskData, eventData, lumiEventData, externalLoadFailed, anniversaryData } = await getDayData(date);
     if (requestId !== dayLoadRequestId.current) return;
     setTasks(taskData);
+    setAnniversaries(anniversaryData);
     setCalendarEvents(eventData);
     setLumiEvents(lumiEventData);
     setCalendarLoadError(externalLoadFailed);
@@ -223,7 +232,7 @@ export default function CalendarScreen() {
     return aTime - bTime;
   });
   const hasVisibleItems =
-    visibleTasks.length > 0 || visibleEvents.length > 0 || visibleLumiEvents.length > 0;
+    visibleTasks.length > 0 || visibleEvents.length > 0 || visibleLumiEvents.length > 0 || (sourceFilter !== 'tasks' && anniversaries.length > 0);
   const taskTagOptions = [...new Set(
     tasks.map(task => task.tag).filter((tag): tag is string => !!tag)
   )].map(getTaskTagMeta);
@@ -323,12 +332,12 @@ export default function CalendarScreen() {
                 </View>
               )}
 
-              {(calendarEvents.length > 0 || lumiEvents.length > 0 || sourceFilter !== 'all') && (
+              {(calendarEvents.length > 0 || lumiEvents.length > 0 || anniversaries.length > 0 || sourceFilter !== 'all') && (
                 <View style={styles.filters}>
                   {([
                     ['all', '全部'],
                     ['tasks', `任務 ${tasks.length}`],
-                    ['calendar', `行程 ${calendarEvents.length + lumiEvents.length}`],
+                    ['calendar', `行程／紀念日 ${calendarEvents.length + lumiEvents.length + anniversaries.length}`],
                   ] as const).map(([value, label]) => (
                     <TouchableOpacity
                       key={value}
@@ -387,6 +396,18 @@ export default function CalendarScreen() {
                 </View>
               )}
 
+              {sourceFilter !== 'tasks' && anniversaries.map(value => (
+                <TouchableOpacity key={`anniversary-${value.id}`} style={styles.eventCard}
+                  accessibilityRole="button" accessibilityLabel={`紀念日：${value.name}，編輯`}
+                  onPress={() => { setEditingAnniversary(value); setAnniversaryOpen(true); }}>
+                  <View style={[styles.eventAccent,{backgroundColor:'#FF88BB'}]} />
+                  <View style={styles.eventCopy}>
+                    <Text style={styles.eventTitle}>{value.name}</Text>
+                    <Text style={[styles.eventMeta,{color:'#C4A6B5'}]}>紀念日 · 每年紀念 · 原日期 {value.date}</Text>
+                  </View>
+                  <Text style={[styles.eventOpenHint,{color:'#CCCCCC'}]}>編輯</Text>
+                </TouchableOpacity>
+              ))}
               {visibleScheduleItems.map(item => {
                 if (item.kind === 'lumi') {
                   const event = item.event;
@@ -499,7 +520,7 @@ export default function CalendarScreen() {
           <View style={styles.createMenu}>
             <Text style={styles.createMenuTitle}>要記錄什麼？</Text>
             <Text style={styles.createMenuHint}>
-              任務可以完成；行程會佔用一段時間。
+              任務可以完成；行程佔用時間；紀念日每年顯示。
             </Text>
             <TouchableOpacity style={styles.createChoice} onPress={openTaskCreate}>
               <View style={styles.createChoiceIcon}>
@@ -519,6 +540,15 @@ export default function CalendarScreen() {
                 <Text style={styles.createChoiceText}>有開始與結束時間，可設定地點與提醒</Text>
               </View>
             </TouchableOpacity>
+            <TouchableOpacity style={styles.createChoice} onPress={() => {
+              setCreateMenuVisible(false); setEditingAnniversary(null); setAnniversaryOpen(true);
+            }}>
+              <View style={[styles.createChoiceIcon,styles.eventChoiceIcon]}><TechIcon name="calendar" size={18} color="#FF88BB" /></View>
+              <View style={styles.createChoiceCopy}>
+                <Text style={styles.createChoiceTitle}>紀念日</Text>
+                <Text style={styles.createChoiceText}>生日、交往日等，每年同一天顯示</Text>
+              </View>
+            </TouchableOpacity>
             <TouchableOpacity
               style={styles.createMenuCancel}
               onPress={() => setCreateMenuVisible(false)}
@@ -529,6 +559,10 @@ export default function CalendarScreen() {
         </View>
       </Modal>
 
+      {anniversaryOpen && <AnniversarySheet initial={editingAnniversary} selectedDate={selectedDate}
+        onClose={() => setAnniversaryOpen(false)} onSaved={() => {
+          setAnniversaryOpen(false); setEditingAnniversary(null); bumpRefresh();
+        }} />}
       <Modal
         visible={modalVisible}
         onRequestClose={() => setModalVisible(false)}

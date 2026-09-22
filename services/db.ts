@@ -1,7 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 
 const DATABASE_NAME = 'lumi.db';
-export const LATEST_DATABASE_VERSION = 8;
+export const LATEST_DATABASE_VERSION = 9;
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
@@ -248,6 +248,35 @@ async function migrateToVersion8(database: SQLite.SQLiteDatabase): Promise<void>
   });
 }
 
+async function migrateToVersion9(database: SQLite.SQLiteDatabase): Promise<void> {
+  await database.withExclusiveTransactionAsync(async tx => {
+    await tx.execAsync(`
+      CREATE TABLE IF NOT EXISTS tracker_modules (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '',
+        schema_json TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS tracker_records (
+        id TEXT PRIMARY KEY,
+        module_id TEXT NOT NULL,
+        data_json TEXT NOT NULL,
+        recorded_at TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (module_id) REFERENCES tracker_modules(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_tracker_records_module_date
+      ON tracker_records(module_id, recorded_at DESC);
+
+      PRAGMA user_version = 9;
+    `);
+  });
+}
+
 async function initDb(database: SQLite.SQLiteDatabase): Promise<void> {
   await database.execAsync(`
     PRAGMA journal_mode = WAL;
@@ -296,5 +325,10 @@ async function initDb(database: SQLite.SQLiteDatabase): Promise<void> {
 
   if (version < 8) {
     await migrateToVersion8(database);
+    version = 8;
+  }
+
+  if (version < 9) {
+    await migrateToVersion9(database);
   }
 }

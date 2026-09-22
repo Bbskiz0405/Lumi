@@ -18,6 +18,7 @@ interface Props {
   financeDates?: Set<string>;
   externalDates?: Set<string>;
   eventDates?: Set<string>;
+  anniversaryDates?: Set<string>;
   workDateStatusMap?: Map<string, WorkDateStatus>;
   taskPriorityMap?: Map<string, 'high' | 'medium' | 'low'>;
   taskTagMap?: Map<string, string>;
@@ -49,6 +50,7 @@ export default function CalendarGrid({
   financeDates,
   externalDates,
   eventDates,
+  anniversaryDates,
   workDateStatusMap,
   taskPriorityMap,
   taskTagMap,
@@ -101,6 +103,7 @@ export default function CalendarGrid({
           ]} />
         )}
         {markerMode === 'calendar' && hasEvent && <View style={styles.eventDot} />}
+        {markerMode === 'calendar' && anniversaryDates?.has(dateStr) && <View style={[styles.dot,{backgroundColor:'#FF88BB'}]} />}
         {markerMode === 'calendar' && hasExternal && <View style={styles.externalDot} />}
         {markerMode === 'work' && workStatus && (
           <View style={[styles.workDot, { backgroundColor: WORK_STATUS_COLORS[workStatus] }]} />
@@ -114,13 +117,7 @@ export default function CalendarGrid({
 
   function renderLegend(legendMode: CalendarGridMode) {
     if (legendMode === 'calendar') {
-      return (
-        <>
-          <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: '#FF9944' }]} /><Text style={styles.legendText}>任務</Text></View>
-          <View style={styles.legendItem}><View style={styles.legendEventDot} /><Text style={styles.legendText}>Lumi 行程</Text></View>
-          <View style={styles.legendItem}><View style={styles.legendExternalDot} /><Text style={styles.legendText}>外部行程</Text></View>
-        </>
-      );
+      return null;
     }
     if (legendMode === 'work') {
       return (
@@ -192,7 +189,7 @@ export default function CalendarGrid({
           const hasEvent = eventDates?.has(dateStr);
           const workStatus = workDateStatusMap?.get(dateStr);
           const markerLabel = mode === 'calendar'
-            ? `${hasTask ? '，有任務' : ''}${hasEvent ? '，有 Lumi 行程' : ''}${hasExternal ? '，有外部行程' : ''}`
+            ? `${hasTask ? '，有任務' : ''}${hasEvent ? '，有 Lumi 行程' : ''}${anniversaryDates?.has(dateStr) ? '，有紀念日' : ''}${hasExternal ? '，有外部行程' : ''}`
             : mode === 'work'
               ? workStatus ? `，有工時紀錄，${workStatus === 'active' ? '上班中' : workStatus === 'negative' ? '工時不足' : '已完成'}` : ''
               : hasFinance ? '，有記帳' : '';
@@ -232,7 +229,7 @@ export default function CalendarGrid({
           );
         })}
       </View>
-      <View style={styles.legendStack}>
+      {mode !== 'calendar' && <View style={styles.legendStack}>
         {previousMode && (
           <Animated.View style={[styles.legendLayer, { opacity: outgoingOpacity }]}>
             {renderLegend(previousMode)}
@@ -241,7 +238,7 @@ export default function CalendarGrid({
         <Animated.View style={[styles.legendLayer, { opacity: incomingOpacity }]}>
           {renderLegend(mode)}
         </Animated.View>
-      </View>
+      </View>}
     </View>
   );
 }
