@@ -18,6 +18,7 @@ import TechIcon from '../components/ui/TechIcon';
 import TrackerDefinitionEditor from '../components/TrackerDefinitionEditor';
 import { designTrackerModule, getApiConfig } from '../services/geminiService';
 import { createTrackerModule, getTrackerModules } from '../services/trackerModuleService';
+import { confirmTrackerReminderPermission } from '../services/notificationService';
 import { TrackerModule, TrackerModuleDefinition } from '../types/trackerModule';
 
 export default function ModulesScreen() {
@@ -72,6 +73,7 @@ export default function ModulesScreen() {
     setSaving(true);
     try {
       const created = await createTrackerModule(preview);
+      await confirmTrackerReminderPermission(created);
       setPreview(null);
       setRequest('');
       await load();

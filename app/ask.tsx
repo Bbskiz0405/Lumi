@@ -96,7 +96,7 @@ export default function AskScreen() {
               </Text>
               <View style={styles.privacyNotice}>
                 <Text style={styles.privacyText}>
-                  提問時，最多 250 筆近期任務、記帳、筆記與自訂模組紀錄，以及全部已記錄的紀念日與當地日期，會傳送到你選擇的 AI 供應商。
+                  提問時，最多 250 筆近期任務、記帳、筆記與自訂模組紀錄，以及全部已記錄的紀念日、自訂模組推算結果與當地日期，會傳送到你選擇的 AI 供應商。
                 </Text>
               </View>
               {!checkingConfig && !hasApiConfig && (

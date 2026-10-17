@@ -35,6 +35,14 @@ import {
 import { useForegroundRefresh } from '../../../hooks/useForegroundRefresh';
 import AnniversarySheet from '../../../components/calendar/AnniversarySheet';
 import { getAnniversariesForDate, SavedAnniversary } from '../../../services/anniversaryService';
+import { getTrackerProjections } from '../../../services/trackerModuleService';
+import { TrackerProjection } from '../../../services/trackerInsightService';
+
+function nextDate(date: string): string {
+  const [year, month, day] = date.split('-').map(Number);
+  const next = new Date(Date.UTC(year, month - 1, day + 1));
+  return next.toISOString().slice(0, 10);
+}
 
 type SourceFilter = 'all' | 'tasks' | 'calendar';
 
@@ -44,6 +52,7 @@ export default function CalendarScreen() {
   const isFocused = useIsFocused();
   const { selectedDate, bumpRefresh, refreshKey } = useCalendar();
   const [anniversaries, setAnniversaries] = useState<SavedAnniversary[]>([]);
+  const [projections, setProjections] = useState<TrackerProjection[]>([]);
   const [anniversaryOpen, setAnniversaryOpen] = useState(false);
   const [editingAnniversary, setEditingAnniversary] = useState<SavedAnniversary | null>(null);
 
@@ -84,10 +93,11 @@ export default function CalendarScreen() {
       setCalendarLoadError(false);
       const requestId = ++dayLoadRequestId.current;
       getDayData(selectedDate)
-        .then(({ taskData, eventData, lumiEventData, externalLoadFailed, anniversaryData }) => {
+        .then(({ taskData, eventData, lumiEventData, externalLoadFailed, anniversaryData, projectionData }) => {
           if (!active || requestId !== dayLoadRequestId.current) return;
           setTasks(taskData);
           setAnniversaries(anniversaryData);
+          setProjections(projectionData);
           setCalendarEvents(eventData);
           setLumiEvents(lumiEventData);
           setCalendarLoadError(externalLoadFailed);
@@ -104,17 +114,19 @@ export default function CalendarScreen() {
   );
 
   async function getDayData(date: string) {
-    const [taskData, externalResult, lumiEventData, anniversaryData] = await Promise.all([
+    const [taskData, externalResult, lumiEventData, anniversaryData, projectionData] = await Promise.all([
       getTasksForDate(date),
       getCalendarEventsForDate(date)
         .then(data => ({ data, failed: false }))
         .catch(() => ({ data: [] as CalendarAgendaEvent[], failed: true })),
       getLumiEventsForDate(date),
       getAnniversariesForDate(date),
+      getTrackerProjections(date, nextDate(date)).catch(() => [] as TrackerProjection[]),
     ]);
     return {
       taskData,
       anniversaryData,
+      projectionData,
       eventData: externalResult.data.filter(event => !event.isLinkedToLumi),
       lumiEventData,
       externalLoadFailed: externalResult.failed,
@@ -123,10 +135,11 @@ export default function CalendarScreen() {
 
   async function loadDayData(date: string) {
     const requestId = ++dayLoadRequestId.current;
-    const { taskData, eventData, lumiEventData, externalLoadFailed, anniversaryData } = await getDayData(date);
+    const { taskData, eventData, lumiEventData, externalLoadFailed, anniversaryData, projectionData } = await getDayData(date);
     if (requestId !== dayLoadRequestId.current) return;
     setTasks(taskData);
     setAnniversaries(anniversaryData);
+    setProjections(projectionData);
     setCalendarEvents(eventData);
     setLumiEvents(lumiEventData);
     setCalendarLoadError(externalLoadFailed);
@@ -232,7 +245,7 @@ export default function CalendarScreen() {
     return aTime - bTime;
   });
   const hasVisibleItems =
-    visibleTasks.length > 0 || visibleEvents.length > 0 || visibleLumiEvents.length > 0 || (sourceFilter !== 'tasks' && anniversaries.length > 0);
+    visibleTasks.length > 0 || visibleEvents.length > 0 || visibleLumiEvents.length > 0 || (sourceFilter !== 'tasks' && anniversaries.length + projections.length > 0);
   const taskTagOptions = [...new Set(
     tasks.map(task => task.tag).filter((tag): tag is string => !!tag)
   )].map(getTaskTagMeta);
@@ -332,12 +345,12 @@ export default function CalendarScreen() {
                 </View>
               )}
 
-              {(calendarEvents.length > 0 || lumiEvents.length > 0 || anniversaries.length > 0 || sourceFilter !== 'all') && (
+              {(calendarEvents.length > 0 || lumiEvents.length > 0 || anniversaries.length > 0 || projections.length > 0 || sourceFilter !== 'all') && (
                 <View style={styles.filters}>
                   {([
                     ['all', '全部'],
                     ['tasks', `任務 ${tasks.length}`],
-                    ['calendar', `行程／紀念日 ${calendarEvents.length + lumiEvents.length + anniversaries.length}`],
+                    ['calendar', `行程／紀念日 ${calendarEvents.length + lumiEvents.length + anniversaries.length + projections.length}`],
                   ] as const).map(([value, label]) => (
                     <TouchableOpacity
                       key={value}
@@ -406,6 +419,18 @@ export default function CalendarScreen() {
                     <Text style={[styles.eventMeta,{color:'#C4A6B5'}]}>紀念日 · 每年紀念 · 原日期 {value.date}</Text>
                   </View>
                   <Text style={[styles.eventOpenHint,{color:'#CCCCCC'}]}>編輯</Text>
+                </TouchableOpacity>
+              ))}
+              {sourceFilter !== 'tasks' && projections.map(value => (
+                <TouchableOpacity key={`projection-${value.moduleId}-${value.label}`} style={styles.eventCard}
+                  accessibilityRole="button" accessibilityLabel={`模組推算：${value.label}，開啟${value.moduleName}`}
+                  onPress={() => router.push({ pathname: '/module/[id]', params: { id: value.moduleId } })}>
+                  <View style={[styles.eventAccent,{backgroundColor:'#C9A0FF'}]} />
+                  <View style={styles.eventCopy}>
+                    <Text style={styles.eventTitle}>{value.label}</Text>
+                    <Text style={[styles.eventMeta,{color:'#B8A8D0'}]}>{value.moduleName} · 依紀錄推算，僅供參考</Text>
+                  </View>
+                  <Text style={[styles.eventOpenHint,{color:'#CCCCCC'}]}>開啟</Text>
                 </TouchableOpacity>
               ))}
               {visibleScheduleItems.map(item => {

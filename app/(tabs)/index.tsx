@@ -40,7 +40,8 @@ import FinanceModule from '../../components/modules/FinanceModule';
 import NotesModule from '../../components/modules/NotesModule';
 import IconButton from '../../components/ui/IconButton';
 import TechIcon, { TechIconName } from '../../components/ui/TechIcon';
-import { getTrackerModules, matchingTrackerModules } from '../../services/trackerModuleService';
+import { getTrackerHighlights, getTrackerModules, matchingTrackerModules } from '../../services/trackerModuleService';
+import { TrackerHighlight } from '../../services/trackerInsightService';
 
 function formatDate(): string {
   const now = new Date();
@@ -93,6 +94,7 @@ export default function HomeScreen() {
   const [feedbackText, setFeedbackText] = useState('');
   const [feedbackOpacity] = useState(new Animated.Value(0));
   const [recentItems, setRecentItems] = useState<RecentItem[]>([]);
+  const [highlights, setHighlights] = useState<TrackerHighlight[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [classifySource, setClassifySource] = useState<'ai' | 'local'>('local');
   const [expenseCategories, setExpenseCategories] = useState<Awaited<ReturnType<typeof getExpenseCategories>>>([]);
@@ -116,6 +118,13 @@ export default function HomeScreen() {
           if (active) setRecentItems(items);
         })
         .catch(err => console.error('[HomeScreen] recent activity failed:', err));
+      getTrackerHighlights()
+        .then(items => {
+          if (active) setHighlights(items);
+        })
+        .catch(() => {
+          if (active) setHighlights([]);
+        });
       return () => {
         active = false;
       };
@@ -455,6 +464,21 @@ export default function HomeScreen() {
           <Text style={{ color: '#55DDAA', fontSize: 12 }}>{hasText ? '選擇自訂模組記錄這句話' : '自訂模組'}</Text>
         </TouchableOpacity>
 
+        {/* 自訂模組推算提醒（本機計算） */}
+        {!showClassification && highlights.map(item => (
+          <TouchableOpacity
+            key={item.moduleId + item.text}
+            style={styles.highlight}
+            onPress={() => router.push({ pathname: '/module/[id]', params: { id: item.moduleId } })}
+            accessibilityRole="button"
+            accessibilityLabel={`${item.moduleName}：${item.text}，開啟模組`}
+          >
+            <View style={styles.highlightDot} />
+            <Text style={styles.highlightText}>{item.text}</Text>
+            <Text style={styles.highlightModule} numberOfLines={1}>{item.moduleName}</Text>
+          </TouchableOpacity>
+        ))}
+
         {/* 分類結果 */}
         {showClassification && classification && (
           <View style={styles.classificationCard}>
@@ -608,6 +632,14 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  highlight: {
+    minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 10,
+    borderWidth: 1, borderColor: '#1F1A28', backgroundColor: '#111111', borderRadius: 8,
+    paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8,
+  },
+  highlightDot: { width: 6, height: 6, borderRadius: 3, borderWidth: 1, borderColor: '#C9A0FF' },
+  highlightText: { flex: 1, color: '#DDD6EA', fontSize: 13, lineHeight: 19 },
+  highlightModule: { maxWidth: '35%', color: '#666666', fontSize: 11 },
   safe: {
     flex: 1,
     backgroundColor: '#0F0F0F',

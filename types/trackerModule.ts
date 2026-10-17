@@ -9,10 +9,26 @@ export interface TrackerField {
   options?: string[];
 }
 
+/** A window relative to the projected next date, in days (e.g. ovulation = -14..-14). */
+export interface TrackerOffset {
+  label: string;
+  from: number;
+  to: number;
+}
+
+/** Fixed, locally computed building blocks. AI may pick these but never supplies formulas. */
+export type TrackerInsight =
+  | { type: 'cycle'; label: string; field: string; offsets: TrackerOffset[]; remindDaysBefore?: number }
+  | { type: 'duration'; label: string; start: string; end: string }
+  | { type: 'trend'; label: string; field: string; window: number };
+
+export type TrackerInsightType = TrackerInsight['type'];
+
 export interface TrackerModuleDefinition {
   name: string;
   description: string;
   fields: TrackerField[];
+  insights: TrackerInsight[];
 }
 
 export interface TrackerModule extends TrackerModuleDefinition {

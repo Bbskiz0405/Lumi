@@ -34,6 +34,20 @@ let listedUrls = [];
 let generationCalls = 0;
 let generationUrls = [];
 let failWrite = false;
+const alerts = [];
+const notificationState = {scheduled: [], granted: true, canAskAgain: true, prompts: 0, channels: []};
+const fakeNotifications = {
+  AndroidImportance: {HIGH: 4, DEFAULT: 3},
+  AndroidNotificationVisibility: {PRIVATE: 0},
+  SchedulableTriggerInputTypes: {DATE: 'date'},
+  setNotificationHandler: () => {},
+  setNotificationChannelAsync: async (id, options) => { notificationState.channels.push({id, ...options}); },
+  getPermissionsAsync: async () => ({granted: notificationState.granted, canAskAgain: notificationState.canAskAgain}),
+  requestPermissionsAsync: async () => { notificationState.prompts++; return {granted: notificationState.granted}; },
+  getAllScheduledNotificationsAsync: async () => notificationState.scheduled.map(item => ({...item})),
+  cancelScheduledNotificationAsync: async id => { notificationState.scheduled = notificationState.scheduled.filter(item => item.identifier !== id); },
+  scheduleNotificationAsync: async request => { notificationState.scheduled.push(request); return request.identifier; },
+};
 const normalRun = adapter.runAsync;
 adapter.runAsync = async (...args) => {
   if (failWrite && args[0].startsWith('INSERT') && args[0].includes('tracker_records')) throw Error('Injected write failure');
@@ -66,6 +80,8 @@ function load(relative) {
     require: name => {
       if (name === 'expo-sqlite') return {openDatabaseAsync: async () => adapter};
       if (name === 'expo-crypto') return {randomUUID};
+      if (name === 'expo-notifications') return fakeNotifications;
+      if (name === 'react-native') return {Platform:{OS:'android'},Alert:{alert:(...args) => alerts.push(args)}};
       if (name === 'expo-secure-store') return {
         isAvailableAsync: async () => true,
         getItemAsync: async () => JSON.stringify({provider:'gemini',apiKey:'test-only'}),
@@ -332,7 +348,9 @@ const clone = value => JSON.parse(JSON.stringify(value));
     await ai.chatWithFinanceAdvisor('分析', [], '2026-09');
     assert.match(lastUrl, /gemini-3\.8-flash:generateContent$/);
     const calls = generationCalls;
-    await ai.generateMonthNarrative('2026-09');
+    // Fixture rows are stamped with the real clock, so the narrative must look at the current month.
+    const now = new Date();
+    await ai.generateMonthNarrative(now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0'));
     assert.equal(generationCalls, calls + 1);
     assert.match(lastUrl, /gemini-3\.8-flash:generateContent$/);
     assert.equal(JSON.stringify(await ai.getApiConfig()), before);
@@ -384,6 +402,205 @@ const clone = value => JSON.parse(JSON.stringify(value));
     assert.equal((await tracker.getTrackerRecords(module.id)).length,1);
     await backup.importBackup(preview,'replace');
     assert.equal((await tracker.getTrackerModules()).length,0);
+  });
+  const insightsService = load('services/trackerInsightService.ts');
+  const period = {
+    name: '月經紀錄', description: '記錄經期並推算下次',
+    fields: [
+      {key:'start_date',label:'開始日',type:'date',required:true},
+      {key:'end_date',label:'結束日',type:'date',required:false},
+      {key:'flow',label:'經血量',type:'select',required:false,options:['少','中','多']},
+    ],
+    insights: [
+      {type:'cycle',label:'下次月經',field:'start_date',offsets:[{label:'排卵日',from:-14,to:-14},{label:'易孕期',from:-19,to:-13}]},
+      {type:'duration',label:'經期天數',start:'start_date',end:'end_date'},
+    ],
+  };
+  const rec = (data, recorded_at) => ({id:randomUUID(),module_id:'m',data,recorded_at:recorded_at ?? data.start_date + 'T04:00:00.000Z',created_at:'2026-09-01T00:00:00.000Z'});
+  await test('insight validation rejects unknown types, wrong field types, bad offsets and too many insights', () => {
+    const valid = tracker.validateTrackerModuleDefinition(period);
+    assert.equal(valid.insights.length,2);
+    assert.deepEqual(clone(tracker.validateTrackerModuleDefinition(definition).insights),[]);
+    const bad = patch => assert.throws(() => tracker.validateTrackerModuleDefinition({...period,insights:[{...period.insights[0],...patch}]}));
+    bad({type:'formula'});
+    bad({field:'flow'});
+    bad({field:'missing'});
+    bad({offsets:[{label:'x',from:3,to:1}]});
+    bad({offsets:[{label:'x',from:-61,to:0}]});
+    bad({offsets:[{label:'x',from:0.5,to:1}]});
+    bad({offsets:[1,2,3,4].map(n => ({label:'x'+n,from:n,to:n}))});
+    assert.throws(() => tracker.validateTrackerModuleDefinition({...period,insights:[{type:'duration',label:'x',start:'start_date',end:'start_date'}]}));
+    assert.throws(() => tracker.validateTrackerModuleDefinition({...definition,insights:[{type:'trend',label:'x',field:'weight',window:2}]}));
+    assert.throws(() => tracker.validateTrackerModuleDefinition({...period,insights:Array(5).fill(period.insights[1])}));
+  });
+  await test('cycle projection averages intervals, ignores duplicates and needs two dates', () => {
+    const module = tracker.validateTrackerModuleDefinition(period);
+    const now = new Date(2026, 8, 10, 23, 30);
+    const records = ['2026-06-01','2026-06-29','2026-07-28','2026-08-25','2026-08-25'].map(start_date => rec({start_date}));
+    const [cycle] = clone(insightsService.computeTrackerInsights(module, records, now));
+    assert.deepEqual(cycle, {type:'cycle',label:'下次月經',ready:true,average:28.3,shortest:28,longest:29,samples:3,
+      last:'2026-08-25',next:'2026-09-22',spread:1,daysUntil:12,
+      ranges:[{label:'排卵日',start:'2026-09-08',end:'2026-09-08'},{label:'易孕期',start:'2026-09-03',end:'2026-09-09'}]});
+    const two = clone(insightsService.computeTrackerInsights(module, records.slice(0, 2), now))[0];
+    assert.equal(two.spread, null);
+    assert.equal(two.daysUntil, -45);
+    assert.deepEqual(clone(insightsService.computeTrackerInsights(module, records.slice(3), now))[0], {type:'cycle',label:'下次月經',ready:false,needed:1});
+    // Month and leap-year boundaries use calendar days, not 24h offsets.
+    const leap = clone(insightsService.computeTrackerInsights(module, [rec({start_date:'2028-01-31'}),rec({start_date:'2028-02-28'})], now))[0];
+    assert.equal(leap.next,'2028-03-27');
+  });
+  await test('duration counts inclusive days and trend reports weekly slope', () => {
+    const module = tracker.validateTrackerModuleDefinition(period);
+    const durations = clone(insightsService.computeTrackerInsights(module, [
+      rec({start_date:'2026-06-29',end_date:'2026-07-02'}), rec({start_date:'2026-06-01',end_date:'2026-06-05'}),
+      rec({start_date:'2026-07-28'}), rec({start_date:'2026-08-25',end_date:'2026-08-20'}),
+    ]))[1];
+    assert.deepEqual(durations, {type:'duration',label:'經期天數',ready:true,latest:4,average:4.5,samples:2});
+    const weight = tracker.validateTrackerModuleDefinition({...definition,insights:[{type:'trend',label:'體重趨勢',field:'weight',window:3}]});
+    const points = [['2026-08-01',80],['2026-09-01',70],['2026-09-08',69.5],['2026-09-15',69]].map(([date,value]) => rec({date,weight:value}, date + 'T04:00:00.000Z'));
+    assert.deepEqual(clone(insightsService.computeTrackerInsights(weight, points))[0], {type:'trend',label:'體重趨勢',ready:true,perWeek:-0.5,change:-1,samples:3,unit:'公斤'});
+    const sameDay = points.slice(1).map(point => ({...point,recorded_at:'2026-09-01T04:00:00.000Z'}));
+    assert.equal(insightsService.computeTrackerInsights(weight, sameDay)[0].ready,false);
+  });
+  await test('insights persist in schema_json, legacy array stays, existing modules can gain insights without touching records', async () => {
+    const created = await tracker.createTrackerModule(period);
+    const stored = JSON.parse((await db.getFirstAsync('SELECT schema_json FROM tracker_modules WHERE id = ?',[created.id])).schema_json);
+    assert.equal(stored.insights.length,2);
+    assert.equal((await tracker.getTrackerModule(created.id)).insights[0].offsets[1].from,-19);
+    const plain = await tracker.createTrackerModule(definition);
+    assert.ok(Array.isArray(JSON.parse((await db.getFirstAsync('SELECT schema_json FROM tracker_modules WHERE id = ?',[plain.id])).schema_json)));
+    await tracker.createTrackerRecord(plain,{date:'2026-09-01',weight:'70'});
+    await tracker.updateTrackerModule(plain.id,{...definition,insights:[{type:'trend',label:'體重趨勢',field:'weight',window:10}]});
+    assert.equal((await tracker.getTrackerModule(plain.id)).insights[0].type,'trend');
+    assert.equal((await tracker.getTrackerRecords(plain.id))[0].data.weight,70);
+    await tracker.updateTrackerModule(plain.id,{...definition,insights:[]});
+    assert.ok(Array.isArray(JSON.parse((await db.getFirstAsync('SELECT schema_json FROM tracker_modules WHERE id = ?',[plain.id])).schema_json)));
+    await assert.rejects(tracker.updateTrackerModule(plain.id,{...definition,insights:[{type:'trend',label:'x',field:'note',window:10}]}));
+    const saved = await backup.createBackup();
+    const preview = backup.previewBackupJson(JSON.stringify(saved));
+    const edited = clone(saved);
+    const row = edited.data.tracker_modules.find(item => item.id === created.id);
+    const schema = JSON.parse(row.schema_json); schema.insights = []; row.schema_json = JSON.stringify(schema);
+    await backup.importBackup(backup.previewBackupJson(JSON.stringify(edited)),'merge');
+    assert.equal((await tracker.getTrackerModule(created.id)).insights.length,2);
+    await backup.importBackup(preview,'replace');
+    assert.equal((await tracker.getTrackerModule(created.id)).insights[1].type,'duration');
+    const broken = clone(saved);
+    const brokenRow = broken.data.tracker_modules.find(item => item.id === created.id);
+    const brokenSchema = JSON.parse(brokenRow.schema_json); brokenSchema.insights[0].field = 'flow'; brokenRow.schema_json = JSON.stringify(brokenSchema);
+    assert.throws(() => backup.previewBackupJson(JSON.stringify(broken)));
+    await tracker.deleteTrackerModule(created.id);
+    await tracker.deleteTrackerModule(plain.id);
+  });
+  await test('AI design may pick insight blocks but invalid insight output is rejected', async () => {
+    responseText = JSON.stringify(period);
+    const designed = await ai.designTrackerModule('月經紀錄，想推算下次和排卵期');
+    assert.equal(designed.insights[0].offsets[0].label,'排卵日');
+    assert.match(JSON.stringify(lastBody),/cycle/);
+    responseText = JSON.stringify({...period,insights:[{type:'script',label:'x',code:'alert(1)'}]});
+    await assert.rejects(ai.designTrackerModule('月經紀錄'));
+    assert.equal((await tracker.getTrackerModules()).length,0);
+  });
+  const periodStarts = ['2026-06-01','2026-06-29','2026-07-28','2026-08-25'];
+  await test('calendar projections repeat the average cycle with spread and ranges, never on or before the latest record', () => {
+    const module = {...tracker.validateTrackerModuleDefinition(period), id:'p1'};
+    module.insights[0].offsets.push({label:'早期',from:-30,to:-27});
+    const records = periodStarts.map(start_date => rec({start_date}));
+    const october = clone(insightsService.projectTrackerDates(module, records, '2026-10-01', '2026-11-01', new Date(2026, 8, 10)));
+    const byLabel = label => october.filter(item => item.label === label).map(item => item.date);
+    assert.deepEqual(byLabel('下次月經（預測）'), ['2026-10-19','2026-10-20','2026-10-21']);
+    assert.deepEqual(byLabel('排卵日'), ['2026-10-06']);
+    assert.deepEqual(byLabel('易孕期'), ['2026-10-01','2026-10-02','2026-10-03','2026-10-04','2026-10-05','2026-10-06','2026-10-07','2026-10-29','2026-10-30','2026-10-31']);
+    assert.ok(october.every(item => item.moduleId === 'p1' && item.moduleName === '月經紀錄'));
+    const august = clone(insightsService.projectTrackerDates(module, records, '2026-08-01', '2026-09-01', new Date(2026, 8, 10)));
+    assert.deepEqual(august.map(item => item.date), ['2026-08-26']);
+    assert.deepEqual(clone(insightsService.projectTrackerDates(module, records.slice(0, 1), '2026-06-01', '2027-01-01')), []);
+  });
+  await test('home highlights show upcoming, active-range and overdue cycles but go quiet when far or stale', () => {
+    const module = {...tracker.validateTrackerModuleDefinition(period), id:'p1'};
+    const records = periodStarts.map(start_date => rec({start_date}));
+    const at = (month, day) => clone(insightsService.trackerHighlights(module, records, new Date(2026, month - 1, day, 21)));
+    assert.deepEqual(at(9, 10), [{moduleId:'p1',moduleName:'月經紀錄',text:'下次月經還有 12 天（9/22）'}]);
+    assert.equal(at(9, 5)[0].text, '下次月經還有 17 天（9/22），今天在易孕期');
+    assert.deepEqual(at(9, 1), []);
+    assert.equal(at(9, 22)[0].text, '下次月經預測是今天');
+    assert.equal(at(9, 30)[0].text, '下次月經已過預測日 8 天');
+    assert.deepEqual(at(11, 30), []);
+  });
+  await test('Ask Lumi receives locally computed insight summaries; a module with broken records is skipped, not fatal', async () => {
+    const created = await tracker.createTrackerModule(period);
+    for (const start_date of periodStarts) await tracker.createTrackerRecord(created, {start_date, end_date: start_date === '2026-08-25' ? '2026-08-29' : ''});
+    const lines = clone(insightsService.describeInsightResults(created, await tracker.getTrackerRecords(created.id), new Date(2026, 8, 10)));
+    assert.equal(lines[0], '月經紀錄／下次月經：預測下次 2026-09-22（±1 天）；距今天 12 天；平均週期 28.3 天（28–29，3 次間隔）；最近一次 2026-08-25；排卵日 2026-09-08；易孕期 2026-09-03～2026-09-09');
+    assert.equal(lines[1], '月經紀錄／經期天數：最近 5 天，平均 5 天（1 次）');
+    const month = clone(await tracker.getTrackerProjections('2026-09-01', '2026-10-01', new Date(2026, 8, 10)));
+    assert.ok(month.some(item => item.date === '2026-09-22' && item.moduleId === created.id));
+    const highlights = clone(await tracker.getTrackerHighlights(new Date(2026, 8, 10)));
+    assert.equal(highlights[0].moduleId, created.id);
+    responseText = 'test response';
+    await ai.askLumi('下次月經什麼時候？');
+    const sent = JSON.stringify(lastBody);
+    assert.match(sent, /自訂模組推算/);
+    assert.match(sent, /月經紀錄／下次月經：預測下次 2026-09-22/);
+    assert.match(sent, /不自行重算/);
+    const plain = await tracker.createTrackerModule(definition);
+    assert.equal((await tracker.getTrackerProjections('2026-09-01', '2026-10-01')).filter(item => item.moduleId === plain.id).length, 0);
+    await db.runAsync('UPDATE tracker_records SET data_json = ? WHERE module_id = ?', ['{"start_date":"2026-99-99"}', created.id]);
+    assert.deepEqual(clone(await tracker.getTrackerProjections('2026-09-01', '2026-10-01')), []);
+    assert.match(await tracker.buildTrackerInsightContext(), /目前沒有設定推算的自訂模組/);
+    await tracker.deleteTrackerModule(created.id);
+    await tracker.deleteTrackerModule(plain.id);
+  });
+  await test('cycle reminders validate 0-14 days and plan one 09:00 notification for the next date only', () => {
+    const withReminder = days => ({...period, insights:[{...period.insights[0], remindDaysBefore: days}]});
+    for (const days of [-1, 15, 1.5, '2']) assert.throws(() => tracker.validateTrackerModuleDefinition(withReminder(days)));
+    const module = {...tracker.validateTrackerModuleDefinition(withReminder(2)), id:'p1'};
+    const records = periodStarts.map(start_date => rec({start_date}));
+    const [plan] = insightsService.planTrackerReminders(module, records, new Date(2026, 8, 10, 12));
+    assert.equal(plan.id, 'lumi-tracker-p1-0');
+    assert.equal(plan.moduleId, 'p1');
+    assert.equal(plan.date.getFullYear() + '-' + (plan.date.getMonth() + 1) + '-' + plan.date.getDate() + ' ' + plan.date.getHours(), '2026-9-20 9');
+    assert.equal(plan.body, '下次月經預計 9/22，還有 2 天');
+    assert.equal(plan.title, 'Lumi 推算提醒');
+    assert.deepEqual(clone(insightsService.planTrackerReminders(module, records, new Date(2026, 8, 20, 9, 0))), []);
+    const sameDay = {...tracker.validateTrackerModuleDefinition(withReminder(0)), id:'p1'};
+    assert.equal(insightsService.planTrackerReminders(sameDay, records, new Date(2026, 8, 20))[0].body, '下次月經預計今天（9/22）');
+    const off = {...tracker.validateTrackerModuleDefinition(period), id:'p1'};
+    assert.deepEqual(clone(insightsService.planTrackerReminders(off, records, new Date(2026, 8, 10))), []);
+    assert.deepEqual(clone(insightsService.planTrackerReminders(module, records.slice(0, 1), new Date(2026, 5, 2))), []);
+  });
+  await test('reminder sync replaces only module reminders, never prompts, and hides content on the lock screen', async () => {
+    const notify = load('services/notificationService.ts');
+    const created = await tracker.createTrackerModule({...period, insights:[{...period.insights[0], remindDaysBefore: 1}]});
+    const futureStart = new Date(); futureStart.setDate(futureStart.getDate() - 20);
+    const iso = date => date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+    const earlier = new Date(futureStart); earlier.setDate(earlier.getDate() - 28);
+    for (const date of [earlier, futureStart]) await tracker.createTrackerRecord(created, {start_date: iso(date)});
+    notificationState.scheduled = [
+      {identifier:'lumi-task-keep', content:{}, trigger:{}},
+      {identifier:'lumi-tracker-stale-0', content:{}, trigger:{}},
+    ];
+    await notify.syncTrackerReminders();
+    assert.deepEqual(notificationState.scheduled.map(item => item.identifier), ['lumi-task-keep', 'lumi-tracker-' + created.id + '-0']);
+    const scheduled = notificationState.scheduled[1];
+    assert.equal(scheduled.trigger.channelId, 'lumi-tracker-reminders');
+    assert.deepEqual(clone(scheduled.content.data), {type:'tracker', moduleId: created.id});
+    assert.equal(notificationState.channels.find(channel => channel.id === 'lumi-tracker-reminders').lockscreenVisibility, 0);
+    await Promise.all([notify.syncTrackerReminders(), notify.syncTrackerReminders()]);
+    assert.equal(notificationState.scheduled.length, 2);
+    notificationState.granted = false;
+    await notify.syncTrackerReminders();
+    assert.deepEqual(notificationState.scheduled.map(item => item.identifier), ['lumi-task-keep']);
+    assert.equal(notificationState.prompts, 0);
+    await notify.confirmTrackerReminderPermission(created);
+    assert.equal(notificationState.prompts, 1);
+    assert.equal(alerts.pop()[0], '提醒未開啟');
+    await notify.confirmTrackerReminderPermission(tracker.validateTrackerModuleDefinition(definition));
+    assert.equal(notificationState.prompts, 1);
+    notificationState.granted = true;
+    await tracker.deleteTrackerModule(created.id);
+    await notify.syncTrackerReminders();
+    assert.deepEqual(notificationState.scheduled.map(item => item.identifier), ['lumi-task-keep']);
   });
   const anniversaries = load('services/anniversaryService.ts');
   const notes = load('services/noteService.ts');

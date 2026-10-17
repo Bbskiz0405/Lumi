@@ -19,6 +19,8 @@ interface Props {
   externalDates?: Set<string>;
   eventDates?: Set<string>;
   anniversaryDates?: Set<string>;
+  /** Days predicted by custom-module cycle insights (estimates, drawn hollow). */
+  projectionDates?: Set<string>;
   workDateStatusMap?: Map<string, WorkDateStatus>;
   taskPriorityMap?: Map<string, 'high' | 'medium' | 'low'>;
   taskTagMap?: Map<string, string>;
@@ -51,6 +53,7 @@ export default function CalendarGrid({
   externalDates,
   eventDates,
   anniversaryDates,
+  projectionDates,
   workDateStatusMap,
   taskPriorityMap,
   taskTagMap,
@@ -105,6 +108,7 @@ export default function CalendarGrid({
         {markerMode === 'calendar' && hasEvent && <View style={styles.eventDot} />}
         {markerMode === 'calendar' && anniversaryDates?.has(dateStr) && <View style={[styles.dot,{backgroundColor:'#FF88BB'}]} />}
         {markerMode === 'calendar' && hasExternal && <View style={styles.externalDot} />}
+        {markerMode === 'calendar' && projectionDates?.has(dateStr) && <View style={styles.projectionDot} />}
         {markerMode === 'work' && workStatus && (
           <View style={[styles.workDot, { backgroundColor: WORK_STATUS_COLORS[workStatus] }]} />
         )}
@@ -189,7 +193,7 @@ export default function CalendarGrid({
           const hasEvent = eventDates?.has(dateStr);
           const workStatus = workDateStatusMap?.get(dateStr);
           const markerLabel = mode === 'calendar'
-            ? `${hasTask ? '，有任務' : ''}${hasEvent ? '，有 Lumi 行程' : ''}${anniversaryDates?.has(dateStr) ? '，有紀念日' : ''}${hasExternal ? '，有外部行程' : ''}`
+            ? `${hasTask ? '，有任務' : ''}${hasEvent ? '，有 Lumi 行程' : ''}${anniversaryDates?.has(dateStr) ? '，有紀念日' : ''}${hasExternal ? '，有外部行程' : ''}${projectionDates?.has(dateStr) ? '，有模組推算' : ''}`
             : mode === 'work'
               ? workStatus ? `，有工時紀錄，${workStatus === 'active' ? '上班中' : workStatus === 'negative' ? '工時不足' : '已完成'}` : ''
               : hasFinance ? '，有記帳' : '';
@@ -269,7 +273,7 @@ const styles = StyleSheet.create({
   dayText: { color: '#AAAAAA', fontSize: 13 },
   todayText: { color: '#FFFFFF' },
   selectedText: { color: '#0F0F0F', fontWeight: '500' },
-  markerStack: { width: 22, height: 7, marginTop: 1, position: 'relative' },
+  markerStack: { width: 30, height: 7, marginTop: 1, position: 'relative' },
   markerLayer: {
     position: 'absolute',
     left: 0,
@@ -284,6 +288,7 @@ const styles = StyleSheet.create({
   dot: { width: 4, height: 4, borderRadius: 2 },
   externalDot: { width: 5, height: 5, borderRadius: 3, borderWidth: 1, borderColor: '#88AAFF' },
   eventDot: { width: 5, height: 5, borderRadius: 1, backgroundColor: '#55DDAA' },
+  projectionDot: { width: 5, height: 5, borderRadius: 3, borderWidth: 1, borderColor: '#C9A0FF' },
   workDot: { width: 6, height: 3, borderRadius: 1 },
   legendStack: {
     height: 18,

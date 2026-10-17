@@ -21,6 +21,7 @@ import {
   previewBackupJson,
 } from '../services/backupService';
 import { useCalendar } from '../contexts/CalendarContext';
+import { syncTrackerReminders } from '../services/notificationService';
 
 const MAX_IMPORT_BYTES = 15 * 1024 * 1024;
 
@@ -98,6 +99,7 @@ export default function DataSettings() {
     try {
       const result = await importBackup(preview, mode);
       bumpRefresh();
+      void syncTrackerReminders().catch(error => console.error('[DataSettings] reminder sync failed:', error));
       await refreshCounts();
 
       const action = mode === 'merge' ? '合併' : '取代';

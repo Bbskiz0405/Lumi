@@ -16,6 +16,8 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import TechIcon from '../../components/ui/TechIcon';
 import TrackerDefinitionEditor from '../../components/TrackerDefinitionEditor';
 import { draftTrackerRecord } from '../../services/geminiService';
+import { computeTrackerInsights, InsightResult, TRACKER_REMINDER_HOUR } from '../../services/trackerInsightService';
+import { confirmTrackerReminderPermission, syncTrackerReminders } from '../../services/notificationService';
 import {
   createTrackerRecord,
   deleteTrackerModule,
@@ -26,6 +28,31 @@ import {
   updateTrackerModule,
 } from '../../services/trackerModuleService';
 import { TrackerModule, TrackerModuleDefinition, TrackerRecord } from '../../types/trackerModule';
+
+function monthDay(date: string): string {
+  const [, month, day] = date.split('-');
+  return `${Number(month)}/${Number(day)}`;
+}
+
+const signed = (value: number) => (value > 0 ? '+' : value < 0 ? '−' : '') + Math.abs(value);
+
+function insightView(result: InsightResult): { value: string; meta: string[] } {
+  if (!result.ready) return { value: '—', meta: [`再記錄 ${result.needed} 筆就能推算`] };
+  if (result.type === 'cycle') {
+    const when = result.daysUntil > 0 ? `還有 ${result.daysUntil} 天` : result.daysUntil === 0 ? '預測今天' : `已過預測日 ${-result.daysUntil} 天`;
+    return {
+      value: `${monthDay(result.next)}${result.spread ? ` ±${result.spread}` : ''}`,
+      meta: [
+        when,
+        `平均 ${result.average} 天（${result.shortest}–${result.longest}，${result.samples} 次間隔）`,
+        ...result.ranges.map(range => `${range.label} ${monthDay(range.start)}${range.start === range.end ? '' : `–${monthDay(range.end)}`}`),
+      ],
+    };
+  }
+  if (result.type === 'duration') return { value: `${result.latest} 天`, meta: [`平均 ${result.average} 天（${result.samples} 次）`] };
+  const unit = result.unit ? ` ${result.unit}` : '';
+  return { value: `${signed(result.perWeek)}${unit}／週`, meta: [`最近 ${result.samples} 筆共 ${signed(result.change)}${unit}`] };
+}
 
 function today(): string {
   const date = new Date();
@@ -60,6 +87,8 @@ export default function TrackerModuleScreen() {
       if (version !== loadVersion.current) return;
       setModule(nextModule);
       setRecords(nextRecords);
+      // Every mutation reloads, so this keeps module reminders aligned with the latest records.
+      void syncTrackerReminders().catch(error => console.error('[TrackerModule] reminder sync failed:', error));
       if (nextModule && draft && consumedDraft.current !== draft) {
         consumedDraft.current = draft;
         setDraftText(draft);
@@ -82,6 +111,8 @@ export default function TrackerModuleScreen() {
       return { field, latest: numbers[0], average: numbers.length ? numbers.reduce((a, b) => a + b, 0) / numbers.length : undefined };
     });
   }, [module, records]);
+
+  const insights = useMemo(() => module ? computeTrackerInsights(module, records) : [], [module, records]);
 
   function openForm(record?: TrackerRecord) {
     if (!module || busy.current) return;
@@ -125,7 +156,12 @@ export default function TrackerModuleScreen() {
     if (!module || !definition || busy.current) return;
     busy.current = true;
     setSaving(true);
-    try { await updateTrackerModule(module.id, definition); setDefinition(null); await load(); }
+    try {
+      await updateTrackerModule(module.id, definition);
+      setDefinition(null);
+      await confirmTrackerReminderPermission(definition);
+      await load();
+    }
     catch (error) { Alert.alert('無法儲存設定', error instanceof Error ? error.message : '請重試'); }
     finally { busy.current = false; setSaving(false); }
   }
@@ -152,7 +188,11 @@ export default function TrackerModuleScreen() {
       { text: '刪除', style: 'destructive', onPress: async () => {
         if (busy.current) return;
         busy.current = true;
-        try { await deleteTrackerModule(module.id); router.back(); }
+        try {
+          await deleteTrackerModule(module.id);
+          void syncTrackerReminders().catch(error => console.error('[TrackerModule] reminder sync failed:', error));
+          router.back();
+        }
         catch (error) { Alert.alert('刪除失敗', error instanceof Error ? error.message : '請重試'); }
         finally { busy.current = false; }
       } },
@@ -181,6 +221,24 @@ export default function TrackerModuleScreen() {
             <Text style={styles.statMeta}>{average === undefined ? '尚無資料' : `平均 ${average.toFixed(1)}${field.unit ? ` ${field.unit}` : ''}`}</Text>
           </View>)}
         </View>}
+
+        {insights.length > 0 && <>
+          <View style={styles.stats}>
+            {insights.map((result, index) => {
+              const view = insightView(result);
+              const insight = module.insights[index];
+              if (insight?.type === 'cycle' && insight.remindDaysBefore !== undefined) {
+                view.meta.push(`提醒：${insight.remindDaysBefore === 0 ? '當天' : `前 ${insight.remindDaysBefore} 天`} ${TRACKER_REMINDER_HOUR}:00`);
+              }
+              return <View key={index} style={styles.stat}>
+                <Text style={styles.statLabel}>{result.label}</Text>
+                <Text style={styles.statValue}>{view.value}</Text>
+                {view.meta.map(line => <Text key={line} style={styles.statMeta}>{line}</Text>)}
+              </View>;
+            })}
+          </View>
+          <Text style={styles.notice}>推算依你的紀錄在手機上計算，僅供參考；週期預測不能作為避孕或醫療判斷。</Text>
+        </>}
 
         <TouchableOpacity style={styles.add} onPress={() => openForm()}><TechIcon name="plus" size={17} color="#0F0F0F" /><Text style={styles.addText}>新增紀錄</Text></TouchableOpacity>
         <Text style={styles.description}>點擊歷史紀錄即可修改。也可以在首頁輸入「{module.name} …」開始記錄。</Text>
@@ -243,7 +301,7 @@ const styles = StyleSheet.create({
   iconButton: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   safe: { flex: 1, backgroundColor: '#0F0F0F' }, content: { padding: 20, paddingBottom: 50 },
   heading: { flexDirection: 'row', gap: 16, alignItems: 'flex-start', marginTop: 12 }, title: { color: '#FFF', fontSize: 27, fontWeight: '300' }, description: { color: '#777', marginTop: 7, lineHeight: 19 },
-  stats: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 24 }, stat: { flexGrow: 1, minWidth: 145, backgroundColor: '#111', borderWidth: 1, borderColor: '#222', borderRadius: 10, padding: 14 }, statLabel: { color: '#777', fontSize: 11 }, statValue: { color: '#55DDAA', fontSize: 23, fontWeight: '300', marginTop: 7 }, statMeta: { color: '#555', fontSize: 11, marginTop: 4 },
+  stats: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 24 }, stat: { flexGrow: 1, minWidth: 145, backgroundColor: '#111', borderWidth: 1, borderColor: '#222', borderRadius: 10, padding: 14 }, statLabel: { color: '#777', fontSize: 11 }, statValue: { color: '#55DDAA', fontSize: 23, fontWeight: '300', marginTop: 7 }, statMeta: { color: '#555', fontSize: 11, marginTop: 4 }, notice: { color: '#555', fontSize: 11, lineHeight: 17, marginTop: 10 },
   add: { height: 46, backgroundColor: '#55DDAA', borderRadius: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 24 }, addText: { color: '#0F0F0F', fontWeight: '600' }, section: { color: '#888', fontSize: 12, letterSpacing: 1, marginTop: 28, marginBottom: 12 }, empty: { color: '#555', textAlign: 'center', marginTop: 40 },
   record: { backgroundColor: '#111', borderWidth: 1, borderColor: '#202020', borderRadius: 10, padding: 14, marginBottom: 10 }, recordDate: { color: '#666', fontSize: 11, marginBottom: 8 }, valueRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 }, valueLabel: { color: '#777' }, value: { color: '#DDD' },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,.68)', justifyContent: 'flex-end' }, sheet: { maxHeight: '88%', backgroundColor: '#141414', borderTopWidth: 1, borderColor: '#292929', borderTopLeftRadius: 18, borderTopRightRadius: 18, padding: 22, paddingBottom: 34 }, handle: { width: 38, height: 3, backgroundColor: '#444', borderRadius: 2, alignSelf: 'center', marginBottom: 20 }, sheetTitle: { color: '#FFF', fontSize: 21, fontWeight: '300', marginBottom: 16 }, inputGroup: { marginBottom: 15 }, inputLabel: { color: '#888', fontSize: 12, marginBottom: 7 }, input: { height: 46, backgroundColor: '#101010', borderWidth: 1, borderColor: '#292929', borderRadius: 8, paddingHorizontal: 13, color: '#EEE' }, options: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, option: { borderWidth: 1, borderColor: '#303030', borderRadius: 7, paddingHorizontal: 12, paddingVertical: 9 }, optionActive: { borderColor: '#55DDAA', backgroundColor: '#14221E' }, optionText: { color: '#777' }, optionTextActive: { color: '#55DDAA' },

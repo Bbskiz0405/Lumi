@@ -1,10 +1,14 @@
-import { Platform } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { Task } from '../types/task';
 import { WorkRecord } from '../types/workTime';
+import { TrackerModuleDefinition } from '../types/trackerModule';
+import { getTrackerReminderPlans } from './trackerModuleService';
+import { TRACKER_REMINDER_PREFIX } from './trackerInsightService';
 
 const TASK_CHANNEL_ID = 'lumi-task-reminders';
 const WORK_CHANNEL_ID = 'lumi-work-reminders';
+const TRACKER_CHANNEL_ID = 'lumi-tracker-reminders';
 
 export class NotificationPermissionError extends Error {
   constructor() {
@@ -43,6 +47,16 @@ async function ensureAndroidChannels(): Promise<void> {
       lightColor: '#55DDAA',
       sound: 'default',
     }),
+    Notifications.setNotificationChannelAsync(TRACKER_CHANNEL_ID, {
+      name: '自訂模組推算提醒',
+      description: '依自訂模組紀錄推算的預測日期提醒',
+      importance: Notifications.AndroidImportance.DEFAULT,
+      vibrationPattern: [0, 180],
+      lightColor: '#C9A0FF',
+      sound: 'default',
+      // Predictions (e.g. menstrual cycles) can be personal: hide the content on the lock screen.
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,
+    }),
   ]);
 }
 
@@ -57,6 +71,49 @@ async function ensurePermission(): Promise<boolean> {
   if (!current.canAskAgain) return false;
   const requested = await Notifications.requestPermissionsAsync();
   return requested.granted;
+}
+
+/** Ask for permission when a module reminder is on; the module still saves if it is denied. */
+export async function confirmTrackerReminderPermission(definition: TrackerModuleDefinition): Promise<void> {
+  if (!definition.insights.some(insight => insight.type === 'cycle' && insight.remindDaysBefore !== undefined)) return;
+  if (!(await ensurePermission().catch(() => false))) {
+    Alert.alert('提醒未開啟', '通知權限未允許，推算照常顯示，但不會送出提醒。可到系統設定允許 Lumi 通知。');
+  }
+}
+
+let trackerSync: Promise<void> = Promise.resolve();
+
+/**
+ * Replace every scheduled module reminder with the current plan. Never prompts for permission,
+ * so it is safe to call on launch and after any module or record change. Calls are serialized.
+ */
+export function syncTrackerReminders(): Promise<void> {
+  trackerSync = trackerSync.catch(() => undefined).then(async () => {
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    await Promise.all(scheduled
+      .filter(item => item.identifier.startsWith(TRACKER_REMINDER_PREFIX))
+      .map(item => Notifications.cancelScheduledNotificationAsync(item.identifier)));
+    const plans = await getTrackerReminderPlans();
+    if (!plans.length || !(await Notifications.getPermissionsAsync()).granted) return;
+    await ensureAndroidChannels();
+    for (const plan of plans) {
+      await Notifications.scheduleNotificationAsync({
+        identifier: plan.id,
+        content: {
+          title: plan.title,
+          body: plan.body,
+          sound: 'default',
+          data: { type: 'tracker', moduleId: plan.moduleId },
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: plan.date,
+          channelId: TRACKER_CHANNEL_ID,
+        },
+      });
+    }
+  });
+  return trackerSync;
 }
 
 function taskNotificationId(taskId: string): string {

@@ -33,4 +33,9 @@ for(const previousMode of [undefined,'work','bookkeeping']) {
 }
 assert.ok(flatten(exportsObject.default({mode:'work'})).includes('上班中'));
 assert.ok(flatten(exportsObject.default({mode:'bookkeeping'})).includes('有記帳'));
+const projected = flatten(exportsObject.default({...props,projectionDates:new Set(['2026-09-22']),mode:'calendar'}));
+assert.ok(projected.some(node=>node?.props?.accessibilityLabel?.endsWith('有外部行程，有模組推算')));
+assert.ok(projected.some(node=>node?.props?.style?.borderColor==='#C9A0FF'));
+assert.ok(!flatten(exportsObject.default({projectionDates:new Set(['2026-09-22']),mode:'work'})).some(node=>node?.props?.style?.borderColor==='#C9A0FF'));
+console.log('PASS projection markers are calendar-only, hollow and announced');
 console.log('PASS calendar legend and strip removed; date markers, accessible labels, transitions and other modes preserved');

@@ -6,6 +6,7 @@ import { CalendarProvider } from '../contexts/CalendarContext';
 import {
   configureNotificationPresentation,
   initializeNotifications,
+  syncTrackerReminders,
 } from '../services/notificationService';
 
 configureNotificationPresentation();
@@ -15,9 +16,11 @@ export default function RootLayout() {
   const notificationResponse = Notifications.useLastNotificationResponse();
 
   useEffect(() => {
-    initializeNotifications().catch(error => {
-      console.error('[notifications] initialization failed:', error);
-    });
+    initializeNotifications()
+      .then(() => syncTrackerReminders())
+      .catch(error => {
+        console.error('[notifications] initialization failed:', error);
+      });
   }, []);
 
   useEffect(() => {
@@ -27,6 +30,8 @@ export default function RootLayout() {
       router.push(`/task/${data.taskId}`);
     } else if (data.type === 'work') {
       router.push('/work');
+    } else if (data.type === 'tracker' && typeof data.moduleId === 'string') {
+      router.push({ pathname: '/module/[id]', params: { id: data.moduleId } });
     }
     Notifications.clearLastNotificationResponse();
   }, [notificationResponse, router]);
