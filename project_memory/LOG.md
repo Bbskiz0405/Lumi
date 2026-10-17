@@ -10,6 +10,34 @@
 
 **版號：0.4.81（標準工時＋固定休息制度）**
 
+### GitHub 同步推算 v1–v3（2026-10-18，未實機驗收）
+- 使用者要求先推、下次開工提醒實機測試。提交前重跑檢查：`check:tracker` 有 1 組月回顧測試失敗，原因是測試資料用真實時間建立、卻寫死查 `2026-09`，到 10 月就查不到資料；改為查當前月份，42 組全過。TypeScript、8 組 transport、三支 render、diff check、常見金鑰模式掃描通過。
+- 功能提交 `23ab263` 推送 `origin/master`（正常 push，未 force）。commit 訊息註明尚未實機驗收。未上傳 APK／手機資料／Key。
+
+### S26 Ultra 安裝推算 v3，AI 設計遇 503（2026-10-01）
+- `R5GL75NTH4Y` 授權連線，APK SHA256 核對一致，`install -r` Success，lastUpdateTime 2026-10-01 20:58:06，資料保留。冷啟動 Status ok／90 ms，App 程序無 JS／崩潰錯誤（僅系統 Adreno／libpenguin 雜訊），首頁正常、無推算模組故無提示。
+- 使用者選擇自行在手機操作驗收。輸入「月經紀錄 推算下次月經時間跟安全日還有排卵期」→ 跳「Google AI 暫時無法回應（503）」：Google 端 3.8 過載，Lumi 已依設計重試後才提示；log 無錯誤，未建立任何模組。之後 USB 斷線，log 監看結束。
+- 觀察：模組建立完全依賴 AI，AI 失敗即無法建立 → 建議加「空白範本／內建範本」不靠 AI 的建立方式（未做，待使用者決定）。使用者需求含「安全日」，已提醒日曆推算安全期不可靠、App 已有免責說明。
+- 推算 v1–v3 實機驗收未完成；未 commit／push。
+
+### 推算積木 v2 日曆／首頁／問 Lumi ＋ v3 提醒（未 bump，2026-09-30）
+- 使用者要求接著做。手機仍未連線，v1 未實機，直接連做 v2、v3，細節見 `plans/plan_20260929_tracker_insights.md`。
+- v2：`projectTrackerDates` 往後投影 3 個週期，日曆以空心紫點＋無障礙「有模組推算」標示、當日卡片可跳模組；`trackerHighlights` 在首頁顯示 14 天內／已過預測（45 天內，之後停止）／今天在區間；`buildTrackerInsightContext` 讓問 Lumi 引用本機計算結果、不自行重算，隱私說明加入「自訂模組推算結果」。某模組紀錄損壞時略過該模組，不擋日曆／首頁／提醒。
+- ⭐定案：提醒由使用者在編輯器設定（不提醒／當天／前 1–3 天，09:00），不讓 AI 決定；只排下一次；獨立通知 channel、鎖定畫面 PRIVATE，因經期等屬個人資料。同步不詢問權限，只在開啟提醒並儲存時詢問，拒絕仍可儲存並提示。
+- 發現既有問題（未修）：事件流遇到損壞的模組紀錄會整個 throw，問 Lumi 會失敗；屬既有行為，另案處理。
+- 驗證：TypeScript、`check:tracker` 42 組（+投影、首頁提示、問 Lumi context、提醒排程、假通知同步：只取消推算提醒不動任務通知、不詢問權限、併發不重複、鎖屏 PRIVATE）、編輯器／日曆／問 Lumi 三支 render、8 組 transport、Expo public config、diff check 全過。
+- arm64 release 1分23秒，v2 簽章通過。APK `C:\Users\Brayden\Desktop\Lumi-0.4.81-module-insights-v3.apk`，36,804,522 bytes，SHA256 `9F8FBE30D2DE49696E150929A66DC0706E2610CF8CB7ED309E23223540306B8A`（取代 v1 APK）。ADB 無裝置，未安裝；真實通知、日曆畫面與 AI 設計皆未實機驗證。未 commit／push。
+
+### 自訂模組推算積木 v1（未 bump，2026-09-29）
+- 起因：使用者想用自訂模組做月經推算，原本模組只能記錄、數字欄位顯示最新值與平均，無日期運算。計畫見 `plans/plan_20260929_tracker_insights.md`。
+- ⭐定案：推算做成固定積木（`cycle` 週期預測＋相對預測日區間、`duration` 兩日期欄位天數含首尾、`trend` 數字欄位最近 N 筆每週斜率），AI 只能挑選積木並填參數，本機驗證欄位存在與型別，全在手機計算、不打 API。延續 9/15「AI 不產生公式／程式」原則，同時讓月經以外（換機油、澆水、體重趨勢）共用。
+- 推算是衍生資料：既有模組可自由新增／改名／移除推算，不影響紀錄；欄位結構仍鎖定。預覽中移除或改型別的欄位會自動移除依賴它的推算。每模組最多 4 個推算、每個週期最多 3 個區間（−60～60 天）。
+- 週期：同日期去重後取最近 6 個間隔平均；≥3 個間隔才給 ±標準差（最少 ±1），否則不假裝知道誤差；以日曆日（UTC 日數）計算，跨月／閏年正確。少於 2 筆顯示「再記錄 N 筆」。模組頁加註「僅供參考，不能作為避孕或醫療判斷」。
+- 儲存：`schema_json` 無推算仍存欄位陣列（舊資料完全不變），有推算時存 `{fields, insights}`，讀取兩者皆可。DB v9、backup schema 7 不變；備份合併只比對 fields，推算差異保留本機版本。已知限制：舊版 App 匯入含推算的新備份會拒絕該模組。
+- AI 設計 prompt 加入三種積木規格與月經範例（開始日／結束日／經血量＋cycle 排卵日 −14、易孕期 −19～−13＋duration）；敏感資料規則改為可建立經期／體重等個人紀錄但不做診斷。
+- 驗證：TypeScript 通過；`check:tracker` 32→37 組全過（驗證拒絕、週期／閏年、天數／趨勢、儲存相容與既有模組加推算、備份合併／取代／壞推算拒絕、AI 輸出非法積木拒絕）；新增 `scripts/check-tracker-editor.cjs` render 檢查（區間 stepper、依賴修剪、上限）通過；8 組 transport、ask／calendar 兩支 render、diff check 通過。
+- arm64 release 1分13秒成功，v2 簽章通過。APK `C:\Users\Brayden\Desktop\Lumi-0.4.81-module-insights.apk`，36,792,858 bytes，SHA256 `B8CC81547C0D2BC4A27D5DF95CFD61D8561D46CC98DE0C0CBB2FB6D9D41952B3`。ADB 無裝置，**未安裝、未實機驗收、未呼叫真實 AI 設計月經模組**。未 commit／push。
+
 ### GitHub同步（2026-09-22）
 
 - 使用者要求更新GitHub。fetch確認本機master與origin/master原先0 ahead／0 behind；37個功能／測試／文件檔提交`0b59a83`，正常push成功，無force push。
