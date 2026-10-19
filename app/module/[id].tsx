@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import TechIcon from '../../components/ui/TechIcon';
 import TrackerDefinitionEditor from '../../components/TrackerDefinitionEditor';
+import DateField, { formatDateLabel } from '../../components/ui/DateField';
 import { draftTrackerRecord } from '../../services/geminiService';
 import { computeTrackerInsights, InsightResult, TRACKER_REMINDER_HOUR } from '../../services/trackerInsightService';
 import { confirmTrackerReminderPermission, syncTrackerReminders } from '../../services/notificationService';
@@ -74,6 +75,7 @@ export default function TrackerModuleScreen() {
   const [definition, setDefinition] = useState<TrackerModuleDefinition | null>(null);
   const [draftText, setDraftText] = useState('');
   const [drafting, setDrafting] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
   const busy = useRef(false);
   const loadVersion = useRef(0);
   const consumedDraft = useRef<string | null>(null);
@@ -92,8 +94,9 @@ export default function TrackerModuleScreen() {
       if (nextModule && draft && consumedDraft.current !== draft) {
         consumedDraft.current = draft;
         setDraftText(draft);
+        setAiOpen(true);
         setEditing(null);
-        setValues(Object.fromEntries(nextModule.fields.map(field => [field.key, field.type === 'date' ? today() : ''])));
+        setValues(Object.fromEntries(nextModule.fields.map(field => [field.key, field.type === 'date' && field.required ? today() : ''])));
         setFormVisible(true);
       }
     } catch (error) {
@@ -117,9 +120,10 @@ export default function TrackerModuleScreen() {
   function openForm(record?: TrackerRecord) {
     if (!module || busy.current) return;
     const initial: Record<string, string> = {};
-    for (const field of module.fields) initial[field.key] = record ? String(record.data[field.key] ?? '') : field.type === 'date' ? today() : '';
+    for (const field of module.fields) initial[field.key] = record ? String(record.data[field.key] ?? '') : field.type === 'date' && field.required ? today() : '';
     setEditing(record ?? null);
     setDraftText('');
+    setAiOpen(false);
     setValues(initial);
     setFormVisible(true);
   }
@@ -247,7 +251,7 @@ export default function TrackerModuleScreen() {
           <TouchableOpacity key={record.id} style={styles.record} onPress={() => openForm(record)} onLongPress={() => confirmDeleteRecord(record)}>
             <Text style={styles.recordDate}>{new Date(record.recorded_at).toLocaleDateString('zh-TW')}</Text>
             {module.fields.map(field => record.data[field.key] !== undefined && (
-              <View key={field.key} style={styles.valueRow}><Text style={styles.valueLabel}>{field.label}</Text><Text style={styles.value}>{String(record.data[field.key])}{field.unit ? ` ${field.unit}` : ''}</Text></View>
+              <View key={field.key} style={styles.valueRow}><Text style={styles.valueLabel}>{field.label}</Text><Text style={styles.value}>{field.type === 'date' ? formatDateLabel(String(record.data[field.key])) || String(record.data[field.key]) : String(record.data[field.key])}{field.unit ? ` ${field.unit}` : ''}</Text></View>
             ))}
           </TouchableOpacity>
         ))}
@@ -257,7 +261,11 @@ export default function TrackerModuleScreen() {
         <KeyboardAvoidingView behavior="padding" style={styles.overlay}><View style={styles.sheet}>
           <View style={styles.handle} /><Text style={styles.sheetTitle}>{editing ? '編輯' : '新增'}{module.name}紀錄</Text>
           <ScrollView keyboardShouldPersistTaps="handled">
-            {!editing && <View style={styles.inputGroup}>
+            {module.fields.some(field => !field.required) && <Text style={styles.formHint}>標 * 的必填，其他可以留空、之後再補。</Text>}
+            {!editing && !aiOpen && <TouchableOpacity style={styles.aiLink} onPress={() => setAiOpen(true)}>
+              <Text style={styles.aiLinkText}>或用一句話讓 AI 幫你填</Text>
+            </TouchableOpacity>}
+            {!editing && aiOpen && <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>用一句話記錄，或直接填寫下方欄位</Text>
               <TextInput style={styles.input} editable={!saving && !drafting} value={draftText} maxLength={2000} onChangeText={setDraftText} placeholder="例如：今天 70.5 公斤" placeholderTextColor="#777" />
               <Text style={styles.description}>AI 整理會傳送這句話與本模組欄位；帶入後請確認再儲存。</Text>
@@ -265,15 +273,21 @@ export default function TrackerModuleScreen() {
             </View>}
             {module.fields.map(field => <View key={field.key} style={styles.inputGroup}>
               <Text style={styles.inputLabel}>{field.label}{field.required ? ' *' : ''}{field.unit ? `（${field.unit}）` : ''}</Text>
-              {field.type === 'select' ? <View style={styles.options}>{field.options?.map(option => (
+              {field.type === 'date' ? <DateField
+                label={field.label}
+                value={values[field.key] ?? ''}
+                optional={!field.required}
+                disabled={saving || drafting}
+                onChange={value => setValues(current => ({ ...current, [field.key]: value }))}
+              /> : field.type === 'select' ? <View style={styles.options}>{field.options?.map(option => (
                 <TouchableOpacity key={option} disabled={saving || drafting} style={[styles.option, values[field.key] === option && styles.optionActive]} onPress={() => setValues(current => ({ ...current, [field.key]: current[field.key] === option && !field.required ? '' : option }))}><Text style={[styles.optionText, values[field.key] === option && styles.optionTextActive]}>{option}</Text></TouchableOpacity>
               ))}</View> : <TextInput
                 style={styles.input}
                 value={values[field.key] ?? ''}
                 editable={!saving && !drafting}
-                maxLength={field.type === 'date' ? 10 : 2000}
+                maxLength={2000}
                 onChangeText={value => setValues(current => ({ ...current, [field.key]: value }))}
-                placeholder={field.type === 'date' ? 'YYYY-MM-DD' : `輸入${field.label}`}
+                placeholder={`輸入${field.label}`}
                 placeholderTextColor="#4A4A4A"
                 keyboardType={field.type === 'number' ? 'numbers-and-punctuation' : 'default'}
               />}
@@ -301,7 +315,7 @@ const styles = StyleSheet.create({
   iconButton: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   safe: { flex: 1, backgroundColor: '#0F0F0F' }, content: { padding: 20, paddingBottom: 50 },
   heading: { flexDirection: 'row', gap: 16, alignItems: 'flex-start', marginTop: 12 }, title: { color: '#FFF', fontSize: 27, fontWeight: '300' }, description: { color: '#777', marginTop: 7, lineHeight: 19 },
-  stats: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 24 }, stat: { flexGrow: 1, minWidth: 145, backgroundColor: '#111', borderWidth: 1, borderColor: '#222', borderRadius: 10, padding: 14 }, statLabel: { color: '#777', fontSize: 11 }, statValue: { color: '#55DDAA', fontSize: 23, fontWeight: '300', marginTop: 7 }, statMeta: { color: '#555', fontSize: 11, marginTop: 4 }, notice: { color: '#555', fontSize: 11, lineHeight: 17, marginTop: 10 },
+  stats: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 24 }, stat: { flexGrow: 1, minWidth: 145, backgroundColor: '#111', borderWidth: 1, borderColor: '#222', borderRadius: 10, padding: 14 }, statLabel: { color: '#777', fontSize: 11 }, statValue: { color: '#55DDAA', fontSize: 23, fontWeight: '300', marginTop: 7 }, statMeta: { color: '#555', fontSize: 11, marginTop: 4 }, formHint: { color: '#777', fontSize: 12, marginBottom: 12 }, aiLink: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start', marginBottom: 6 }, aiLinkText: { color: '#55DDAA', fontSize: 13 }, notice: { color: '#555', fontSize: 11, lineHeight: 17, marginTop: 10 },
   add: { height: 46, backgroundColor: '#55DDAA', borderRadius: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 24 }, addText: { color: '#0F0F0F', fontWeight: '600' }, section: { color: '#888', fontSize: 12, letterSpacing: 1, marginTop: 28, marginBottom: 12 }, empty: { color: '#555', textAlign: 'center', marginTop: 40 },
   record: { backgroundColor: '#111', borderWidth: 1, borderColor: '#202020', borderRadius: 10, padding: 14, marginBottom: 10 }, recordDate: { color: '#666', fontSize: 11, marginBottom: 8 }, valueRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 }, valueLabel: { color: '#777' }, value: { color: '#DDD' },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,.68)', justifyContent: 'flex-end' }, sheet: { maxHeight: '88%', backgroundColor: '#141414', borderTopWidth: 1, borderColor: '#292929', borderTopLeftRadius: 18, borderTopRightRadius: 18, padding: 22, paddingBottom: 34 }, handle: { width: 38, height: 3, backgroundColor: '#444', borderRadius: 2, alignSelf: 'center', marginBottom: 20 }, sheetTitle: { color: '#FFF', fontSize: 21, fontWeight: '300', marginBottom: 16 }, inputGroup: { marginBottom: 15 }, inputLabel: { color: '#888', fontSize: 12, marginBottom: 7 }, input: { height: 46, backgroundColor: '#101010', borderWidth: 1, borderColor: '#292929', borderRadius: 8, paddingHorizontal: 13, color: '#EEE' }, options: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, option: { borderWidth: 1, borderColor: '#303030', borderRadius: 7, paddingHorizontal: 12, paddingVertical: 9 }, optionActive: { borderColor: '#55DDAA', backgroundColor: '#14221E' }, optionText: { color: '#777' }, optionTextActive: { color: '#55DDAA' },

@@ -94,4 +94,62 @@ for(const insight of changed.insights) assert.ok(insightService.describeTrackerI
 
 nodes = render({...period, insights:Array(4).fill(period.insights[1])});
 assert.ok(!nodes.some(node => node?.type === 'TouchableOpacity' && text(node).startsWith('＋ 週期')));
+
+// Minimal hook harness: components are plain functions here, so useState is replayed per render.
+function mount(component, props) {
+  const state = [];
+  let cursor = 0;
+  const hooks = {default:React, useState: initial => {
+    const index = cursor++;
+    if (!(index in state)) state[index] = typeof initial === 'function' ? initial() : initial;
+    return [state[index], next => { state[index] = typeof next === 'function' ? next(state[index]) : next; }];
+  }};
+  const render = () => { cursor = 0; return flatten(component(hooks)(props)); };
+  return {render, props};
+}
+const DateFieldModule = hooks => load('components/ui/DateField.tsx', {
+  react: hooks,
+  'react-native':{View:'View',Text:'Text',TouchableOpacity:'TouchableOpacity',StyleSheet:{create:value=>value}},
+  './TechIcon':{default:'TechIcon'},
+});
+const pad = value => String(value).padStart(2, '0');
+const iso = date => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+const todayIso = iso(new Date());
+let picked;
+const field = mount(hooks => DateFieldModule(hooks).default, {label:'開始日', value:'2024-02-10', optional:true, onChange: value => { picked = value; }});
+let tree = field.render();
+assert.ok(tree.some(node => node?.props?.accessibilityLabel?.startsWith('開始日：2024年2月10日（週六）')));
+assert.ok(!tree.some(node => node?.props?.accessibilityLabel === '上一個月')); // grid starts closed
+press(tree, '今天');
+assert.equal(picked, todayIso);
+press(tree, '清除');
+assert.equal(picked, '');
+tree.find(node => node?.props?.accessibilityLabel?.startsWith('開始日：')).props.onPress();
+tree = field.render();
+assert.ok(tree.some(node => node?.type === 'Text' && text(node) === '2024年 2月')); // opens on the selected month
+tree.find(node => node?.props?.accessibilityLabel === '下一個月').props.onPress();
+tree = field.render();
+const march = tree.filter(node => node?.props?.accessibilityLabel?.startsWith('2024年3月'));
+assert.equal(march.length, 31);
+march[30].props.onPress();
+assert.equal(picked, '2024-03-31');
+tree = field.render();
+assert.ok(!tree.some(node => node?.props?.accessibilityLabel === '上一個月')); // picking closes the grid
+tree.find(node => node?.props?.accessibilityLabel?.startsWith('開始日：')).props.onPress(); // reopens on the current value
+assert.equal(field.render().filter(node => node?.props?.accessibilityLabel?.startsWith('2024年2月')).length, 29); // leap year
+const required = mount(hooks => DateFieldModule(hooks).default, {label:'日期', value:'', onChange: () => {}});
+const requiredTree = required.render();
+assert.ok(!requiredTree.some(node => node?.type === 'TouchableOpacity' && text(node) === '清除'));
+assert.ok(requiredTree.some(node => node?.props?.accessibilityLabel === '日期：未選擇，點選以選擇日期'));
+assert.equal(DateFieldModule({default:React,useState:()=>[]}).formatDateLabel('2026-02-30'), '');
+
+const Summary = load('components/TrackerDefinitionSummary.tsx', {
+  react:{default:React},
+  'react-native':{View:'View',Text:'Text',StyleSheet:{create:value=>value}},
+}).default;
+const summaryText = definition => flatten(Summary({value:definition})).filter(item => typeof item === 'string' || typeof item === 'number').join('');
+const summary = summaryText({...period, insights:[{...period.insights[0], offsets:[...period.insights[0].offsets, {label:'易孕期',from:-19,to:-13}], remindDaysBefore:1}, period.insights[1]]});
+for (const expected of ['開始日、結束日、經血量','只有開始日必填','下次月經（含排卵日、易孕期），前 1 天提醒','經期天數（開始日到結束日）','僅供參考']) assert.ok(summary.includes(expected), expected);
+assert.ok(!summaryText({...period, insights:[]}).includes('自動推算'));
+console.log('PASS date field picks by tap across months and leap years; summary explains fields, required and insights');
 console.log('PASS insight editor renders blocks, steps offsets, toggles cycle reminders, prunes dependents and caps at four');

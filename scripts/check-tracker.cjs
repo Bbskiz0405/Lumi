@@ -602,6 +602,28 @@ const clone = value => JSON.parse(JSON.stringify(value));
     await notify.syncTrackerReminders();
     assert.deepEqual(notificationState.scheduled.map(item => item.identifier), ['lumi-task-keep']);
   });
+  await test('built-in templates pass the same validation, create without AI and project once recorded', async () => {
+    const templates = load('services/trackerTemplates.ts');
+    const calls = generationCalls;
+    assert.deepEqual(clone(templates.TRACKER_TEMPLATES.map(template => template.id)), ['period','weight','routine']);
+    for (const template of templates.TRACKER_TEMPLATES) {
+      const valid = clone(tracker.validateTrackerModuleDefinition(templates.templateDefinition(template.id)));
+      assert.deepEqual(valid, clone(template.definition), template.id);
+    }
+    const copy = templates.templateDefinition('period');
+    copy.insights[0].offsets.pop();
+    assert.equal(templates.TRACKER_TEMPLATES[0].definition.insights[0].offsets.length, 2);
+    assert.equal(templates.templateDefinition('missing'), null);
+    const created = await tracker.createTrackerModule(templates.templateDefinition('period'));
+    await tracker.createTrackerRecord(created, {start_date:'2026-08-25', end_date:'2026-08-29', flow:'中'});
+    await tracker.createTrackerRecord(created, {start_date:'2026-09-22'});
+    const [cycle, duration] = clone(insightsService.computeTrackerInsights(created, await tracker.getTrackerRecords(created.id), new Date(2026, 9, 1)));
+    assert.equal(cycle.next, '2026-10-20');
+    assert.deepEqual(cycle.ranges.map(range => range.label), ['排卵日','易孕期']);
+    assert.equal(duration.latest, 5);
+    assert.equal(generationCalls, calls);
+    await tracker.deleteTrackerModule(created.id);
+  });
   const anniversaries = load('services/anniversaryService.ts');
   const notes = load('services/noteService.ts');
   const classifier = load('services/classificationService.ts');

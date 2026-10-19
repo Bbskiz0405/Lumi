@@ -16,6 +16,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import TechIcon from '../components/ui/TechIcon';
 import TrackerDefinitionEditor from '../components/TrackerDefinitionEditor';
+import TrackerDefinitionSummary from '../components/TrackerDefinitionSummary';
+import { TRACKER_TEMPLATES, templateDefinition } from '../services/trackerTemplates';
 import { designTrackerModule, getApiConfig } from '../services/geminiService';
 import { createTrackerModule, getTrackerModules } from '../services/trackerModuleService';
 import { confirmTrackerReminderPermission } from '../services/notificationService';
@@ -33,6 +35,12 @@ export default function ModulesScreen() {
   const [designing, setDesigning] = useState(false);
   const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState<TrackerModuleDefinition | null>(null);
+  const [detailed, setDetailed] = useState(false);
+
+  function openPreview(definition: TrackerModuleDefinition) {
+    setDetailed(false);
+    setPreview(definition);
+  }
 
   const load = useCallback(async () => {
     const version = ++loadVersion.current;
@@ -61,7 +69,7 @@ export default function ModulesScreen() {
         ]);
         return;
       }
-      setPreview(await designTrackerModule(trimmed));
+      openPreview(await designTrackerModule(trimmed));
     }
     catch (error) { Alert.alert('無法設計模組', error instanceof Error ? error.message : '請稍後再試'); }
     finally { busy.current = false; setDesigning(false); }
@@ -91,6 +99,19 @@ export default function ModulesScreen() {
         <Text style={styles.subtitle}>描述想追蹤的事，Lumi 會設計安全、可編輯資料的模組。</Text>
         <Text style={styles.subtitle}>設計時只會將這次需求送到你設定的 AI。建立前可以調整名稱、欄位與選項。</Text>
 
+        <Text style={styles.sectionTitle}>快速建立 · 不需 AI</Text>
+        <View style={styles.templates}>
+          {TRACKER_TEMPLATES.map(template => (
+            <TouchableOpacity key={template.id} style={styles.template} disabled={designing || saving}
+              onPress={() => { const definition = templateDefinition(template.id); if (definition) openPreview(definition); }}
+              accessibilityRole="button" accessibilityLabel={`用範本建立${template.title}：${template.hint}`}>
+              <Text style={styles.templateTitle}>{template.title}</Text>
+              <Text style={styles.templateHint}>{template.hint}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <Text style={styles.sectionTitle}>或描述你想追蹤的事</Text>
         <View style={styles.promptCard}>
           <TextInput
             style={styles.prompt}
@@ -126,9 +147,14 @@ export default function ModulesScreen() {
         <KeyboardAvoidingView behavior="padding" style={styles.overlay}>
           <View style={styles.sheet}>
             <View style={styles.handle} />
-            <Text style={styles.sheetTitle}>確認模組設計</Text>
+            <Text style={styles.sheetTitle}>{detailed ? '調整細節' : '確認模組'}</Text>
             <ScrollView keyboardShouldPersistTaps="handled">
-              {preview && <TrackerDefinitionEditor value={preview} onChange={setPreview} disabled={saving} />}
+              {preview && (detailed
+                ? <TrackerDefinitionEditor value={preview} onChange={setPreview} disabled={saving} />
+                : <TrackerDefinitionSummary value={preview} />)}
+              <TouchableOpacity style={styles.detailToggle} disabled={saving} onPress={() => setDetailed(!detailed)}>
+                <Text style={styles.detailToggleText}>{detailed ? '回到摘要' : '調整細節（欄位、推算、提醒）'}</Text>
+              </TouchableOpacity>
             </ScrollView>
             <View style={styles.actions}>
               <TouchableOpacity style={styles.secondary} disabled={saving} onPress={() => setPreview(null)}><Text style={styles.secondaryText}>取消</Text></TouchableOpacity>
@@ -147,7 +173,12 @@ const styles = StyleSheet.create({
   eyebrow: { color: '#55DDAA', fontSize: 10, letterSpacing: 2, marginTop: 10 },
   title: { color: '#FFF', fontSize: 27, fontWeight: '300', marginTop: 8 },
   subtitle: { color: '#777', fontSize: 13, lineHeight: 20, marginTop: 8 },
-  promptCard: { backgroundColor: '#111', borderColor: '#242424', borderWidth: 1, borderRadius: 12, padding: 14, marginTop: 24 },
+  templates: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  template: { flexGrow: 1, flexBasis: '45%', minHeight: 64, backgroundColor: '#111', borderWidth: 1, borderColor: '#242424', borderRadius: 10, padding: 12, justifyContent: 'center' },
+  templateTitle: { color: '#EEE', fontSize: 15 }, templateHint: { color: '#666', fontSize: 11, marginTop: 4, lineHeight: 16 },
+  detailToggle: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start', marginTop: 8 },
+  detailToggleText: { color: '#55DDAA', fontSize: 13 },
+  promptCard: { backgroundColor: '#111', borderColor: '#242424', borderWidth: 1, borderRadius: 12, padding: 14 },
   prompt: { minHeight: 92, color: '#EEE', fontSize: 15, lineHeight: 22, textAlignVertical: 'top' },
   primary: { height: 44, borderRadius: 8, backgroundColor: '#55DDAA', flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center' },
   disabled: { opacity: 0.4 }, primaryText: { color: '#0F0F0F', fontWeight: '600' },
