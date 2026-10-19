@@ -7,6 +7,7 @@ import { SavingsGoalProgress } from '../../../services/financeAnalyticsService';
 import { SavingsGoal } from '../../../types/finance';
 import { formatAmount } from '../../../utils/money';
 import { isValidLocalDateString } from '../../../utils/date';
+import KeyboardSheet from '../../ui/KeyboardSheet';
 
 export interface SavingsGoalDraft {
   title: string;
@@ -153,7 +154,7 @@ export default function SavingsGoals({
       )}
 
       <Modal visible={formVisible} transparent animationType="fade" onRequestClose={onCloseForm}>
-        <View style={styles.overlay}>
+        <KeyboardSheet style={styles.overlay}>
           <View style={styles.sheet}>
             <Text style={styles.sheetTitle}>{editing ? '編輯目標' : '新增儲蓄目標'}</Text>
             <View style={styles.sheetDivider} />
@@ -211,7 +212,7 @@ export default function SavingsGoals({
               </View>
             </ScrollView>
           </View>
-        </View>
+        </KeyboardSheet>
       </Modal>
     </View>
   );

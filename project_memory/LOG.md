@@ -10,6 +10,13 @@
 
 **版號：0.4.81（標準工時＋固定休息制度）**
 
+### 全 App 底部 sheet 鍵盤遮擋修正（未 bump，2026-10-19）
+- 使用者截圖：記帳「編輯記錄」點金額時鍵盤蓋住輸入框，回報「每次打字都會被遮住」。原因：Expo 55／RN 0.83 在 Android 上 edge-to-edge，`adjustResize` 不再縮放視窗；記帳、儲蓄目標、預算、餘額、任務、行程表單的 Modal 都沒有處理鍵盤；工時 `KeyboardAvoidingView` 在 Android 給 `undefined`、紀念日／筆記用 `height`、模組用 `padding`，寫法不一。
+- ⭐定案：新增共用 `components/ui/KeyboardSheet.tsx`，依 `keyboardDidShow` 高度把 sheet 往上推；同時偵測視窗是否已被系統縮小（取看過的最大高度扣掉目前高度），已縮的部分不再重推，避免推兩次。可選 `onBackdropPress`。之後所有輸入用的 bottom sheet 都用它，不再在 Modal 裡用 KeyboardAvoidingView（全螢幕頁的 ask／FinanceAdvisor／ApiSettings 不變）。
+- 套用 11 檔：記帳新增／編輯、日曆（建立選單、任務、行程）、任務、工時（設定、紀錄）、筆記、餘額、儲蓄目標、預算、模組頁兩個 sheet、模組建立、紀念日。任務 sheet 高度上限由 600 改為 85%；工時設定改為可捲動、上限 88%，避免鍵盤推上來後頂端被切掉。清掉因此變成沒用到的 import。
+- 驗證：新增 `scripts/check-keyboard-sheet.cjs`（直接推、系統已縮放不重推、部分縮放、收起歸零、背景關閉、移除監聽）；TypeScript、43 組 tracker、8 組 transport、三支 render、diff check 通過。
+- arm64 release 22 秒，v2 簽章通過。APK `C:\Users\Brayden\Desktop\Lumi-0.4.81-keyboard-sheets.apk`，36,815,590 bytes，SHA256 `2F1AE207139AA9804E99AE193B74DDE8538CDC5038DA13F9F750FCE5668DA35D`（含好上手改版，取代 `-module-templates.apk`）。ADB 只有 Digital Paper，未安裝；實際鍵盤高度與各 sheet 實機未驗。
+
 ### 模組好上手：內建範本、摘要預覽、點選日期（未 bump，2026-10-19）
 - 使用者回報沒有用推算，因為「要填的東西很多不知道怎麼填」。原因：建立預覽一次攤開欄位／型別／推算區間／提醒，看起來像全都要填；記錄日期得手打 YYYY-MM-DD；AI 一 503 就無法建立。
 - ⭐定案：建立流程預設「摘要」，進階欄位收在「調整細節」裡。新增 3 個不需 AI 的內建範本：月經紀錄（開始日必填、結束日／經血量選填，下次月經＋排卵日＋易孕期＋經期天數）、體重紀錄（trend）、定期事項（cycle 無區間）。範本和 AI 產出走同一套驗證。

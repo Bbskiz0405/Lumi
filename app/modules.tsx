@@ -4,7 +4,6 @@ import {
   Alert,
   Modal,
   Keyboard,
-  KeyboardAvoidingView,
   ScrollView,
   StyleSheet,
   Text,
@@ -22,6 +21,7 @@ import { designTrackerModule, getApiConfig } from '../services/geminiService';
 import { createTrackerModule, getTrackerModules } from '../services/trackerModuleService';
 import { confirmTrackerReminderPermission } from '../services/notificationService';
 import { TrackerModule, TrackerModuleDefinition } from '../types/trackerModule';
+import KeyboardSheet from '../components/ui/KeyboardSheet';
 
 export default function ModulesScreen() {
   const router = useRouter();
@@ -144,7 +144,7 @@ export default function ModulesScreen() {
       </ScrollView>
 
       <Modal visible={preview !== null} transparent animationType="fade" onRequestClose={() => { if (!busy.current) setPreview(null); }}>
-        <KeyboardAvoidingView behavior="padding" style={styles.overlay}>
+        <KeyboardSheet style={styles.overlay}>
           <View style={styles.sheet}>
             <View style={styles.handle} />
             <Text style={styles.sheetTitle}>{detailed ? '調整細節' : '確認模組'}</Text>
@@ -161,7 +161,7 @@ export default function ModulesScreen() {
               <TouchableOpacity style={styles.primarySmall} onPress={handleCreate} disabled={saving}><Text style={styles.primaryText}>{saving ? '建立中…' : '確認建立'}</Text></TouchableOpacity>
             </View>
           </View>
-        </KeyboardAvoidingView>
+        </KeyboardSheet>
       </Modal>
     </SafeAreaView>
   );

@@ -5,6 +5,7 @@ import {
 import TechIcon from '../../ui/TechIcon';
 import { CurrentBalance } from '../../../services/financeAnalyticsService';
 import { formatAmount } from '../../../utils/money';
+import KeyboardSheet from '../../ui/KeyboardSheet';
 
 interface Props {
   balance: CurrentBalance;
@@ -80,7 +81,7 @@ export default function BalanceCard({ balance, onReconcile }: Props) {
       </View>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-        <View style={styles.overlay}>
+        <KeyboardSheet style={styles.overlay}>
           <View style={styles.sheet}>
             <Text style={styles.sheetTitle}>{balance.hasReconciled ? '對帳' : '設定目前存款'}</Text>
             <View style={styles.sheetDivider} />
@@ -134,7 +135,7 @@ export default function BalanceCard({ balance, onReconcile }: Props) {
               )}
             </View>
           </View>
-        </View>
+        </KeyboardSheet>
       </Modal>
     </View>
   );

@@ -1,7 +1,8 @@
 import React, { useRef, useState } from 'react';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SavedAnniversary, deleteAnniversary, saveAnniversary } from '../../services/anniversaryService';
+import KeyboardSheet from '../ui/KeyboardSheet';
 
 interface Props {
   initial: SavedAnniversary | null;
@@ -40,7 +41,7 @@ export default function AnniversarySheet({initial, selectedDate, onClose, onSave
     onSaved();
   }
   return <Modal visible transparent animationType="slide" onRequestClose={close}>
-    <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <KeyboardSheet style={styles.overlay}>
       <View style={[styles.sheet,{paddingBottom:Math.max(insets.bottom,16)}]}>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
           <Text style={styles.title}>{initial ? '編輯紀念日' : '新增紀念日'}</Text>
@@ -59,7 +60,7 @@ export default function AnniversarySheet({initial, selectedDate, onClose, onSave
           ])}><Text style={styles.error}>刪除紀念日</Text></TouchableOpacity>}
         </ScrollView>
       </View>
-    </KeyboardAvoidingView>
+    </KeyboardSheet>
   </Modal>;
 }
 

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Modal } from 'react-native';
 import { ExpenseCategory, ExpenseCategoryMeta } from '../../types/finance';
+import KeyboardSheet from '../ui/KeyboardSheet';
 
 interface Props {
   category: ExpenseCategoryMeta;
@@ -54,7 +55,7 @@ export default function BudgetMeter({ category, spent, limit, onUpdateLimit }: P
       </TouchableOpacity>
 
       <Modal visible={editing} transparent animationType="fade" onRequestClose={() => setEditing(false)}>
-        <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => setEditing(false)}>
+        <KeyboardSheet style={styles.overlay} onBackdropPress={() => setEditing(false)}>
           <View style={styles.dialog}>
             <Text style={styles.dialogTitle}>{category.label} 預算上限</Text>
             <TextInput
@@ -76,7 +77,7 @@ export default function BudgetMeter({ category, spent, limit, onUpdateLimit }: P
               </TouchableOpacity>
             </View>
           </View>
-        </TouchableOpacity>
+        </KeyboardSheet>
       </Modal>
     </>
   );

@@ -2,7 +2,6 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   ActivityIndicator,
-  KeyboardAvoidingView,
   Modal,
   ScrollView,
   StyleSheet,
@@ -29,6 +28,7 @@ import {
   updateTrackerModule,
 } from '../../services/trackerModuleService';
 import { TrackerModule, TrackerModuleDefinition, TrackerRecord } from '../../types/trackerModule';
+import KeyboardSheet from '../../components/ui/KeyboardSheet';
 
 function monthDay(date: string): string {
   const [, month, day] = date.split('-');
@@ -258,7 +258,7 @@ export default function TrackerModuleScreen() {
       </ScrollView>
 
       <Modal visible={formVisible} transparent animationType="fade" onRequestClose={() => { if (!busy.current) setFormVisible(false); }}>
-        <KeyboardAvoidingView behavior="padding" style={styles.overlay}><View style={styles.sheet}>
+        <KeyboardSheet style={styles.overlay}><View style={styles.sheet}>
           <View style={styles.handle} /><Text style={styles.sheetTitle}>{editing ? '編輯' : '新增'}{module.name}紀錄</Text>
           <ScrollView keyboardShouldPersistTaps="handled">
             {module.fields.some(field => !field.required) && <Text style={styles.formHint}>標 * 的必填，其他可以留空、之後再補。</Text>}
@@ -295,17 +295,17 @@ export default function TrackerModuleScreen() {
           </ScrollView>
           {editing && <TouchableOpacity disabled={saving || drafting} style={styles.iconButton} onPress={() => confirmDeleteRecord(editing)}><Text style={styles.cancelText}>刪除這筆紀錄</Text></TouchableOpacity>}
           <View style={styles.actions}><TouchableOpacity style={styles.cancel} disabled={saving || drafting} onPress={() => setFormVisible(false)}><Text style={styles.cancelText}>取消</Text></TouchableOpacity><TouchableOpacity style={styles.save} onPress={saveRecord} disabled={saving || drafting}><Text style={styles.saveText}>{saving ? '儲存中…' : '儲存'}</Text></TouchableOpacity></View>
-        </View></KeyboardAvoidingView>
+        </View></KeyboardSheet>
       </Modal>
       <Modal visible={definition !== null} transparent animationType="fade" onRequestClose={() => { if (!busy.current) setDefinition(null); }}>
-        <KeyboardAvoidingView behavior="padding" style={styles.overlay}><View style={styles.sheet}>
+        <KeyboardSheet style={styles.overlay}><View style={styles.sheet}>
           <View style={styles.handle} /><Text style={styles.sheetTitle}>模組設定</Text>
           <ScrollView keyboardShouldPersistTaps="handled">{definition && <TrackerDefinitionEditor value={definition} onChange={setDefinition} existing disabled={saving} />}</ScrollView>
           <View style={styles.actions}>
             <TouchableOpacity style={styles.cancel} disabled={saving} onPress={() => setDefinition(null)}><Text style={styles.cancelText}>取消</Text></TouchableOpacity>
             <TouchableOpacity style={styles.save} disabled={saving} onPress={saveDefinition}><Text style={styles.saveText}>{saving ? '儲存中…' : '儲存設定'}</Text></TouchableOpacity>
           </View>
-        </View></KeyboardAvoidingView>
+        </View></KeyboardSheet>
       </Modal>
     </SafeAreaView>
   );

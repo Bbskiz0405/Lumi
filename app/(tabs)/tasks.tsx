@@ -12,6 +12,7 @@ import { useCalendar } from '../../contexts/CalendarContext';
 import { Task, CreateTaskInput } from '../../types/task';
 import IconButton from '../../components/ui/IconButton';
 import TechIcon from '../../components/ui/TechIcon';
+import KeyboardSheet from '../../components/ui/KeyboardSheet';
 
 export default function TasksScreen() {
   const router = useRouter();
@@ -160,7 +161,7 @@ export default function TasksScreen() {
         animationType="slide"
         transparent
       >
-        <View style={styles.modalOverlay}>
+        <KeyboardSheet style={styles.modalOverlay}>
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>新增任務</Text>
             <View style={styles.modalDivider} />
@@ -169,7 +170,7 @@ export default function TasksScreen() {
               onCancel={() => setModalVisible(false)}
             />
           </View>
-        </View>
+        </KeyboardSheet>
       </Modal>
     </SafeAreaView>
   );
@@ -211,7 +212,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#111111',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
-    maxHeight: 600,
+    maxHeight: '85%',
     borderWidth: 1,
     borderColor: '#3A3A3A',
   },

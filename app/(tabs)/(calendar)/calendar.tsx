@@ -37,6 +37,7 @@ import AnniversarySheet from '../../../components/calendar/AnniversarySheet';
 import { getAnniversariesForDate, SavedAnniversary } from '../../../services/anniversaryService';
 import { getTrackerProjections } from '../../../services/trackerModuleService';
 import { TrackerProjection } from '../../../services/trackerInsightService';
+import KeyboardSheet from '../../../components/ui/KeyboardSheet';
 
 function nextDate(date: string): string {
   const [year, month, day] = date.split('-').map(Number);
@@ -541,7 +542,7 @@ export default function CalendarScreen() {
         animationType="fade"
         transparent
       >
-        <View style={styles.modalOverlay}>
+        <KeyboardSheet style={styles.modalOverlay}>
           <View style={styles.createMenu}>
             <Text style={styles.createMenuTitle}>要記錄什麼？</Text>
             <Text style={styles.createMenuHint}>
@@ -581,7 +582,7 @@ export default function CalendarScreen() {
               <Text style={styles.createMenuCancelText}>取消</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardSheet>
       </Modal>
 
       {anniversaryOpen && <AnniversarySheet initial={editingAnniversary} selectedDate={selectedDate}
@@ -594,7 +595,7 @@ export default function CalendarScreen() {
         animationType="fade"
         transparent
       >
-        <View style={styles.modalOverlay}>
+        <KeyboardSheet style={styles.modalOverlay}>
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>新增任務（{dateMonth}月{dateDay}日）</Text>
             <View style={styles.modalDivider} />
@@ -606,7 +607,7 @@ export default function CalendarScreen() {
               />
             )}
           </View>
-        </View>
+        </KeyboardSheet>
       </Modal>
 
       <Modal
@@ -618,7 +619,7 @@ export default function CalendarScreen() {
         animationType="fade"
         transparent
       >
-        <View style={styles.modalOverlay}>
+        <KeyboardSheet style={styles.modalOverlay}>
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>
               {editingEvent ? '編輯行程' : `新增行程（${dateMonth}月${dateDay}日）`}
@@ -637,7 +638,7 @@ export default function CalendarScreen() {
               />
             )}
           </View>
-        </View>
+        </KeyboardSheet>
       </Modal>
     </View>
   );

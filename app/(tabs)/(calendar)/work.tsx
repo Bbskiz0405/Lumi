@@ -2,9 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -31,6 +29,7 @@ import { WorkPreferences, WorkRecord } from '../../../types/workTime';
 import { useCalendarWorkspaceScroll } from '../../../contexts/CalendarWorkspaceScrollContext';
 import { isValidLocalDateString, parseLocalDate, toLocalDateString } from '../../../utils/date';
 import TechIcon from '../../../components/ui/TechIcon';
+import KeyboardSheet from '../../../components/ui/KeyboardSheet';
 
 function formatClock(isoDate: string | null): string {
   if (!isoDate) return '進行中';
@@ -546,97 +545,96 @@ export default function WorkScreen() {
         animationType="fade"
         onRequestClose={() => setSettingsModalVisible(false)}
       >
-        <KeyboardAvoidingView
-          style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
+        <KeyboardSheet style={styles.modalOverlay}>
           <View style={styles.settingsModalCard}>
-            <Text style={styles.modalTitle}>工時設定</Text>
-            <Text style={styles.settingsDescription}>
-              設定每日有效工時與固定休息；會套用到目前上班中與之後的紀錄。
-            </Text>
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.settingsModalContent}>
+              <Text style={styles.modalTitle}>工時設定</Text>
+              <Text style={styles.settingsDescription}>
+                設定每日有效工時與固定休息；會套用到目前上班中與之後的紀錄。
+              </Text>
 
-            <Text style={styles.formLabel}>每日標準工時</Text>
-            <TextInput
-              style={styles.input}
-              value={defaultTargetTime}
-              onChangeText={setDefaultTargetTime}
-              placeholder="8:00"
-              placeholderTextColor="#50565C"
-              keyboardType="numbers-and-punctuation"
-            />
-            <View style={styles.targetChoices}>
-              {['7:00', '7:30', '8:00', '8:30', '9:00'].map(value => (
-                <TouchableOpacity
-                  key={value}
-                  style={[
-                    styles.targetChoice,
-                    defaultTargetTime === value && styles.targetChoiceActive,
-                  ]}
-                  onPress={() => setDefaultTargetTime(value)}
-                >
-                  <Text style={[
-                    styles.targetChoiceText,
-                    defaultTargetTime === value && styles.targetChoiceTextActive,
-                  ]}>
-                    {value}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <Text style={styles.formLabel}>固定休息分鐘</Text>
-            <TextInput
-              style={styles.input}
-              value={defaultBreakMinutes}
-              onChangeText={setDefaultBreakMinutes}
-              placeholder="60"
-              placeholderTextColor="#50565C"
-              keyboardType="number-pad"
-            />
-            <View style={styles.targetChoices}>
-              {[0, 30, 60, 90].map(value => {
-                const selected = defaultBreakMinutes === String(value);
-                return (
+              <Text style={styles.formLabel}>每日標準工時</Text>
+              <TextInput
+                style={styles.input}
+                value={defaultTargetTime}
+                onChangeText={setDefaultTargetTime}
+                placeholder="8:00"
+                placeholderTextColor="#50565C"
+                keyboardType="numbers-and-punctuation"
+              />
+              <View style={styles.targetChoices}>
+                {['7:00', '7:30', '8:00', '8:30', '9:00'].map(value => (
                   <TouchableOpacity
                     key={value}
-                    style={[styles.targetChoice, selected && styles.targetChoiceActive]}
-                    onPress={() => setDefaultBreakMinutes(String(value))}
+                    style={[
+                      styles.targetChoice,
+                      defaultTargetTime === value && styles.targetChoiceActive,
+                    ]}
+                    onPress={() => setDefaultTargetTime(value)}
                   >
                     <Text style={[
                       styles.targetChoiceText,
-                      selected && styles.targetChoiceTextActive,
+                      defaultTargetTime === value && styles.targetChoiceTextActive,
                     ]}>
-                      {value === 0 ? '不扣除' : `${value} 分`}
+                      {value}
                     </Text>
                   </TouchableOpacity>
-                );
-              })}
-            </View>
-            <Text style={styles.policyExplanation}>
-              例如標準 8:00、休息 60 分，09:00 上班會在 18:00 達標；下班後有效工時會扣除 60 分。
-            </Text>
+                ))}
+              </View>
 
-            {!!settingsError && <Text style={styles.formError}>{settingsError}</Text>}
+              <Text style={styles.formLabel}>固定休息分鐘</Text>
+              <TextInput
+                style={styles.input}
+                value={defaultBreakMinutes}
+                onChangeText={setDefaultBreakMinutes}
+                placeholder="60"
+                placeholderTextColor="#50565C"
+                keyboardType="number-pad"
+              />
+              <View style={styles.targetChoices}>
+                {[0, 30, 60, 90].map(value => {
+                  const selected = defaultBreakMinutes === String(value);
+                  return (
+                    <TouchableOpacity
+                      key={value}
+                      style={[styles.targetChoice, selected && styles.targetChoiceActive]}
+                      onPress={() => setDefaultBreakMinutes(String(value))}
+                    >
+                      <Text style={[
+                        styles.targetChoiceText,
+                        selected && styles.targetChoiceTextActive,
+                      ]}>
+                        {value === 0 ? '不扣除' : `${value} 分`}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              <Text style={styles.policyExplanation}>
+                例如標準 8:00、休息 60 分，09:00 上班會在 18:00 達標；下班後有效工時會扣除 60 分。
+              </Text>
 
-            <View style={styles.settingsActions}>
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => setSettingsModalVisible(false)}
-                disabled={busy}
-              >
-                <Text style={styles.cancelText}>取消</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.saveButton, busy && styles.disabled]}
-                onPress={() => void handleSaveSettings()}
-                disabled={busy}
-              >
-                <Text style={styles.saveText}>{busy ? '儲存中…' : '儲存設定'}</Text>
-              </TouchableOpacity>
-            </View>
+              {!!settingsError && <Text style={styles.formError}>{settingsError}</Text>}
+
+              <View style={styles.settingsActions}>
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={() => setSettingsModalVisible(false)}
+                  disabled={busy}
+                >
+                  <Text style={styles.cancelText}>取消</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.saveButton, busy && styles.disabled]}
+                  onPress={() => void handleSaveSettings()}
+                  disabled={busy}
+                >
+                  <Text style={styles.saveText}>{busy ? '儲存中…' : '儲存設定'}</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
-        </KeyboardAvoidingView>
+        </KeyboardSheet>
       </Modal>
 
       <Modal
@@ -645,10 +643,7 @@ export default function WorkScreen() {
         animationType="fade"
         onRequestClose={() => setModalVisible(false)}
       >
-        <KeyboardAvoidingView
-          style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
+        <KeyboardSheet style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <ScrollView
               contentContainerStyle={styles.modalContent}
@@ -734,7 +729,7 @@ export default function WorkScreen() {
               </View>
             </ScrollView>
           </View>
-        </KeyboardAvoidingView>
+        </KeyboardSheet>
       </Modal>
     </ScrollView>
   );
@@ -892,9 +887,9 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 16,
     borderWidth: 1,
     borderColor: '#30343A',
-    padding: 18,
-    paddingBottom: 28,
+    maxHeight: '88%',
   },
+  settingsModalContent: { padding: 18, paddingBottom: 28 },
   modalTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: '400' },
   modalDate: { color: '#65707A', fontSize: 11, marginTop: 4, marginBottom: 16 },
   settingsDescription: { color: '#626C75', fontSize: 11, lineHeight: 17, marginTop: 6, marginBottom: 16 },

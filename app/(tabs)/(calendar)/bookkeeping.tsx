@@ -32,6 +32,7 @@ import {
 } from '../../../services/financeService';
 import { Transaction, ExpenseCategory, ExpenseCategoryMeta, IncomeKind } from '../../../types/finance';
 import { isValidLocalDateString } from '../../../utils/date';
+import KeyboardSheet from '../../../components/ui/KeyboardSheet';
 
 type ViewMode = 'month' | 'year' | 'all';
 
@@ -421,7 +422,7 @@ export default function BookkeepingScreen() {
         animationType="fade"
         transparent
       >
-        <View style={styles.modalOverlay}>
+        <KeyboardSheet style={styles.modalOverlay}>
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>編輯記錄</Text>
             <View style={styles.modalDivider} />
@@ -532,7 +533,7 @@ export default function BookkeepingScreen() {
               </View>
             </ScrollView>
           </View>
-        </View>
+        </KeyboardSheet>
       </Modal>
 
       {/* AI Advisor */}
@@ -551,7 +552,7 @@ export default function BookkeepingScreen() {
         animationType="fade"
         transparent
       >
-        <View style={styles.modalOverlay}>
+        <KeyboardSheet style={styles.modalOverlay}>
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>新增記錄</Text>
             <View style={styles.modalDivider} />
@@ -706,7 +707,7 @@ export default function BookkeepingScreen() {
               </View>
             </ScrollView>
           </View>
-        </View>
+        </KeyboardSheet>
       </Modal>
 
       {/* Calculator */}

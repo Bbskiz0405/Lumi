@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import {
   View, FlatList, StyleSheet, Text, TouchableOpacity, Alert,
-  ActivityIndicator, KeyboardAvoidingView, Modal, Platform, TextInput, ScrollView,
+  ActivityIndicator, Modal, TextInput, ScrollView,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,6 +10,7 @@ import { Note, NoteCategory } from '../../types/note';
 import { ANNIVERSARY_CATEGORY } from '../../services/anniversaryService';
 import IconButton from '../../components/ui/IconButton';
 import TechIcon from '../../components/ui/TechIcon';
+import KeyboardSheet from '../../components/ui/KeyboardSheet';
 
 const TAG_COLORS = ['#FF88BB', '#FF9944', '#88AAFF', '#55DDAA', '#FFCC44', '#AA88FF', '#FF6655', '#66CCCC'];
 
@@ -335,10 +336,7 @@ export default function NotesScreen() {
         animationType="fade"
         transparent
       >
-        <KeyboardAvoidingView
-          style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
+        <KeyboardSheet style={styles.modalOverlay}>
           <View style={[styles.modal, { paddingBottom: Math.max(insets.bottom, 12) }]}>
             <Text style={styles.modalTitle}>
               {addingNote ? '新增筆記' : isEditing ? '編輯筆記' : '筆記內容'}
@@ -435,7 +433,7 @@ export default function NotesScreen() {
               )}
             </View>
           </View>
-        </KeyboardAvoidingView>
+        </KeyboardSheet>
       </Modal>
     </SafeAreaView>
   );
