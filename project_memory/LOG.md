@@ -10,6 +10,13 @@
 
 **版號：0.4.81（標準工時＋固定休息制度）**
 
+### iPhone 安裝方式討論、同步 GitHub 準備換到 Mac（2026-10-19）
+- 使用者想裝到 iPhone。說明 APK 只適用 Android；iOS 正式管道（App Store／TestFlight）需 Apple Developer Program US$99／年。使用者要免費方案、當時沒有 Mac。
+- 查證（2026-10-19）：App Store 上的 Expo Go 只支援最新 SDK 57（Lumi 為 SDK 55，不相容）；免費 Apple ID 側載（SideStore＋LiveContainer、AltStore、Sideloadly）據第三方教學仍可用於 iOS 26.x，但 App 每 7 天需續簽、最多 3 個；TrollStore 只支援舊 iOS；付費簽名服務不建議。任何側載都需要先在 macOS 產生 .ipa。
+- 使用者隨後表示**現在有 Mac**。⭐定案：改走「Mac＋Xcode＋免費 Apple ID（Personal Team）直接安裝」，不需付費；7 天到期再從 Xcode 重裝。iOS bundle ID 待使用者決定（建議 `com.brayden.lumi`），只改 iOS、Android package 暫不動以免舊資料無法覆蓋升級。
+- 預期 iOS 坑記入 STATUS／ENVIRONMENT：免費 Personal Team 不支援 Push Notifications capability（expo-notifications 可能加 `aps-environment` → 簽章失敗，Lumi 只用本機通知可移除）、`ios/` 需 prebuild、鍵盤與 SafeArea 行為、SecureStore／SQLite／EventKit／本機通知實測。資料用 JSON 備份從 Android 搬到 iPhone，順便驗收「換裝置遷移」。
+- 重寫 STATUS「下一步」為 A（Mac→iPhone）、B（Android 實機驗收）、C（之後的選項）；ENVIRONMENT 新增 Mac／iOS 節。將 10/19 全部 commit 推上 GitHub 供 Mac clone。
+
 ### 對話類改回 3.8、輸出 10/19 總結 APK（未 bump，2026-10-19）
 - 使用者問 3.6 是否最推薦／聰明。查證後坦白：官方新專案推薦是 3.5 Flash-Lite 與 3.8 Flash，不含 3.6；第三方評測 3.8 在多數基準勝 3.6（綜合智力 47.1 vs 40.3），且第三方量到 3.6 首 token 延遲中位約 8.9 秒、3.8 約 3.3 秒。先前只憑「3.6 可設 MINIMAL」就推論較快，判斷有誤。
 - 另答 Claude 訂閱：Pro 不含 API；Max／Team 含每月 API 額度（不能用在 Claude Code 與 App，可給自寫程式），API Key 在 Claude Console 另外申請。Haiku 5.5 $0.10/$0.50、Sonnet 5.5 $2/$10。使用者決定先用 3.8 看看，未接 Claude。

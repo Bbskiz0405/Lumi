@@ -15,6 +15,14 @@
 - `android\local.properties`：`sdk.dir=C\:\\Users\\Brayden\\AppData\\Local\\Android\\Sdk`。
 - adb：`C:\Users\Brayden\AppData\Local\Android\Sdk\platform-tools\adb.exe`。
 
+### Mac（2026-10-19 起，用於 iOS；首次開工時補上帳號名與版本）
+
+- 用途：iOS 建置與裝到 iPhone。Windows `Brayden` 機仍負責 Android。
+- 需要：Xcode（App Store）＋ Command Line Tools（`xcode-select --install`）、Node 22.13+（`check:tracker` 用 node:sqlite）、CocoaPods。指令在 macOS 直接用 `npm`／`npx`（不是 `npm.cmd`）。
+- 首次：`git clone` → `npm install` → `npm run check:all` → 決定 `expo.ios.bundleIdentifier`（只改 iOS）→ `npx expo prebuild --platform ios` → Xcode 開 `ios/Lumi.xcworkspace`，Signing 選 Personal Team（免費 Apple ID）。
+- 安裝到 iPhone：iPhone 接線、開「開發者模式」，`npx expo run:ios --device --configuration Release`（或 Xcode 選裝置 Run）→ iPhone「設定 → 一般 → VPN 與裝置管理」信任開發者。免費 Personal Team 安裝的 App **7 天後失效**，到期重跑一次即可；資料保留在手機上（同一 bundle ID 覆蓋安裝）。
+- `ios/` 由 prebuild 產生；是否提交進 git 首次建置後再決定（Android 的 `android/` 目前有提交）。
+
 ### `asus`（2026-08-02）
 
 - Microsoft OpenJDK 21 於 `C:\Program Files\Microsoft\jdk-21.0.12.8-hotspot`；SDK 於 `C:\Users\asus\AppData\Local\Android\Sdk`（Platform 36、Build Tools 36.0.0、NDK 27.1.12297006）。
@@ -70,3 +78,4 @@
 - 2026-09-18 新增 `npm.cmd run check:gemini`：8組假時鐘傳輸測試，完全離線，驗證有限重試／Retry-After／完整body timeout。`check:tracker`增至23組；VM載入不同TS模組時共用Error／TypeError／SyntaxError，避免跨realm instanceof造成假失敗。
 - Gemini新transport一般生成總65秒、每次最多30秒／共3次，分類總12秒；帳號模型比較刻意每輪只送一次30秒，不能用重試成功掩蓋原始成功率。3款各2輪僅是當次短測，不能宣稱長期穩定。models.list可見性不是Free Tier／配額保證，官方價格參考 https://ai.google.dev/gemini-api/docs/pricing 。
 - 2026-10-19 依 Google 官方 deprecations：2.5 系列只開放給先前用過的使用者，新 Key 可能無法使用 → quick 改 `gemini-3.5-flash-lite`（thinking 支援 minimal／low／medium／high，預設 minimal），chat（問 Lumi／顧問／分析／回顧）與 deep（建立模組）都用 `gemini-3.8-flash`（10/19 曾試 3.6 Flash＋MINIMAL，第三方評測較不聰明且首 token 延遲未必較短，已改回）（只支援 low／medium／high，2027-01-01 起價格加倍）。換模型前先查 https://ai.google.dev/gemini-api/docs/deprecations 與 /pricing，第三方價格彙整互相矛盾不可當依據。
+- 2026-10-19 iOS 免費簽章：Xcode Personal Team（免費 Apple ID）不支援 Push Notifications capability。若 prebuild 後 entitlements 含 `aps-environment`（expo-notifications 可能自動加），簽章會失敗；Lumi 只用本機排程通知、不需要 APNs，可移除該 entitlement。App Store 上的 Expo Go 只支援最新 SDK（2026-09 為 SDK 57），Lumi 為 SDK 55，不能用 Expo Go 直接開。
