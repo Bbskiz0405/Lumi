@@ -10,6 +10,15 @@
 
 **版號：0.4.81（標準工時＋固定休息制度）**
 
+### 記帳分類優化＋財務需求盤點（未 bump，2026-10-19）
+- 使用者要求優化財務、確認別人需要什麼，並優化 AI 分類。
+- 建立 `scripts/check-classifier.cjs`（`npm.cmd run check:classifier`），用 83 條台灣日常輸入量本機分類器。基準：類型 92%、分類 63%、金額 92%、收入固固定／額外 0%。真 bug：「晚餐 1,050」記成 50 元、「房租 12,000」抓不到金額、「醬油」→交通、「uber eats」→交通、「悠遊卡」→興趣、「提醒我買牛奶」→筆記。
+- 改寫本機分類器：金額正規化（千分位、萬／千／k、全形、`$`／NT$ 前置）；分類改「最長關鍵字優先」並加入台灣常見店家品項；日期（昨天／前天／大前天、10/15、10月15日，未來日期視為去年）；收入固定 vs 額外；「提醒／記得／明天／後天／下週」強制任務、無金額的「紀錄／筆記／心得」強制筆記；多筆解析共用正規化（修 1,050 被拆兩筆）。結果：調整集 83/83；**另寫 30 條沒用來調整的保留集，舊版 37% → 新版 77%**（剩下 7 條刻意不修以保持誠實）。
+- ⭐定案：使用者自己用過或改過的分類優先於 AI 與關鍵字。`getLearnedCategory` 依同一品項名在 transactions 中最常見的非「其他」分類（排除對帳調整），記帳頁改分類就會自動學到，不新增資料表。
+- AI 分類 prompt：內建分類附說明（自訂分類不亂加）、新增 `date`（只限過去日期）與 `incomeKind`；回傳驗證金額必須正數、日期必須是過去且只用於記帳、incomeKind 只能 fixed／extra。首頁存檔：品項名稱去掉金額與日期、過去日期記在當天 12:00 並在提示顯示、收入帶入固定／額外、多筆也套用學習分類與日期。
+- 財務需求研究（App Store 與台灣記帳文章，多為行銷與經驗文，非正式研究）：常見功能有定期收支、多帳戶與信用卡、發票載具自動記帳、銀行自動同步、共享帳本、CSV 匯出、App 密碼；放棄記帳主因是步驟太多、分類麻煩、App 太複雜。來源：cashfeel 2026 記帳／發票 App 文、INSIDE Moneybook 介紹、CWMoney 與簡單記帳 App Store 頁。
+- 驗證：44 組 tracker（＋學習分類、AI 回傳驗證與提示）、classifier 83/83、TypeScript、8 組 transport、四支 render／keyboard 檢查、diff check。APK `C:\Users\Brayden\Desktop\Lumi-0.4.81-smart-classify.apk`，36,824,478 bytes，SHA256 `5B401E75856659ADBC4B20AAD4A527C73F7D7EB205799B8CD2CCC4EAAA513DD3`（含鍵盤修正與好上手改版）。ADB 只有 Digital Paper，未安裝；真實 AI 分類準確率未量（API Key 只在手機）。
+
 ### 全 App 底部 sheet 鍵盤遮擋修正（未 bump，2026-10-19）
 - 使用者截圖：記帳「編輯記錄」點金額時鍵盤蓋住輸入框，回報「每次打字都會被遮住」。原因：Expo 55／RN 0.83 在 Android 上 edge-to-edge，`adjustResize` 不再縮放視窗；記帳、儲蓄目標、預算、餘額、任務、行程表單的 Modal 都沒有處理鍵盤；工時 `KeyboardAvoidingView` 在 Android 給 `undefined`、紀念日／筆記用 `height`、模組用 `padding`，寫法不一。
 - ⭐定案：新增共用 `components/ui/KeyboardSheet.tsx`，依 `keyboardDidShow` 高度把 sheet 往上推；同時偵測視窗是否已被系統縮小（取看過的最大高度扣掉目前高度），已縮的部分不再重推，避免推兩次。可選 `onBackdropPress`。之後所有輸入用的 bottom sheet 都用它，不再在 Modal 裡用 KeyboardAvoidingView（全螢幕頁的 ask／FinanceAdvisor／ApiSettings 不變）。

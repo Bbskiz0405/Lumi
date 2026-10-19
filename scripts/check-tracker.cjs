@@ -624,6 +624,45 @@ const clone = value => JSON.parse(JSON.stringify(value));
     assert.equal(generationCalls, calls);
     await tracker.deleteTrackerModule(created.id);
   });
+  await test('learned categories follow the user\'s own kept choices; AI finance output is validated and hinted', async () => {
+    const cls = load('services/classificationService.ts');
+    const insert = (item, category, extra = {}) => db.runAsync(
+      'INSERT INTO transactions (id, entry_id, type, item, amount, category, income_kind, is_adjustment, created_at) VALUES (?, NULL, ?, ?, 100, ?, NULL, ?, ?)',
+      [randomUUID(), extra.type ?? 'expense', item, category, extra.adjustment ? 1 : 0, extra.at ?? '2026-10-01T12:00:00.000']);
+    await insert('咖啡豆', 'daily'); await insert('咖啡豆', 'daily'); await insert('咖啡豆', 'education');
+    await insert('咖啡豆', 'interest', {adjustment: true}); await insert('咖啡豆', 'interest', {adjustment: true}); await insert('咖啡豆', 'interest', {adjustment: true});
+    await insert('胖老爹', 'other'); await insert('胖老爹', 'other');
+    assert.equal(await cls.getLearnedCategory('咖啡豆 450'), 'daily');
+    assert.equal(await cls.getLearnedCategory('昨天 咖啡豆 $1,450'), 'daily');
+    assert.equal(await cls.getLearnedCategory('胖老爹 320'), null); // "other" teaches nothing
+    assert.equal(await cls.getLearnedCategory('沒記過的東西 99'), null);
+    assert.equal(cls.extractItemName('10/15 午餐 NT$1,200'), '午餐');
+    await db.runAsync("DELETE FROM transactions WHERE item IN ('咖啡豆', '胖老爹')");
+
+    const categories = [{value:'food',label:'餐飲',color:'#fff'},{value:'entertainment',label:'娛樂',color:'#fff'},{value:'pets',label:'寵物',color:'#fff'}];
+    const now = new Date();
+    const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+    const iso = date => date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+    responseText = JSON.stringify({type:'FINANCE', amount:60, category:'food', transactionType:'expense', date: iso(yesterday)});
+    let parsed = clone(await ai.classifyTextWithAI('昨天 珍奶 60', categories));
+    assert.equal(parsed.date, iso(yesterday));
+    const prompt = JSON.stringify(lastBody);
+    assert.match(prompt, /影音串流訂閱/);
+    assert.match(prompt, /pets：寵物/);
+    assert.doesNotMatch(prompt, /pets：寵物（/); // custom categories get no invented hint
+    assert.match(prompt, /incomeKind/);
+    responseText = JSON.stringify({type:'FINANCE', amount:'abc', transactionType:'income', incomeKind:'weird', date: iso(new Date(now.getFullYear() + 1, 0, 1))});
+    parsed = clone(await ai.classifyTextWithAI('薪水', categories));
+    assert.equal(parsed.amount, undefined);
+    assert.equal(parsed.incomeKind, undefined);
+    assert.equal(parsed.date, undefined);
+    responseText = JSON.stringify({type:'TASK', dueDate:'2026-12-01', date: iso(yesterday)});
+    parsed = clone(await ai.classifyTextWithAI('交報告', categories));
+    assert.equal(parsed.date, undefined);
+    assert.equal(parsed.dueDate, '2026-12-01');
+    responseText = JSON.stringify({type:'FINANCE', amount:42000, transactionType:'income', incomeKind:'fixed'});
+    assert.equal(clone(await ai.classifyTextWithAI('薪水 42000', categories)).incomeKind, 'fixed');
+  });
   const anniversaries = load('services/anniversaryService.ts');
   const notes = load('services/noteService.ts');
   const classifier = load('services/classificationService.ts');

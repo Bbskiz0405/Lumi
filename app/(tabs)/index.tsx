@@ -28,6 +28,9 @@ import {
   rollbackEntry,
   ClassificationResult,
   parseMultipleTransactions,
+  extractItemName,
+  getLearnedCategory,
+  parseFinanceDate,
 } from '../../services/classificationService';
 import { classifyTextWithAI } from '../../services/geminiService';
 import { ClassifiedType } from '../../types/entry';
@@ -180,6 +183,8 @@ export default function HomeScreen() {
           const newCategoryLabel = !aiCategory && localCategory === 'other'
             ? ai.newCategoryLabel
             : undefined;
+          const localParsed = localFinance.type === 'FINANCE' ? localFinance.parsed : undefined;
+          const date = ai.date ?? localParsed?.date;
           result = {
             type: 'FINANCE',
             confidence: 'high',
@@ -189,6 +194,8 @@ export default function HomeScreen() {
               category: ai.transactionType === 'income' ? undefined : resolvedCategory,
               newCategoryLabel: ai.transactionType === 'income' ? undefined : newCategoryLabel,
               transactionType: ai.transactionType,
+              ...(ai.transactionType === 'income' ? { incomeKind: ai.incomeKind ?? localParsed?.incomeKind ?? 'extra' } : {}),
+              ...(date ? { date } : {}),
             },
           };
         } else if (ai.type === 'TASK') {
@@ -204,6 +211,14 @@ export default function HomeScreen() {
 
       if (!result) {
         result = await classifyWithHabits(trimmed);
+      }
+
+      // 使用者自己用過（或改過）的分類優先：同一個品項記過就沿用，AI 與關鍵字都只是猜。
+      if (result.type === 'FINANCE' && result.parsed?.transactionType !== 'income') {
+        const learned = await getLearnedCategory(trimmed).catch(() => null);
+        if (learned && expenseCategories.some(category => category.value === learned)) {
+          result = { ...result, parsed: { ...result.parsed, category: learned, newCategoryLabel: undefined } };
+        }
       }
 
       const source: 'ai' | 'local' = ai ? 'ai' : 'local';
@@ -272,16 +287,20 @@ export default function HomeScreen() {
         case 'FINANCE': {
           const multi = parseMultipleTransactions(trimmed);
           if (multi.length >= 2) {
+            const multiDate = parseFinanceDate(trimmed);
             for (const tx of multi) {
+              const learned = tx.transactionType === 'income' ? null : await getLearnedCategory(tx.item).catch(() => null);
               await createTransaction({
                 type: tx.transactionType,
                 item: tx.item,
                 amount: tx.amount,
-                category: tx.transactionType === 'income' ? null : tx.category || 'other',
+                category: tx.transactionType === 'income' ? null : learned ?? (tx.category || 'other'),
+                income_kind: tx.transactionType === 'income' ? tx.incomeKind ?? 'extra' : null,
                 entry_id: entryId,
+                ...(multiDate ? { created_at: `${multiDate}T12:00:00.000` } : {}),
               });
             }
-            feedback = `已記 ${multi.length} 筆`;
+            feedback = `已記 ${multi.length} 筆${multiDate ? `（${multiDate.slice(5).replace('-', '/')}）` : ''}`;
           } else {
             const p = result.parsed;
             const amount = p?.amount;
@@ -307,15 +326,18 @@ export default function HomeScreen() {
             }
             await createTransaction({
               type: p?.transactionType ?? 'expense',
-              item: trimmed.replace(/\d+(?:\.\d+)?\s*(?:元|塊|NT\$?|\$)?/g, '').trim() || trimmed,
+              item: extractItemName(trimmed),
               amount,
               category,
+              income_kind: p?.transactionType === 'income' ? p.incomeKind ?? 'extra' : null,
               entry_id: entryId,
+              ...(p?.date ? { created_at: `${p.date}T12:00:00.000` } : {}),
             });
             if (updatedCategories) await saveExpenseCategories(updatedCategories);
+            const onDate = p?.date ? `（記在 ${p.date.slice(5).replace('-', '/')}）` : '';
             feedback = updatedCategories
-              ? `已記帳並建立「${p?.newCategoryLabel}」分類`
-              : '已記帳';
+              ? `已記帳並建立「${p?.newCategoryLabel}」分類${onDate}`
+              : `已記帳${onDate}`;
           }
           break;
         }

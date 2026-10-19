@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck",
     "check:tracker": "node scripts/check-tracker.cjs",
-    "check:gemini": "node scripts/check-gemini.cjs"
+    "check:gemini": "node scripts/check-gemini.cjs",
+    "check:classifier": "node scripts/check-classifier.cjs"
   },
   "dependencies": {
     "@react-navigation/material-top-tabs": "^7.4.28",

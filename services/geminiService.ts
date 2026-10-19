@@ -565,8 +565,24 @@ export interface AIClassification {
   category?: string;
   newCategoryLabel?: string;
   transactionType?: 'income' | 'expense';
+  incomeKind?: 'fixed' | 'extra';
   dueDate?: string;
+  /** FINANCE: a past day the money moved, when the text names one. */
+  date?: string;
 }
+
+// What each built-in category covers, so the model does not fall back to "other" for everyday items.
+const CATEGORY_HINTS: Record<string, string> = {
+  food: '餐廳、小吃、飲料手搖、咖啡、超商食物、外送、買菜水果、聚餐',
+  daily: '超市與藥妝店、清潔衛生用品、廚房與生活用品、保養品',
+  transport: '大眾運輸、高鐵台鐵、計程車與 Uber、加油、停車、悠遊卡與一卡通儲值、ETC、機車汽車保養、機票',
+  interest: '遊戲與課金、模型公仔、扭蛋、運動健身與課程型嗜好、樂器攝影',
+  entertainment: '電影、唱歌、展覽演唱會門票、旅遊住宿、影音串流訂閱（Netflix、Spotify、YouTube Premium）',
+  communication: '電信月租、手機費、網路費',
+  housing: '房租、水電瓦斯、管理費、第四台、家具家電與修繕',
+  medical: '看診掛號、藥品、牙醫、眼鏡與隱形眼鏡、保健食品',
+  education: '學費、補習、書籍、課程、文具、考試與證照報名',
+};
 
 /** Synthetic end-to-end probes. No finance history is read and nothing is saved. */
 export async function testAIFeatures(onProgress?: (stage: string) => void): Promise<{ passed: boolean; report: string }> {
@@ -656,7 +672,7 @@ function buildClassifyPrompt(expenseCategories: ExpenseCategoryMeta[]): string {
   const todayStr = `${yyyy}-${mm}-${dd}`;
   const weekday = ['日', '一', '二', '三', '四', '五', '六'][today.getDay()];
   const categoryList = expenseCategories
-    .map(category => `- ${category.value}：${category.label}`)
+    .map(category => `- ${category.value}：${category.label}${CATEGORY_HINTS[category.value] ? `（${CATEGORY_HINTS[category.value]}）` : ''}`)
     .join('\n');
 
   return `你是一個輸入分類器。把使用者輸入的一句話分類成 TASK、FINANCE、IDEA 其中之一。
@@ -688,7 +704,8 @@ function buildClassifyPrompt(expenseCategories: ExpenseCategoryMeta[]): string {
 - 支出時必須優先從下方現有分類選最適合的一個，回傳其 category value：
 ${categoryList}
 - 若除了 other（其他）以外沒有合適分類，而且能形成可長期重複使用的新類型，請省略 category 並回傳 newCategoryLabel；只有內容太模糊或不值得獨立分類時才選 other。新名稱須為 2–6 個繁體中文字；不要使用商家名、單一品項或現有分類的近義詞
-- 收入時省略 category 與 newCategoryLabel
+- 收入時省略 category 與 newCategoryLabel，改回傳 incomeKind：薪水、月薪等每月固定收入為 fixed；獎金、紅包、中獎、利息、退款、接案等為 extra
+- date：只有輸入提到過去某天（如「昨天」「前天」「10/15」）時才回傳 YYYY-MM-DD；沒提到就省略，不要自己填今天
 - transactionType：income 或 expense
   - 「存款」「存進」「儲蓄」「入帳」「薪水」「獎金」「收到錢」→ income
   - 「買」「付」「繳」「花」等錢流出 → expense
@@ -706,7 +723,9 @@ ${categoryList}
 輸入「讀書心得：原子習慣很受用」→ {"type":"IDEA"}
 輸入「今天看到一隻可愛的貓」→ {"type":"IDEA"}
 輸入「想做一個個人管理 app」→ {"type":"IDEA"}
-輸入「薪水 30000 入帳」→ {"type":"FINANCE","amount":30000,"transactionType":"income"}
+輸入「昨天 珍奶 60」→ {"type":"FINANCE","amount":60,"category":"food","transactionType":"expense","date":"<昨天的日期>"}
+輸入「房租 1.2萬」→ {"type":"FINANCE","amount":12000,"category":"housing","transactionType":"expense"}
+輸入「薪水 30000 入帳」→ {"type":"FINANCE","amount":30000,"transactionType":"income","incomeKind":"fixed"}
 輸入「存款 5000」→ {"type":"FINANCE","amount":5000,"transactionType":"income"}`;
 }
 
@@ -778,6 +797,20 @@ export async function classifyTextWithAI(
     if (parsed.type !== 'TASK' && parsed.type !== 'FINANCE' && parsed.type !== 'IDEA') return null;
     if (parsed.dueDate && !/^\d{4}-\d{2}-\d{2}$/.test(parsed.dueDate)) {
       delete parsed.dueDate;
+    }
+    if (parsed.amount !== undefined && !(typeof parsed.amount === 'number' && Number.isFinite(parsed.amount) && parsed.amount > 0)) {
+      delete parsed.amount;
+    }
+    if (parsed.incomeKind !== undefined && parsed.incomeKind !== 'fixed' && parsed.incomeKind !== 'extra') {
+      delete parsed.incomeKind;
+    }
+    // Only a real past day moves a transaction; today, future or malformed dates are dropped.
+    if (parsed.date !== undefined) {
+      const now = new Date();
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const valid = typeof parsed.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(parsed.date) &&
+        !Number.isNaN(new Date(parsed.date + 'T12:00:00').getTime()) && parsed.date < today;
+      if (!valid || parsed.type !== 'FINANCE') delete parsed.date;
     }
     if (parsed.newCategoryLabel) {
       const label = parsed.newCategoryLabel.trim();
