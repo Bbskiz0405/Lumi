@@ -40,9 +40,9 @@ export type AITask = 'quick' | 'chat' | 'deep';
  * https://ai.google.dev/gemini-api/docs/deprecations
  */
 export const GEMINI_QUICK_MODEL = 'gemini-3.5-flash-lite';
-// 3.8 Flash only allows LOW thinking and above, which users found slow for conversation.
-// 3.6 Flash (same price) supports MINIMAL, so everyday answers come back sooner.
-export const GEMINI_CHAT_MODEL = 'gemini-3.6-flash';
+// Conversation stays on 3.8 Flash: 3.6 accepts MINIMAL thinking but scores lower and third-party
+// latency data did not show it faster. Use the in-app speed comparison before changing this.
+export const GEMINI_CHAT_MODEL = 'gemini-3.8-flash';
 export const GEMINI_DEEP_MODEL = 'gemini-3.8-flash';
 
 /** Route per request; never mutate the saved config or another provider's model. */
@@ -361,7 +361,7 @@ const SPEED_TEST_CONTEXT = [
     return `[2026/${i < 20 ? 9 : 10}/${(i % 20) + 1}] 支出：${item} ${amount + (i % 3) * 10} (${category})`;
   }),
 ].join('\n');
-const SPEED_TEST_CANDIDATES = [GEMINI_DEEP_MODEL, GEMINI_CHAT_MODEL, GEMINI_QUICK_MODEL];
+const SPEED_TEST_CANDIDATES = ['gemini-3.8-flash', 'gemini-3.6-flash', GEMINI_QUICK_MODEL];
 
 /**
  * Times the same finance question on each candidate once, so the user can judge speed and

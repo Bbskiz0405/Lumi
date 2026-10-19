@@ -10,6 +10,12 @@
 
 **版號：0.4.81（標準工時＋固定休息制度）**
 
+### 對話類改回 3.8、輸出 10/19 總結 APK（未 bump，2026-10-19）
+- 使用者問 3.6 是否最推薦／聰明。查證後坦白：官方新專案推薦是 3.5 Flash-Lite 與 3.8 Flash，不含 3.6；第三方評測 3.8 在多數基準勝 3.6（綜合智力 47.1 vs 40.3），且第三方量到 3.6 首 token 延遲中位約 8.9 秒、3.8 約 3.3 秒。先前只憑「3.6 可設 MINIMAL」就推論較快，判斷有誤。
+- 另答 Claude 訂閱：Pro 不含 API；Max／Team 含每月 API 額度（不能用在 Claude Code 與 App，可給自寫程式），API Key 在 Claude Console 另外申請。Haiku 5.5 $0.10/$0.50、Sonnet 5.5 $2/$10。使用者決定先用 3.8 看看，未接 Claude。
+- ⭐定案：`GEMINI_CHAT_MODEL` 改回 `gemini-3.8-flash`（保留 chat 分流層方便日後切換）；速度比較固定比 3.8／3.6／3.5 Flash-Lite。check:all、Expo config 通過。
+- APK `C:\Users\Brayden\Desktop\Lumi-0.4.81-20261019.apk`，36,841,586 bytes，SHA256 `A67DE8B54FEAA7E44526802F95FCE79F6EE89D45014E80FF33EF69E46036E96F`（10/19 全部改動的最終版，取代當天其他 APK）。ADB 只有 Digital Paper，未安裝。
+
 ### 對話類改用 3.6 Flash＋MINIMAL，新增回答速度比較（未 bump，2026-10-19）
 - 使用者回報 3.8「想的有點久」。3.8 Flash 只支援 low／medium／high，已設 LOW，參數無法再降。官方 thinking 文件：3.6 Flash 支援 minimal／low／medium／high（價格與 3.8 相同，無下架日期）。
 - ⭐定案：AITask 新增 `chat` 層：問 Lumi、財務顧問、快速分析、月回顧 → `gemini-3.6-flash`＋MINIMAL；建立模組（結構化 JSON、少用）維持 3.8 LOW；分類維持 3.5 Flash-Lite MINIMAL。`supportsMinimalThinking` 依官方表決定（flash-lite、3.6 flash、3-flash-preview）。
