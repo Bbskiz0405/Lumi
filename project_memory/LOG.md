@@ -10,6 +10,12 @@
 
 **版號：0.4.81（標準工時＋固定休息制度）**
 
+### 對話類改用 3.6 Flash＋MINIMAL，新增回答速度比較（未 bump，2026-10-19）
+- 使用者回報 3.8「想的有點久」。3.8 Flash 只支援 low／medium／high，已設 LOW，參數無法再降。官方 thinking 文件：3.6 Flash 支援 minimal／low／medium／high（價格與 3.8 相同，無下架日期）。
+- ⭐定案：AITask 新增 `chat` 層：問 Lumi、財務顧問、快速分析、月回顧 → `gemini-3.6-flash`＋MINIMAL；建立模組（結構化 JSON、少用）維持 3.8 LOW；分類維持 3.5 Flash-Lite MINIMAL。`supportsMinimalThinking` 依官方表決定（flash-lite、3.6 flash、3-flash-preview）。
+- 因無法在電腦實測（Key 在手機），AI 設定頁新增「比較回答速度」：用 40 筆合成紀錄、同一題財務問題，對 3.8／3.6／3.5 Flash-Lite 各送一次、不重試，顯示秒數與回答開頭，不送使用者資料、不改設定。品質與速度待使用者實測判斷，必要時可再調回。
+- 測試：45 組 tracker（路由改 3.6＋MINIMAL、模組設計仍 3.8＋LOW、速度比較只送 3 次且順序正確、只含合成資料、不改設定）、check:all 全過。APK `C:\Users\Brayden\Desktop\Lumi-0.4.81-faster-chat.apk`，36,841,586 bytes，SHA256 `75475011B442F3F263FAB89D36616A9F52F0490BC00C06DC982D4132895ED9FA`。ADB 只有 Digital Paper，未安裝。
+
 ### 全 App 體檢與優化：模型、本機先判斷、日期、容錯（未 bump，2026-10-19）
 - 使用者要求體檢整個 App（含可換的 API／模型）並「直接處理掉」。查 Google 官方 pricing／deprecations（2026-10-19）：2.5 系列「只開放給先前用過的使用者」，新專案建議 3.5 Flash-Lite 或 3.8 Flash；`gemini-3.8-flash` 2027-01-01 起 $0.75/$3.75 → $1.50/$7.50；`gemini-3.5-flash-lite` $0.30/$2.50、有免費額度、無下架日期、thinking 預設 MINIMAL。
 - ⭐定案：quick 模型改 `gemini-3.5-flash-lite`（`GEMINI_QUICK_MODEL`），因 2.5 對新使用者的 Key 可能不可用，屬上架風險；flash-lite 送 `thinkingLevel: MINIMAL`，3.8 維持 LOW。模型探測清單改 3.8／3.5 Flash-Lite／2.5（移除會自動導向 3.8 的 3.7）；「對照測試 2.5」診斷保留給舊 Key。真實延遲與準確度未實機量。

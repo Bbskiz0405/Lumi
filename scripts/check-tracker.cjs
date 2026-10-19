@@ -152,9 +152,10 @@ const clone = value => JSON.parse(JSON.stringify(value));
     const config = Object.freeze({provider:'gemini', model:'custom-saved-model'});
     assert.equal(ai.getModelForTask(config, 'quick'), 'gemini-3.5-flash-lite');
     assert.equal(ai.getModelForTask(config, 'deep'), 'gemini-3.8-flash');
+    assert.equal(ai.getModelForTask(config, 'chat'), 'gemini-3.6-flash');
     assert.equal(config.model, 'custom-saved-model');
     for (const provider of ['openrouter', 'openai']) {
-      for (const task of ['quick', 'deep']) {
+      for (const task of ['quick', 'chat', 'deep']) {
         assert.equal(ai.getModelForTask({provider,model:'custom'}, task), 'custom');
         assert.equal(ai.getModelForTask({provider}, task), ai.getEffectiveModel({provider}));
       }
@@ -338,23 +339,41 @@ const clone = value => JSON.parse(JSON.stringify(value));
     await assert.rejects(ai.designTrackerModule('體重追蹤'));
     responseText = 'test response';
     await ai.askLumi('我的體重是多少');
-    assert.match(lastUrl, /gemini-3\.8-flash:generateContent$/);
+    assert.match(lastUrl, /gemini-3\.6-flash:generateContent$/);
+    assert.equal(lastBody.generationConfig.thinkingConfig.thinkingLevel, 'MINIMAL');
     assert.match(JSON.stringify(lastBody),/69.5 公斤/);
   });
-  await test('financial analysis and month narrative route to deep model without changing saved config', async () => {
+  await test('conversation features route to the faster chat model; module design stays on 3.8', async () => {
     const before = JSON.stringify(await ai.getApiConfig());
     responseText = 'test analysis';
     await ai.getQuickAnalysis('2026-09');
-    assert.match(lastUrl, /gemini-3\.8-flash:generateContent$/);
+    assert.match(lastUrl, /gemini-3\.6-flash:generateContent$/);
+    assert.equal(lastBody.generationConfig.thinkingConfig.thinkingLevel, 'MINIMAL');
     assert.match(lastBody.systemInstruction.parts[0].text, /結餘：750/);
     await ai.chatWithFinanceAdvisor('分析', [], '2026-09');
-    assert.match(lastUrl, /gemini-3\.8-flash:generateContent$/);
+    assert.match(lastUrl, /gemini-3\.6-flash:generateContent$/);
     const calls = generationCalls;
     // Fixture rows are stamped with the real clock, so the narrative must look at the current month.
     const now = new Date();
     await ai.generateMonthNarrative(now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0'));
     assert.equal(generationCalls, calls + 1);
+    assert.match(lastUrl, /gemini-3\.6-flash:generateContent$/);
+    assert.equal(JSON.stringify(await ai.getApiConfig()), before);
+    responseText = JSON.stringify(definition);
+    await ai.designTrackerModule('體重追蹤');
     assert.match(lastUrl, /gemini-3\.8-flash:generateContent$/);
+    assert.equal(lastBody.generationConfig.thinkingConfig.thinkingLevel, 'LOW'); // 3.8 has no MINIMAL
+    // Speed comparison: one synthetic request per model, no retries, nothing saved.
+    responseText = '餐飲最多，十月比九月多。';
+    const speedCalls = generationCalls;
+    const urls = generationUrls.length;
+    const report = await ai.compareChatModelSpeed();
+    assert.equal(generationCalls - speedCalls, 3);
+    assert.deepEqual(generationUrls.slice(urls).map(url => url.match(/models\/([^:]+)/)[1]), ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite']);
+    assert.match(report, /gemini-3\.8-flash（思考 LOW）：[\d.]+ 秒/);
+    assert.match(report, /gemini-3\.6-flash（思考 MINIMAL）/);
+    assert.match(JSON.stringify(lastBody), /合成測試資料/);
+    assert.doesNotMatch(JSON.stringify(lastBody), /69\.5 公斤/); // never the user's records
     assert.equal(JSON.stringify(await ai.getApiConfig()), before);
   });
   await test('backup export/preview contains modules and rejects bad JSON, values, orphans and duplicate ids', async () => {
@@ -771,7 +790,7 @@ const clone = value => JSON.parse(JSON.stringify(value));
     await ai.askLumi('交往紀念日是什麼時候？');
     assert.match(lastBody.systemInstruction.parts[0].text,/2024-09-21/);
     assert.match(lastBody.systemInstruction.parts[0].text,/使用者當地今天/);
-    assert.match(lastUrl,/gemini-3\.8-flash:generateContent$/);
+    assert.match(lastUrl,/gemini-3\.6-flash:generateContent$/);
   });
   await test('anniversary leap days, future dates and same-name conflicts are explicit, not guessed', async () => {
     const leap = await notes.createNote({category:'紀念日',content:anniversaries.formatAnniversary({name:'閏日紀念日',date:'2024-02-29'})});

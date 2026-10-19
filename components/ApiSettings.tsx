@@ -23,6 +23,7 @@ import {
   checkGeminiModelAvailability,
   removeApiConfig,
   setApiConfig,
+  compareChatModelSpeed,
 } from '../services/geminiService';
 
 const PROVIDERS: { value: ApiProvider; label: string; hint: string }[] = [
@@ -111,6 +112,17 @@ export default function ApiSettings() {
     } finally { testBusy.current = false; setTesting(false); setTestStage(''); }
   }
 
+  async function handleSpeedCompare() {
+    if (testBusy.current) return;
+    testBusy.current = true;
+    setTesting(true);
+    try {
+      Alert.alert('回答速度比較', await compareChatModelSpeed(setTestStage));
+    } catch (error) {
+      Alert.alert('速度比較失敗', error instanceof Error ? error.message : '請稍後重試');
+    } finally { testBusy.current = false; setTesting(false); setTestStage(''); }
+  }
+
   async function handleModelCheck() {
     if (testBusy.current) return;
     testBusy.current = true;
@@ -168,7 +180,7 @@ export default function ApiSettings() {
             <Text style={styles.statusHint}>保存模型（連線診斷用）：{savedModel}</Text>
             <Text style={styles.statusHint}>
               {savedProvider === 'gemini'
-                ? `依功能自動分流\n主畫面分類／新分類建議／紀錄帶入：${getModelForTask({provider:'gemini'}, 'quick')}\n財務分析／問 Lumi／月回顧／建立模組：${getModelForTask({provider:'gemini'}, 'deep')}\n沿用同一把 Key，不改保存設定。`
+                ? `依功能自動分流\n主畫面分類／新分類建議／紀錄帶入：${getModelForTask({provider:'gemini'}, 'quick')}\n問 Lumi／財務分析／月回顧：${getModelForTask({provider:'gemini'}, 'chat')}\n建立模組：${getModelForTask({provider:'gemini'}, 'deep')}\n沿用同一把 Key，不改保存設定。`
                 : '智慧分類、財務分析、自訂模組與問 Lumi 都會使用此模型。'}
             </Text>
             <View style={styles.actionRow}>
@@ -187,6 +199,9 @@ export default function ApiSettings() {
             </TouchableOpacity>
             {savedProvider === 'gemini' && (
               <>
+              <TouchableOpacity disabled={testing} style={[styles.secondaryBtn, { marginTop: 12 }]} onPress={handleSpeedCompare}>
+                <Text style={styles.secondaryBtnText}>比較回答速度（3 款模型、合成資料）</Text>
+              </TouchableOpacity>
               <TouchableOpacity disabled={testing} style={[styles.secondaryBtn, { marginTop: 12 }]} onPress={handleModelCheck}>
                 <Text style={styles.secondaryBtnText}>檢查可用模型（3 款各測 2 次）</Text>
               </TouchableOpacity>

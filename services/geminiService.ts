@@ -31,7 +31,8 @@ export function getEffectiveModel(config: Pick<ApiConfig, 'provider' | 'model'>)
   return config.model?.trim() || DEFAULT_MODELS[config.provider];
 }
 
-export type AITask = 'quick' | 'deep';
+/** quick = classification; chat = Ask Lumi / advisor / analysis / review; deep = structured module design. */
+export type AITask = 'quick' | 'chat' | 'deep';
 
 /**
  * Google limits the 2.5 family to keys that already used it and recommends 3.5 Flash-Lite
@@ -39,12 +40,19 @@ export type AITask = 'quick' | 'deep';
  * https://ai.google.dev/gemini-api/docs/deprecations
  */
 export const GEMINI_QUICK_MODEL = 'gemini-3.5-flash-lite';
+// 3.8 Flash only allows LOW thinking and above, which users found slow for conversation.
+// 3.6 Flash (same price) supports MINIMAL, so everyday answers come back sooner.
+export const GEMINI_CHAT_MODEL = 'gemini-3.6-flash';
 export const GEMINI_DEEP_MODEL = 'gemini-3.8-flash';
 
 /** Route per request; never mutate the saved config or another provider's model. */
 export function getModelForTask(config: Pick<ApiConfig, 'provider' | 'model'>, task: AITask): string {
   if (config.provider !== 'gemini') return getEffectiveModel(config);
-  return task === 'quick' ? GEMINI_QUICK_MODEL : GEMINI_DEEP_MODEL;
+  return task === 'quick' ? GEMINI_QUICK_MODEL : task === 'chat' ? GEMINI_CHAT_MODEL : GEMINI_DEEP_MODEL;
+}
+
+function supportsMinimalThinking(model: string): boolean {
+  return /flash-lite|^gemini-3\.6-flash|^gemini-3-flash-preview/.test(model);
 }
 
 function geminiGenerationConfig(model: string, temperature: number, maxTokens: number) {
@@ -54,9 +62,8 @@ function geminiGenerationConfig(model: string, temperature: number, maxTokens: n
     // 3.8 migration guide removes sampling parameters; older models retain their settings.
     ...(!isGemini38 ? { temperature: isGemini3 ? 1 : temperature } : {}),
     maxOutputTokens: isGemini3 ? Math.max(4096, maxTokens) : maxTokens,
-    // Flash-Lite supports MINIMAL (its documented default) — fastest for short classification.
-    // 3.8 Flash has no MINIMAL, so it keeps LOW.
-    ...(isGemini3 ? { thinkingConfig: { thinkingLevel: /flash-lite/.test(model) ? 'MINIMAL' : 'LOW', includeThoughts: false } } : {}),
+    // MINIMAL is the fastest level but only some models accept it (docs/thinking); 3.8 Flash starts at LOW.
+    ...(isGemini3 ? { thinkingConfig: { thinkingLevel: supportsMinimalThinking(model) ? 'MINIMAL' : 'LOW', includeThoughts: false } } : {}),
   };
 }
 
@@ -345,6 +352,42 @@ async function callAI(config: ApiConfig, systemPrompt: string, history: ChatMess
 
 export type AIConnectionTestMode = 'configured' | 'previous' | 'basic';
 
+// A realistic Ask-Lumi-sized request built from made-up records; never the user's data.
+const SPEED_TEST_CONTEXT = [
+  '=== 記憶資料（合成測試資料）===',
+  ...Array.from({ length: 40 }, (_, i) => {
+    const items = [['午餐', 120, 'food'], ['手搖飲', 55, 'food'], ['捷運', 30, 'transport'], ['電影', 320, 'entertainment'], ['全聯', 450, 'daily']] as const;
+    const [item, amount, category] = items[i % items.length];
+    return `[2026/${i < 20 ? 9 : 10}/${(i % 20) + 1}] 支出：${item} ${amount + (i % 3) * 10} (${category})`;
+  }),
+].join('\n');
+const SPEED_TEST_CANDIDATES = [GEMINI_DEEP_MODEL, GEMINI_CHAT_MODEL, GEMINI_QUICK_MODEL];
+
+/**
+ * Times the same finance question on each candidate once, so the user can judge speed and
+ * answer quality with their own key. Never retries (a retry would hide a slow first attempt).
+ */
+export async function compareChatModelSpeed(onProgress?: (stage: string) => void): Promise<string> {
+  const config = await ensureConfig();
+  if (config.provider !== 'gemini') throw new Error('速度比較僅適用 Gemini');
+  const question = '這兩個月我哪一類花最多？十月比九月多還少？用兩三句話回答。';
+  const lines = [`題目：${question}（合成資料 40 筆，不含你的紀錄）`];
+  for (const model of SPEED_TEST_CANDIDATES) {
+    onProgress?.(`${model} 回答中…`);
+    const started = Date.now();
+    try {
+      const reply = await callGemini({ ...config, model }, [{ role: 'user', parts: [{ text: question }] }], 0.3, 1024,
+        `${ASK_LUMI_SYSTEM}\n\n${SPEED_TEST_CONTEXT}`, { timeoutMs: 65000, maxAttempts: 1 });
+      const level = supportsMinimalThinking(model) ? 'MINIMAL' : 'LOW';
+      lines.push(`${model}（思考 ${level}）：${((Date.now() - started) / 1000).toFixed(1)} 秒\n${reply.trim().slice(0, 120)}`);
+    } catch (error) {
+      lines.push(`${model}：失敗（${error instanceof Error ? error.message : '未知錯誤'}）`);
+    }
+  }
+  lines.push('各測一次，網路與 Google 當下負載會影響秒數；可多按幾次比較。會使用少量 API 配額。');
+  return lines.join('\n\n');
+}
+
 // Compare only these documented free-tier candidates, never switch the saved model automatically.
 const GEMINI_MODEL_PROBES = ['gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-2.5-flash-lite'];
 
@@ -450,7 +493,7 @@ export async function chatWithFinanceAdvisor(
 ): Promise<string> {
   const config = await ensureConfig();
   const financeContext = await buildFinanceContext(month);
-  return callAI(config, SYSTEM_PROMPT, history, userMessage, financeContext);
+  return callAI(config, SYSTEM_PROMPT, history, userMessage, financeContext, 0.7, 1024, 'chat');
 }
 
 // ───────────────────────── D：問 Lumi 任何事（記憶檢索）─────────────────────────
@@ -495,7 +538,7 @@ export async function askLumi(question: string, history: ChatMessage[] = []): Pr
 
   const anniversaryContext = await buildAnniversaryContext();
   const insightContext = await buildTrackerInsightContext().catch(() => '=== 自訂模組推算 ===\n推算暫時無法讀取。');
-  return callAI(config, ASK_LUMI_SYSTEM, history, question, `${context}\n\n${anniversaryContext}\n\n${insightContext}`, 0.3, 1024);
+  return callAI(config, ASK_LUMI_SYSTEM, history, question, `${context}\n\n${anniversaryContext}\n\n${insightContext}`, 0.3, 1024, 'chat');
 }
 
 export async function getQuickAnalysis(month: string): Promise<string> {
@@ -508,7 +551,7 @@ export async function getQuickAnalysis(month: string): Promise<string> {
 3. 一個具體的節省建議
 格式簡潔，每點一行。`;
 
-  return callAI(config, SYSTEM_PROMPT, [], prompt, financeContext, 0.5, 512);
+  return callAI(config, SYSTEM_PROMPT, [], prompt, financeContext, 0.5, 512, 'chat');
 }
 
 // ───────────────────────── A：個人時間軸敘事（月底回顧）─────────────────────────
@@ -566,7 +609,7 @@ export async function generateMonthNarrative(month: string): Promise<string> {
     `=== 本月紀錄（共 ${events.length} 筆，由新到舊）===\n${stats}\n\n` +
     events.map(formatEventForContext).join('\n');
 
-  return callAI(config, MONTH_NARRATIVE_SYSTEM, [], '請根據以下紀錄，寫這個月的回顧敘事。', context, 0.7, 1024);
+  return callAI(config, MONTH_NARRATIVE_SYSTEM, [], '請根據以下紀錄，寫這個月的回顧敘事。', context, 0.7, 1024, 'chat');
 }
 
 export interface AIClassification {
@@ -597,7 +640,7 @@ const CATEGORY_HINTS: Record<string, string> = {
 /** Synthetic end-to-end probes. No finance history is read and nothing is saved. */
 export async function testAIFeatures(onProgress?: (stage: string) => void): Promise<{ passed: boolean; report: string }> {
   const config = await ensureConfig();
-  const lines = [`分類：${getModelForTask(config, 'quick')}`, `模組設計：${getModelForTask(config, 'deep')}`];
+  const lines = [`分類：${getModelForTask(config, 'quick')}`, `問 Lumi／分析：${getModelForTask(config, 'chat')}`, `模組設計：${getModelForTask(config, 'deep')}`];
   let passed = true;
   onProgress?.('1/2 測試午餐分類（最多 12 秒）…');
   const started = Date.now();
