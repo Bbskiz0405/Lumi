@@ -115,6 +115,20 @@ for (const c of HOLDOUT) {
   const ok = result.type === c.type && (c.type !== 'FINANCE' || (gotCat === c.category && parsed.amount === c.amount));
   if (ok) holdOk++; else holdMisses.push(`${c.input} → ${result.type}/${gotCat}/${parsed.amount}`);
 }
+// Local-first: which inputs may be saved without waiting for AI.
+const skip = (input, learnedCategory = null, hasCustomCategories = false) =>
+  classifier.canSkipAI(classifier.classifyByKeywords(input, now), input, { learnedCategory, hasCustomCategories });
+assert.equal(skip('午餐 120'), true);
+assert.equal(skip('午餐 120', null, true), false); // custom categories: let AI consider them for a new item
+assert.equal(skip('午餐 120', 'food', true), true); // ...unless the user already filed this item
+assert.equal(skip('貓砂 450'), false); // "other" → AI may suggest a new category
+assert.equal(skip('貓砂 450', 'pets'), true);
+assert.equal(skip('薪水 42,000'), true);
+assert.equal(skip('早餐 50 午餐 120'), true);
+assert.equal(skip('明天繳房租 12000'), false); // a task, AI extracts the due date
+assert.equal(skip('想學吉他'), false);
+assert.equal(skip('咖啡'), false); // no amount
+console.log('PASS local-first saves only confident bookkeeping and defers custom-category, tasks and unknowns to AI');
 const pct = (ok, total) => `${ok}/${total} (${Math.round(ok / total * 100)}%)`;
 console.log(`type ${pct(typeOk, CASES.length)} · category ${pct(catOk, catTotal)} · amount ${pct(amountOk, amountTotal)} · date ${pct(dateOk, dateTotal)} · income kind ${pct(kindOk, kindTotal)}`);
 if (report || misses.length) misses.forEach(line => console.log('  MISS ' + line));

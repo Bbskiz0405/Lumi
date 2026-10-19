@@ -146,11 +146,20 @@ export async function getEventStream(opts: EventStreamOptions = {}): Promise<Uni
     const rows = await db.getAllAsync<TrackerRecordRow & TrackerModuleRow>(
       `SELECT r.*, m.name, m.description, m.schema_json, m.updated_at
        FROM tracker_records r JOIN tracker_modules m ON m.id = r.module_id
-       ORDER BY r.created_at DESC`
+       ORDER BY r.created_at DESC${perTypeLimit ? ` LIMIT ${Math.floor(opts.limit!)}` : ''}`
     );
+    // One unreadable module or record (e.g. from an old backup) is skipped, never fatal:
+    // otherwise a single bad row takes down the timeline, Ask Lumi and the month review.
+    const modules = new Map<string, ReturnType<typeof parseTrackerModule> | null>();
     for (const row of rows) {
-      const module = parseTrackerModule({ ...row, id: row.module_id });
-      const record = parseTrackerRecord(row, module);
+      if (!modules.has(row.module_id)) {
+        try { modules.set(row.module_id, parseTrackerModule({ ...row, id: row.module_id })); }
+        catch { modules.set(row.module_id, null); }
+      }
+      const module = modules.get(row.module_id);
+      if (!module) continue;
+      let record: ReturnType<typeof parseTrackerRecord>;
+      try { record = parseTrackerRecord(row, module); } catch { continue; }
       const raw = module.fields.filter(field => record.data[field.key] !== undefined)
         .map(field => `${field.label}：${record.data[field.key]}${field.unit ? ` ${field.unit}` : ''}`).join('；');
       events.push({ id: `tracker:${row.id}`, type: 'tracker', timestamp: row.created_at,

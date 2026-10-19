@@ -10,6 +10,16 @@
 
 **版號：0.4.81（標準工時＋固定休息制度）**
 
+### 全 App 體檢與優化：模型、本機先判斷、日期、容錯（未 bump，2026-10-19）
+- 使用者要求體檢整個 App（含可換的 API／模型）並「直接處理掉」。查 Google 官方 pricing／deprecations（2026-10-19）：2.5 系列「只開放給先前用過的使用者」，新專案建議 3.5 Flash-Lite 或 3.8 Flash；`gemini-3.8-flash` 2027-01-01 起 $0.75/$3.75 → $1.50/$7.50；`gemini-3.5-flash-lite` $0.30/$2.50、有免費額度、無下架日期、thinking 預設 MINIMAL。
+- ⭐定案：quick 模型改 `gemini-3.5-flash-lite`（`GEMINI_QUICK_MODEL`），因 2.5 對新使用者的 Key 可能不可用，屬上架風險；flash-lite 送 `thinkingLevel: MINIMAL`，3.8 維持 LOW。模型探測清單改 3.8／3.5 Flash-Lite／2.5（移除會自動導向 3.8 的 3.7）；「對照測試 2.5」診斷保留給舊 Key。真實延遲與準確度未實機量。
+- ⭐定案：首頁本機先判斷（`canSkipAI`）：有金額且（收入／多筆／你記過同品項／內建分類且沒有自訂分類）就直接存，不呼叫 AI；任務、筆記、「其他」、有自訂分類時的新品項仍交給 AI。目的：記帳快、不耗額度、離線可用。
+- 日期全面改點選：記帳新增／編輯、紀念日、行程開始／結束（改上下排列以容納月曆）、儲蓄目標、任務到期日。DateField 新增 `quick`（過去用今天／昨天、計畫用今天／明天或不顯示）與 `placeholder`，並顯示「明天」。
+- 事件流容錯：單一自訂模組或紀錄解析失敗改為略過（每個模組只解析一次），不再讓時間軸、問 Lumi、月回顧整個失敗；模組紀錄也套用 limit。體檢時一度以為記帳事件分類讀錯欄位，重看是把兩段輸出接錯，實際正確，未改。
+- 新增 `npm.cmd run check:ui`、`npm.cmd run check:all`（typecheck＋tracker 45＋gemini 8＋classifier（含 local-first 10 例）＋4 支 UI）。全過。
+- 延後：問 Lumi 依問題篩選紀錄以省 token（影響回答品質，等實測）、OpenAI 預設 `gpt-4o-mini` 過時（網路資料互相矛盾，需以官方頁確認型號再換）、bundle ID／正式簽章／隱私政策、BYOK 門檻、超大畫面檔拆分。
+- APK `C:\Users\Brayden\Desktop\Lumi-0.4.81-optimize.apk`，36,838,726 bytes，SHA256 `769CAF9468C9E20FF5F9F4ED695CD8F824F4EFA473A300E469AAAED69F7D8CF4`（含 10/19 全部改動）。ADB 只有 Digital Paper，未安裝。
+
 ### 財務分析加「結論」區塊（未 bump，2026-10-19）
 - 使用者覺得財務分析「沒什麼用」。診斷：八個區塊（存款、收支、目標、收入結構、預算、趨勢、排行、TOP5）都是描述性數字，沒有跟自己平常比、也沒有「所以呢」；TOP5 只抓得到房租這類大筆。使用者要求舊區塊全部保留。
 - ⭐定案：在月模式最上方新增四個結論卡，全部本機計算（`services/financeInsightService.ts`、`components/finance/analytics/InsightCards.tsx`），舊區塊原封不動放在下方：

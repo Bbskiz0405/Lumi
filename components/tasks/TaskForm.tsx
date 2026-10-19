@@ -13,6 +13,7 @@ import { Task, Priority, TaskTag, CreateTaskInput } from '../../types/task';
 import { isValidLocalDateString, toLocalDateString } from '../../utils/date';
 import { DEFAULT_TASK_TAGS, getTaskTagMeta } from '../../utils/taskTags';
 import { getCustomTaskTags, saveCustomTaskTags } from '../../services/taskTagService';
+import DateField from '../ui/DateField';
 
 interface Props {
   initialValues?: Partial<Task>;
@@ -202,14 +203,8 @@ export default function TaskForm({ initialValues, onSubmit, onCancel, submitLabe
       />
       {!!titleError && <Text style={styles.errorText}>{titleError}</Text>}
 
-      <TextInput
-        style={[styles.input, !!dateError && styles.inputError]}
-        value={dueDate}
-        onChangeText={setDueDate}
-        placeholder="截止日期 (YYYY-MM-DD)"
-        placeholderTextColor="#444"
-        keyboardType={Platform.OS === 'android' ? 'numeric' : 'numbers-and-punctuation'}
-      />
+      <DateField label="截止日期" value={dueDate} quick={[]} placeholder="截止日期（點選）"
+        onChange={value => { setDueDate(value); setDateError(''); }} />
       {!!dateError && <Text style={styles.errorText}>{dateError}</Text>}
       <View style={styles.dateQuickRow}>
         {[

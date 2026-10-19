@@ -33,10 +33,18 @@ export function getEffectiveModel(config: Pick<ApiConfig, 'provider' | 'model'>)
 
 export type AITask = 'quick' | 'deep';
 
+/**
+ * Google limits the 2.5 family to keys that already used it and recommends 3.5 Flash-Lite
+ * for new projects, so new users' keys may not reach 2.5 at all.
+ * https://ai.google.dev/gemini-api/docs/deprecations
+ */
+export const GEMINI_QUICK_MODEL = 'gemini-3.5-flash-lite';
+export const GEMINI_DEEP_MODEL = 'gemini-3.8-flash';
+
 /** Route per request; never mutate the saved config or another provider's model. */
 export function getModelForTask(config: Pick<ApiConfig, 'provider' | 'model'>, task: AITask): string {
   if (config.provider !== 'gemini') return getEffectiveModel(config);
-  return task === 'quick' ? 'gemini-2.5-flash-lite' : 'gemini-3.8-flash';
+  return task === 'quick' ? GEMINI_QUICK_MODEL : GEMINI_DEEP_MODEL;
 }
 
 function geminiGenerationConfig(model: string, temperature: number, maxTokens: number) {
@@ -46,7 +54,9 @@ function geminiGenerationConfig(model: string, temperature: number, maxTokens: n
     // 3.8 migration guide removes sampling parameters; older models retain their settings.
     ...(!isGemini38 ? { temperature: isGemini3 ? 1 : temperature } : {}),
     maxOutputTokens: isGemini3 ? Math.max(4096, maxTokens) : maxTokens,
-    ...(isGemini3 ? { thinkingConfig: { thinkingLevel: 'LOW', includeThoughts: false } } : {}),
+    // Flash-Lite supports MINIMAL (its documented default) — fastest for short classification.
+    // 3.8 Flash has no MINIMAL, so it keeps LOW.
+    ...(isGemini3 ? { thinkingConfig: { thinkingLevel: /flash-lite/.test(model) ? 'MINIMAL' : 'LOW', includeThoughts: false } } : {}),
   };
 }
 
@@ -336,7 +346,7 @@ async function callAI(config: ApiConfig, systemPrompt: string, history: ChatMess
 export type AIConnectionTestMode = 'configured' | 'previous' | 'basic';
 
 // Compare only these documented free-tier candidates, never switch the saved model automatically.
-const GEMINI_MODEL_PROBES = ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-2.5-flash-lite'];
+const GEMINI_MODEL_PROBES = ['gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-2.5-flash-lite'];
 
 export async function checkGeminiModelAvailability(onProgress?: (stage: string) => void): Promise<string> {
   const savedConfig = await ensureConfig();

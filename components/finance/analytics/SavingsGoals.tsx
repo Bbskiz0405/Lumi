@@ -8,6 +8,7 @@ import { SavingsGoal } from '../../../types/finance';
 import { formatAmount } from '../../../utils/money';
 import { isValidLocalDateString } from '../../../utils/date';
 import KeyboardSheet from '../../ui/KeyboardSheet';
+import DateField from '../../ui/DateField';
 
 export interface SavingsGoalDraft {
   title: string;
@@ -186,15 +187,7 @@ export default function SavingsGoals({
                 keyboardType="numeric"
               />
               <Text style={styles.fieldLabel}>目標日期（選填）</Text>
-              <TextInput
-                style={styles.input}
-                value={targetDate}
-                onChangeText={setTargetDate}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor="#444"
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
+              <DateField label="目標日期" value={targetDate} onChange={setTargetDate} optional quick={[]} placeholder="點選日期（選填）" />
               {!!error && <Text style={styles.error}>{error}</Text>}
 
               <View style={styles.actions}>

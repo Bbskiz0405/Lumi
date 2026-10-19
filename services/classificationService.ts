@@ -416,3 +416,22 @@ export async function rollbackEntry(id: string): Promise<void> {
     await tx.runAsync('DELETE FROM entries WHERE id = ?', [id]);
   });
 }
+
+/**
+ * Whether a local parse is reliable enough to save without waiting for AI (faster, no quota,
+ * works offline). Users with custom categories still ask AI for first-time items, since the
+ * keyword table only knows the built-in categories.
+ */
+export function canSkipAI(
+  result: ClassificationResult,
+  text: string,
+  options: { learnedCategory: string | null; hasCustomCategories: boolean },
+): boolean {
+  if (result.type !== 'FINANCE') return false;
+  const parsed = result.parsed;
+  if (!parsed?.amount || parsed.amount <= 0) return false;
+  if (parseMultipleTransactions(text).length >= 2) return true;
+  if (parsed.transactionType === 'income') return true;
+  if (options.learnedCategory) return true;
+  return !!parsed.category && parsed.category !== 'other' && !options.hasCustomCategories;
+}

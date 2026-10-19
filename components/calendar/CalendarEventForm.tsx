@@ -19,6 +19,7 @@ import {
 } from '../../utils/date';
 import { DEFAULT_TASK_TAGS, getTaskTagMeta } from '../../utils/taskTags';
 import { getCustomTaskTags } from '../../services/taskTagService';
+import DateField from '../ui/DateField';
 
 interface Props {
   selectedDate: string;
@@ -193,28 +194,15 @@ export default function CalendarEventForm({
       <View style={styles.dateRow}>
         <View style={styles.dateField}>
           <Text style={styles.fieldLabel}>開始日期</Text>
-          <TextInput
-            style={styles.input}
-            value={startDate}
-            onChangeText={value => {
+          <DateField label="開始日期" value={startDate} quick={[['今天', 0], ['明天', 1]]}
+            onChange={value => {
               setStartDate(value);
               if (endDate < value) setEndDate(value);
-            }}
-            placeholder="YYYY-MM-DD"
-            placeholderTextColor="#4A4F54"
-            keyboardType="numbers-and-punctuation"
-          />
+            }} />
         </View>
         <View style={styles.dateField}>
           <Text style={styles.fieldLabel}>結束日期</Text>
-          <TextInput
-            style={styles.input}
-            value={endDate}
-            onChangeText={setEndDate}
-            placeholder="YYYY-MM-DD"
-            placeholderTextColor="#4A4F54"
-            keyboardType="numbers-and-punctuation"
-          />
+          <DateField label="結束日期" value={endDate} onChange={setEndDate} quick={[]} />
         </View>
       </View>
       <View style={styles.quickRow}>
@@ -395,7 +383,7 @@ const styles = StyleSheet.create({
   switchHint: { color: '#5C6268', fontSize: 10, marginTop: 3 },
   timeRow: { flexDirection: 'row', gap: 10 },
   timeField: { flex: 1 },
-  dateRow: { flexDirection: 'row', gap: 10 },
+  dateRow: { gap: 12 },
   dateField: { flex: 1 },
   fieldLabel: { color: '#646B72', fontSize: 11, letterSpacing: 1, marginBottom: 7 },
   quickRow: { flexDirection: 'row', gap: 7, marginTop: -3, marginBottom: 10 },

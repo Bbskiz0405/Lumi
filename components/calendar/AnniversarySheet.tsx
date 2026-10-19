@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, Modal, ScrollView, StyleSheet, Text, TextInpu
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SavedAnniversary, deleteAnniversary, saveAnniversary } from '../../services/anniversaryService';
 import KeyboardSheet from '../ui/KeyboardSheet';
+import DateField from '../ui/DateField';
 
 interface Props {
   initial: SavedAnniversary | null;
@@ -48,8 +49,8 @@ export default function AnniversarySheet({initial, selectedDate, onClose, onSave
           <Text style={styles.hint}>每年同月同日顯示在 Lumi 日曆，不計入筆記或任務。2 月 29 日僅在閏年顯示。</Text>
           <Text style={styles.label}>名稱（必填）</Text>
           <TextInput accessibilityLabel="紀念日名稱" style={styles.input} value={name} onChangeText={setName} editable={!busy} placeholder="例如：我們交往紀念日" placeholderTextColor="#888888" />
-          <Text style={styles.label}>日期（YYYY-MM-DD，必填）</Text>
-          <TextInput accessibilityLabel="紀念日日期" style={styles.input} value={date} onChangeText={setDate} editable={!busy} autoCapitalize="none" autoCorrect={false} placeholder="2026-09-22" placeholderTextColor="#888888" />
+          <Text style={styles.label}>日期（必填）</Text>
+          <DateField label="紀念日日期" value={date} onChange={setDate} disabled={busy} quick={[['今天', 0]]} />
           {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
           <TouchableOpacity accessibilityRole="button" style={[styles.button,styles.primary,busy && styles.disabled]} disabled={busy} onPress={() => void submit()}>
             {busy ? <ActivityIndicator color="#111111" /> : <Text style={styles.primaryText}>儲存紀念日</Text>}

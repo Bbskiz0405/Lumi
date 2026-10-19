@@ -11,7 +11,9 @@
     "check": "npm run typecheck",
     "check:tracker": "node scripts/check-tracker.cjs",
     "check:gemini": "node scripts/check-gemini.cjs",
-    "check:classifier": "node scripts/check-classifier.cjs"
+    "check:classifier": "node scripts/check-classifier.cjs",
+    "check:ui": "node scripts/check-tracker-editor.cjs && node scripts/check-keyboard-sheet.cjs && node scripts/check-calendar-grid.cjs && node scripts/check-ask-layout.cjs",
+    "check:all": "npm run check && npm run check:tracker && npm run check:gemini && npm run check:classifier && npm run check:ui"
   },
   "dependencies": {
     "@react-navigation/material-top-tabs": "^7.4.28",

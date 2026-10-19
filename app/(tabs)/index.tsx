@@ -17,6 +17,7 @@ import { Anniversary, ANNIVERSARY_CATEGORY, formatAnniversary, parseAnniversaryI
 import {
   createCategoryMeta,
   createTransaction,
+  DEFAULT_EXPENSE_CATEGORIES,
   findCategoryMeta,
   getExpenseCategories,
   saveExpenseCategories,
@@ -31,6 +32,7 @@ import {
   extractItemName,
   getLearnedCategory,
   parseFinanceDate,
+  canSkipAI,
 } from '../../services/classificationService';
 import { classifyTextWithAI } from '../../services/geminiService';
 import { ClassifiedType } from '../../types/entry';
@@ -167,7 +169,17 @@ export default function HomeScreen() {
       }
       const expenseCategories = await getExpenseCategories();
       setExpenseCategories(expenseCategories);
-      const ai = await classifyTextWithAI(trimmed, expenseCategories);
+      // 本機先判斷：有金額、分類明確（或你記過同一品項）的記帳直接存，不等 AI —— 更快、不耗額度、離線也能記。
+      const local = classifyByKeywords(trimmed);
+      const learnedCategory = local.type === 'FINANCE' && local.parsed?.transactionType !== 'income'
+        ? await getLearnedCategory(trimmed).catch(() => null)
+        : null;
+      const hasCustomCategories = expenseCategories.some(
+        category => !DEFAULT_EXPENSE_CATEGORIES.some(builtIn => builtIn.value === category.value)
+      );
+      const skipAI = canSkipAI(local, trimmed, { learnedCategory, hasCustomCategories });
+      if (skipAI) result = { ...local, confidence: 'high' };
+      const ai = skipAI ? null : await classifyTextWithAI(trimmed, expenseCategories);
       if (ai) {
         if (ai.type === 'FINANCE') {
           const localFinance = classifyByKeywords(trimmed);

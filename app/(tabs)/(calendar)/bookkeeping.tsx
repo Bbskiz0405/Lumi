@@ -33,6 +33,7 @@ import {
 import { Transaction, ExpenseCategory, ExpenseCategoryMeta, IncomeKind } from '../../../types/finance';
 import { isValidLocalDateString } from '../../../utils/date';
 import KeyboardSheet from '../../../components/ui/KeyboardSheet';
+import DateField from '../../../components/ui/DateField';
 
 type ViewMode = 'month' | 'year' | 'all';
 
@@ -449,15 +450,7 @@ export default function BookkeepingScreen() {
                 placeholderTextColor="#444"
               />
               <Text style={styles.fieldLabel}>日期</Text>
-              <TextInput
-                style={styles.input}
-                value={editDate}
-                onChangeText={setEditDate}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor="#444"
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
+              <DateField label="日期" value={editDate} onChange={setEditDate} />
               <View style={styles.amountRow}>
                 <TextInput
                   style={[styles.input, { flex: 1, marginBottom: 0 }]}
@@ -589,15 +582,7 @@ export default function BookkeepingScreen() {
               {!!formItemError && <Text style={styles.errorText}>{formItemError}</Text>}
 
               <Text style={styles.fieldLabel}>日期</Text>
-              <TextInput
-                style={[styles.input, !!formDateError && styles.inputError]}
-                value={formDate}
-                onChangeText={setFormDate}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor="#444"
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
+              <DateField label="日期" value={formDate} onChange={value => { setFormDate(value); setFormDateError(''); }} />
               {!!formDateError && <Text style={styles.errorText}>{formDateError}</Text>}
 
               <View style={styles.amountRow}>

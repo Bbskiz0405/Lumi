@@ -23,7 +23,8 @@ function parse(value: string): { year: number; month: number; day: number } | nu
 export function formatDateLabel(value: string): string {
   const parsed = parse(value);
   if (!parsed) return '';
-  const relative = value === localDate() ? '今天' : value === localDate(-1) ? '昨天' : '週' + WEEKDAYS[new Date(parsed.year, parsed.month, parsed.day).getDay()];
+  const relative = value === localDate() ? '今天' : value === localDate(-1) ? '昨天' : value === localDate(1) ? '明天'
+    : '週' + WEEKDAYS[new Date(parsed.year, parsed.month, parsed.day).getDay()];
   return `${parsed.year}年${parsed.month + 1}月${parsed.day}日（${relative}）`;
 }
 
@@ -33,10 +34,13 @@ interface Props {
   onChange: (value: string) => void;
   optional?: boolean;
   disabled?: boolean;
+  /** Shortcut chips as [label, days from today]; past-looking fields keep 今天／昨天, plans use 今天／明天. */
+  quick?: [string, number][];
+  placeholder?: string;
 }
 
 /** Tap-to-pick date with an inline month grid; no typing, no nested modal. */
-export default function DateField({ label, value, onChange, optional = false, disabled = false }: Props) {
+export default function DateField({ label, value, onChange, optional = false, disabled = false, quick = [['今天', 0], ['昨天', -1]], placeholder = '點選日期' }: Props) {
   const parsed = parse(value);
   const [open, setOpen] = useState(false);
   const [view, setView] = useState(() => {
@@ -66,11 +70,11 @@ export default function DateField({ label, value, onChange, optional = false, di
   return <View>
     <TouchableOpacity disabled={disabled} style={styles.field} onPress={toggle}
       accessibilityRole="button" accessibilityLabel={`${label}：${parsed ? formatDateLabel(value) : '未選擇'}，點選以${open ? '收起' : '選擇'}日期`}>
-      <Text style={[styles.value, !parsed && styles.placeholder]}>{parsed ? formatDateLabel(value) : '點選日期'}</Text>
+      <Text style={[styles.value, !parsed && styles.placeholder]}>{parsed ? formatDateLabel(value) : placeholder}</Text>
       <TechIcon name="calendar" size={17} color="#777" />
     </TouchableOpacity>
     <View style={styles.row}>
-      {[['今天', localDate()], ['昨天', localDate(-1)]].map(([text, date]) =>
+      {quick.map(([text, offset]) => [text, localDate(offset)]).map(([text, date]) =>
         <TouchableOpacity key={text} disabled={disabled} style={[styles.chip, value === date && styles.chipActive]} onPress={() => pick(date)}>
           <Text style={[styles.chipText, value === date && styles.chipTextActive]}>{text}</Text>
         </TouchableOpacity>)}
