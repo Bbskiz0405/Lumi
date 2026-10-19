@@ -5,7 +5,7 @@
 
 ## 🚀 下一步（開工第一件事）
 
-1. ⚠️ **先提醒使用者做實機測試**（他要求的）。S26 Ultra 目前裝的是 10/1 的 v3 版；最新版還沒裝：`adb -s R5GL75NTH4Y install -r C:\Users\Brayden\Desktop\Lumi-0.4.81-smart-classify.apk`（36,824,478 bytes，SHA256 `5B401E75856659ADBC4B20AAD4A527C73F7D7EB205799B8CD2CCC4EAAA513DD3`，含範本／摘要／點選日期＋鍵盤修正＋記帳分類優化）。注意：ADB 上的 `850000409002517` 是 Digital Paper，不要裝到那台。
+1. ⚠️ **先提醒使用者做實機測試**（他要求的）。S26 Ultra 目前裝的是 10/1 的 v3 版；最新版還沒裝：`adb -s R5GL75NTH4Y install -r C:\Users\Brayden\Desktop\Lumi-0.4.81-finance-insights.apk`（36,837,438 bytes，SHA256 `BB85C0DAFF8E92F6CA61C9A297E760A69A29B2D85E908F66E4BA4314080C28BF`，含範本／摘要／點選日期＋鍵盤修正＋記帳分類優化＋財務結論卡）。注意：ADB 上的 `850000409002517` 是 Digital Paper，不要裝到那台。
    - **鍵盤**：記帳新增／編輯點金額、儲蓄目標、預算、對帳、任務、行程、工時、筆記、紀念日、模組記錄，輸入框都要在鍵盤上方；收起鍵盤後 sheet 要回到原位、不能推兩次。
 2. **實機驗收（新流程，應該 3 下內完成）**：
    - 自訂模組 → 快速建立「月經紀錄」→ 看摘要是否易懂 → 確認建立（需要提醒的話，在「調整細節」裡選）。
@@ -13,16 +13,17 @@
    - 日曆空心紫點與當日卡片、首頁提示、問 Lumi 引用推算、09:00 提醒在鎖定畫面不顯示內容。
    - AI 設計路徑（503 時可改用範本）。鍵盤、大字體一併看。
    - **記帳分類**：試「晚餐 1,050」「房租 1.2萬」「昨天 珍奶 60」「薪水 42000」「悠遊卡儲值 500」；在記帳頁把某筆改分類後，再輸入同品項應沿用。
-3. 好上手改版、鍵盤修正、分類優化（`122c119`）已在本機 commit，尚未 push。
+   - **財務分析**：月模式最上方四張卡（還好嗎／哪裡不一樣／小錢累積／每月固定支出）數字是否合理、資料不足時的說明是否清楚；舊區塊都還在。
+3. 好上手改版、鍵盤修正、分類優化、財務結論卡已在本機 commit，尚未 push。
 4. **財務下一步待使用者選**（研究結論見 LOG 10/19）：定期收支、記帳提醒、帳戶／支付方式、CSV 匯出、發票載具。
 
 ## 目前階段
 
-- 版號 **0.4.81**（未 bump），DB v9、backup schema 7。未升版累積改動七批：① 可收合共用月曆；② 記帳／財務分析拆頁＋財務中心；③ 目前存款與對帳；④ 首頁智慧記帳本機補分類；⑤ AI 建立自訂財務分類；⑥ AI 自訂追蹤模組 v1＋r2；⑦ **自訂模組推算積木 v1–v3（10/1 已安裝、未驗收）＋好上手改版：範本／摘要／點選日期＋全 App 鍵盤遮擋修正＋記帳分類優化（10/19，未安裝）**。
+- 版號 **0.4.81**（未 bump），DB v9、backup schema 7。未升版累積改動七批：① 可收合共用月曆；② 記帳／財務分析拆頁＋財務中心；③ 目前存款與對帳；④ 首頁智慧記帳本機補分類；⑤ AI 建立自訂財務分類；⑥ AI 自訂追蹤模組 v1＋r2；⑦ **自訂模組推算積木 v1–v3（10/1 已安裝、未驗收）＋好上手改版：範本／摘要／點選日期＋全 App 鍵盤遮擋修正＋記帳分類優化＋財務結論卡（10/19，未安裝）**。
 - **推算積木**：`cycle`／`duration`／`trend` 積木，AI 只挑選、手機本機計算（`services/trackerInsightService.ts`）。v2：日曆空心紫點＋當日卡片、首頁提示、問 Lumi 引用推算。v3：週期提醒（使用者設定、09:00、鎖屏隱藏內容，`syncTrackerReminders`）。計畫 `plans/plan_20260929_tracker_insights.md`。已知未修：事件流遇損壞模組紀錄會 throw。
 - S26 Ultra 目前安裝 `Lumi-0.4.81-module-insights-v3.apk`（10/1），含之前全部改動＋推算 v1–v3。
 - 模型分流：分類／新分類建議／模組紀錄帶入 2.5 Flash-Lite；分析／問 Lumi／月回顧／模組設計 3.8。分類 12 秒、深度 65 秒最多 3 次，不跨模型備援。3.8 請求無 temperature，thinkingLevel=LOW。
-- 測試：`npm.cmd run check`、`npm.cmd run check:tracker`（44 組）、`npm.cmd run check:gemini`（8 組）、`npm.cmd run check:classifier`（83 條＋30 條保留集）、`node scripts/check-tracker-editor.cjs`／`check-keyboard-sheet.cjs`／`check-ask-layout.cjs`／`check-calendar-grid.cjs`。
+- 測試：`npm.cmd run check`、`npm.cmd run check:tracker`（45 組）、`npm.cmd run check:gemini`（8 組）、`npm.cmd run check:classifier`（83 條＋30 條保留集）、`node scripts/check-tracker-editor.cjs`／`check-keyboard-sheet.cjs`／`check-ask-layout.cjs`／`check-calendar-grid.cjs`。
 - GitHub 最新同步：推算 v1–v3 功能提交 `23ab263`（10/18，未實機驗收）；10/19 三批（b526484、4ae6494、122c119）僅本機。本地 release APK 仍用 debug keystore。
 
 ## 待辦

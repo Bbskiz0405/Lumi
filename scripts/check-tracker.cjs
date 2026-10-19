@@ -87,6 +87,7 @@ function load(relative) {
         getItemAsync: async () => JSON.stringify({provider:'gemini',apiKey:'test-only'}),
       };
       if (name === './financeService') return {
+        EXCLUDE_ADJUSTMENTS: 'is_adjustment = 0',
         getExpenseCategories: async () => [{value:'food',label:'餐飲'}],
         findCategoryMeta: () => ({value:'food',label:'餐飲'}),
         getTransactionsForMonth: async () => [],
@@ -662,6 +663,59 @@ const clone = value => JSON.parse(JSON.stringify(value));
     assert.equal(parsed.dueDate, '2026-12-01');
     responseText = JSON.stringify({type:'FINANCE', amount:42000, transactionType:'income', incomeKind:'fixed'});
     assert.equal(clone(await ai.classifyTextWithAI('薪水 42000', categories)).incomeKind, 'fixed');
+  });
+  await test('finance insights compare with the usual month, find changes, small leaks and fixed costs', async () => {
+    const fi = load('services/financeInsightService.ts');
+    const tx = (date, item, amount, category, extra = {}) => ({id: randomUUID(), entry_id: null, type: 'expense', item, amount, category,
+      income_kind: null, is_adjustment: 0, created_at: date + 'T12:00:00.000', ...extra});
+    const rows = [];
+    for (const [month, transport] of [['2026-07', 600], ['2026-08', 400], ['2026-09', 800]]) {
+      rows.push(tx(month + '-01', '房租', 12000, 'housing'), tx(month + '-10', '電話費', 599, 'communication'),
+        tx(month + '-15', 'Netflix', 390, 'entertainment'), tx(month + '-12', '捷運', transport, 'transport'),
+        ...[5, 15, 25].map(day => tx(`${month}-${String(day).padStart(2, '0')}`, '午餐', 1000, 'food')));
+    }
+    rows.push(tx('2026-10-01', '房租', 12000, 'housing'), tx('2026-10-10', '電話費', 599, 'communication'),
+      tx('2026-10-05', '午餐', 1000, 'food'), tx('2026-10-15', '午餐', 1000, 'food'),
+      tx('2026-10-03', '高鐵', 1490, 'transport'), ...[6, 7, 8].map(day => tx(`2026-10-0${day}`, '計程車', 250, 'transport')),
+      ...[10, 11, 12, 13, 14, 15].map(day => tx(`2026-10-${day}`, '手搖飲', 55, 'food')),
+      tx('2026-10-19', '對帳調整', 99999, 'other', {is_adjustment: 1}), tx('2026-10-18', '薪水', 42000, null, {type: 'income'}),
+      tx('2026-10-25', '未來的帳', 5000, 'other'));
+    const now = new Date(2026, 9, 19, 20, 0);
+    const result = clone(fi.computeFinanceInsights(rows, '2026-10', now, '2026-07-01T09:00:00.000', null));
+    assert.deepEqual({...result.pulse, vsTypical: Math.round(result.pulse.vsTypical * 1000)}, {
+      month: '2026-10', isCurrent: true, day: 19, daysInMonth: 31, daysLeft: 13, spent: 17169, historyMonths: 3,
+      typicalSoFar: 15589, typicalTotal: 16589, vsTypical: 101, projected: 18169, projectedBasis: 'history',
+      dailyAllowance: 0, allowanceBasis: 'typical',
+    });
+    assert.deepEqual(result.changes.map(change => [change.category, change.diff]), [['transport', 1640], ['entertainment', -390]]);
+    assert.deepEqual(result.changes[0].drivers, [{item: '高鐵', total: 1490, count: 1}, {item: '計程車', total: 750, count: 3}]);
+    assert.deepEqual(result.smallSpends, [{item: '手搖飲', category: 'food', count: 6, total: 330, yearly: 4015}]);
+    assert.deepEqual(result.fixedCosts.map(cost => [cost.item, cost.monthly, cost.paidThisMonth]),
+      [['房租', 12000, true], ['電話費', 599, true], ['Netflix', 390, false]]); // 捷運 varies, 午餐 is 3×/month
+    assert.equal(result.fixedTotal, 12989);
+
+    const budgeted = clone(fi.computeFinanceInsights(rows, '2026-10', now, '2026-07-01T09:00:00.000', 20000)).pulse;
+    assert.deepEqual([budgeted.dailyAllowance, budgeted.allowanceBasis], [217, 'budget']);
+    // Records began mid-August: August is half-tracked, so only September counts as "usual".
+    const partial = clone(fi.computeFinanceInsights(rows, '2026-10', now, '2026-08-15T09:00:00.000', null));
+    assert.equal(partial.pulse.historyMonths, 1);
+    assert.deepEqual(partial.fixedCosts, []);
+    const fresh = clone(fi.computeFinanceInsights(rows, '2026-10', now, '2026-10-01T09:00:00.000', null));
+    assert.deepEqual([fresh.pulse.historyMonths, fresh.pulse.vsTypical, fresh.pulse.projectedBasis, fresh.pulse.projected, fresh.pulse.dailyAllowance],
+      [0, null, 'pace', Math.round(17169 / 19 * 31), null]);
+    assert.deepEqual(fresh.changes, []);
+    const past = clone(fi.computeFinanceInsights(rows, '2026-09', now, '2026-07-01T09:00:00.000', null)).pulse;
+    assert.deepEqual([past.isCurrent, past.day, past.daysLeft, past.spent, past.projected, past.dailyAllowance], [false, 30, 0, 16789, 16789, null]);
+    assert.equal(clone(fi.computeFinanceInsights(rows, '2026-11', now, '2026-07-01T09:00:00.000', null)).pulse.day, 0);
+
+    for (const row of rows) {
+      await db.runAsync('INSERT INTO transactions (id, entry_id, type, item, amount, category, income_kind, is_adjustment, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [row.id, null, row.type, row.item, row.amount, row.category, null, row.is_adjustment, row.created_at]);
+    }
+    const loaded = clone(await fi.getFinanceInsights('2026-10', now));
+    assert.equal(loaded.pulse.spent, 17169); // adjustment and income excluded, future row after today ignored
+    assert.equal(loaded.fixedTotal, 12989);
+    await db.runAsync('DELETE FROM transactions WHERE id IN (' + rows.map(() => '?').join(',') + ')', rows.map(row => row.id));
   });
   const anniversaries = load('services/anniversaryService.ts');
   const notes = load('services/noteService.ts');

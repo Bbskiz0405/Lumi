@@ -11,6 +11,8 @@ import BudgetSection from '../../components/finance/analytics/BudgetSection';
 import TrendChart from '../../components/finance/analytics/TrendChart';
 import CategoryRanking from '../../components/finance/analytics/CategoryRanking';
 import TopExpenseList from '../../components/finance/analytics/TopExpenseList';
+import { ChangeList, FixedCostList, MonthPulseCard, SmallSpendList } from '../../components/finance/analytics/InsightCards';
+import { FinanceInsights, getFinanceInsights } from '../../services/financeInsightService';
 import { getExpenseCategories, upsertBudget } from '../../services/financeService';
 import {
   Period,
@@ -70,6 +72,7 @@ export default function FinanceAnalyticsScreen() {
   const [balance, setBalance] = useState<CurrentBalance | null>(null);
   const [budgets, setBudgets] = useState<BudgetUsageItem[]>([]);
   const [goals, setGoals] = useState<SavingsGoalProgress[]>([]);
+  const [insights, setInsights] = useState<FinanceInsights | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -95,6 +98,7 @@ export default function FinanceAnalyticsScreen() {
       rawGoals,
       avgSurplus,
       nextBalance,
+      nextInsights,
     ] = await Promise.all([
       getExpenseCategories(),
       getFinanceOverview(period),
@@ -107,6 +111,7 @@ export default function FinanceAnalyticsScreen() {
       getSavingsGoals(),
       getAvgMonthlySurplus(anchorMonth),
       getCurrentBalance(),
+      getFinanceInsights(anchorMonth),
     ]);
 
     setCategories(nextCategories);
@@ -119,6 +124,7 @@ export default function FinanceAnalyticsScreen() {
     setBudgets(nextBudgets);
     setGoals(rawGoals.map(goal => buildGoalProgress(goal, avgSurplus)));
     setBalance(nextBalance);
+    setInsights(nextInsights);
     setLoading(false);
   }, [period, anchorMonth]);
 
@@ -210,6 +216,22 @@ export default function FinanceAnalyticsScreen() {
         )}
 
         {balance && <BalanceCard balance={balance} onReconcile={handleReconcile} />}
+
+        {/* 結論在上：先回答「還好嗎、哪裡不一樣、錢漏在哪、固定要付多少」，原本的明細圖表都保留在下方。 */}
+        {period.mode === 'month' && insights && <>
+          <Section title="這個月還好嗎">
+            <MonthPulseCard pulse={insights.pulse} />
+          </Section>
+          <Section title="哪裡不一樣" hint="跟平常同一時間點比">
+            <ChangeList changes={insights.changes} historyMonths={insights.pulse.historyMonths} categories={categories} />
+          </Section>
+          <Section title="小錢累積" hint={`最近 ${insights.smallSpendWindowDays} 天`}>
+            <SmallSpendList items={insights.smallSpends} windowDays={insights.smallSpendWindowDays} />
+          </Section>
+          <Section title="每月固定支出" hint="從紀錄自動找出">
+            <FixedCostList items={insights.fixedCosts} total={insights.fixedTotal} historyMonths={insights.pulse.historyMonths} />
+          </Section>
+        </>}
 
         {overview && <KpiSummary overview={overview} />}
 

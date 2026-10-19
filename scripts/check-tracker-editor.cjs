@@ -152,4 +152,36 @@ const summary = summaryText({...period, insights:[{...period.insights[0], offset
 for (const expected of ['開始日、結束日、經血量','只有開始日必填','下次月經（含排卵日、易孕期），前 1 天提醒','經期天數（開始日到結束日）','僅供參考']) assert.ok(summary.includes(expected), expected);
 assert.ok(!summaryText({...period, insights:[]}).includes('自動推算'));
 console.log('PASS date field picks by tap across months and leap years; summary explains fields, required and insights');
+
+const money = load('utils/money.ts', {});
+const Cards = load('components/finance/analytics/InsightCards.tsx', {
+  react:{default:React},
+  'react-native':{View:'View',Text:'Text',StyleSheet:{create:value=>value}},
+  '../../../services/financeService':{findCategoryMeta:(_, value) => ({value, label:{transport:'交通',entertainment:'娛樂'}[value] ?? value, color:'#fff'})},
+  '../../../utils/money':money,
+});
+const all = node => flatten(node).filter(item => typeof item === 'string' || typeof item === 'number').join('');
+const pulse = {month:'2026-10', isCurrent:true, day:19, daysInMonth:31, daysLeft:13, spent:17169, historyMonths:3, typicalSoFar:15589,
+  typicalTotal:16589, vsTypical:0.101, projected:18169, projectedBasis:'history', dailyAllowance:217, allowanceBasis:'budget'};
+let shown = all(Cards.MonthPulseCard({pulse}));
+for (const expected of ['10月到今天已花','17,169','比你平常這時候多 10%','平常約 15,589','照你平常的節奏，','18,169','還有 13 天','217','不會超過預算','依本月預算總額計算']) assert.ok(shown.includes(expected), expected);
+shown = all(Cards.MonthPulseCard({pulse:{...pulse, dailyAllowance:0, allowanceBasis:'typical'}}));
+assert.ok(shown.includes('已經超過平常一個月的花費了') && shown.includes('依你近 3 個月的平均月花費計算'));
+shown = all(Cards.MonthPulseCard({pulse:{...pulse, historyMonths:0, vsTypical:null, typicalSoFar:null, projectedBasis:'pace', dailyAllowance:null, allowanceBasis:null}}));
+assert.ok(shown.includes('完整記錄滿一個月後') && shown.includes('照目前速度粗估') && !shown.includes('還有 13 天'));
+shown = all(Cards.MonthPulseCard({pulse:{...pulse, isCurrent:false, day:30, vsTypical:-0.02, dailyAllowance:null}}));
+assert.ok(shown.includes('10月共花') && shown.includes('跟你平常差不多') && !shown.includes('月底'));
+assert.equal(all(Cards.MonthPulseCard({pulse:{...pulse, day:0}})), '這個月還沒開始。');
+shown = all(Cards.ChangeList({historyMonths:3, categories:[], changes:[
+  {category:'transport', current:2240, typical:600, diff:1640, ratio:2.733, drivers:[{item:'高鐵',total:1490,count:1},{item:'計程車',total:750,count:3}]},
+  {category:'entertainment', current:0, typical:390, diff:-390, ratio:-1, drivers:[]}]}));
+for (const expected of ['交通','+1,640（↑273%）','主要是 高鐵 1,490、計程車 ×3 750','娛樂','−390（↓100%）','比平常省']) assert.ok(shown.includes(expected), expected);
+assert.ok(all(Cards.ChangeList({historyMonths:0, changes:[], categories:[]})).includes('至少一個完整月份'));
+assert.equal(all(Cards.ChangeList({historyMonths:2, changes:[], categories:[]})), '各分類都跟平常差不多。');
+shown = all(Cards.SmallSpendList({windowDays:30, items:[{item:'手搖飲', category:'food', count:6, total:330, yearly:4015}]}));
+assert.ok(shown.includes('手搖飲') && shown.includes('6 次 · 330') && shown.includes('一年大約 4,015'));
+shown = all(Cards.FixedCostList({historyMonths:3, total:12989, items:[{item:'房租',category:'housing',monthly:12000,months:3,paidThisMonth:true},{item:'Netflix',category:'entertainment',monthly:390,months:3,paidThisMonth:false}]}));
+assert.ok(shown.includes('本月已記') && shown.includes('本月未記') && shown.includes('每月固定約12,989'));
+assert.ok(all(Cards.FixedCostList({historyMonths:1, total:0, items:[]})).includes('至少兩個完整月份'));
+console.log('PASS finance insight cards explain pace, changes, small leaks and fixed costs, with honest not-enough-data states');
 console.log('PASS insight editor renders blocks, steps offsets, toggles cycle reminders, prunes dependents and caps at four');
