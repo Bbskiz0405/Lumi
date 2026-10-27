@@ -10,6 +10,12 @@
 
 **版號：0.4.81（標準工時＋固定休息制度）**
 
+### 修正：改記帳後上方日曆消失、空出一塊（未 bump，2026-10-28）
+- 使用者截圖：記帳頁編輯一筆（改日期）後，子分頁列被推到最頂、日曆不見，下方內容停在頂端，中間一大塊空白。
+- 原因：存檔後 `loadAll(viewMode)` 未帶 silent，`setLoading(true)` 把 FlatList 換成 spinner → 清單重建、捲動歸零；但共用日曆的收合位移（`_layout.tsx` 的 `headerOffset`／`offsets`）仍是之前往下捲的值，沒有捲動事件可以同步。只要先往下捲讓日曆收起、再新增／編輯／刪除就會發生。工時頁 `load()` 有相同寫法（打卡、改紀錄後）。
+- ⭐定案：日曆群組內的頁面只有第一次載入可以顯示 spinner，之後的重新載入一律靜默（記帳 5 處、工時 5 處改為 silent），清單不卸載、保留捲動位置。新增 `scripts/check-silent-reload.cjs` 防回歸（已確認對舊程式各抓到 5 處），併入 `check:ui`。
+- check:all 通過。APK `C:\Users\Brayden\Desktop\Lumi-0.4.81-20261028.apk`，36,841,610 bytes，SHA256 `FD712B192607F3AE3AB6DA92A67B234032875C94FB1AB9EF5A4C1A8559912253`（含 10/19 全部＋本修正）。手機未連線，未實機驗證。
+
 ### iPhone 安裝方式討論、同步 GitHub 準備換到 Mac（2026-10-19）
 - 使用者想裝到 iPhone。說明 APK 只適用 Android；iOS 正式管道（App Store／TestFlight）需 Apple Developer Program US$99／年。使用者要免費方案、當時沒有 Mac。
 - 查證（2026-10-19）：App Store 上的 Expo Go 只支援最新 SDK 57（Lumi 為 SDK 55，不相容）；免費 Apple ID 側載（SideStore＋LiveContainer、AltStore、Sideloadly）據第三方教學仍可用於 iOS 26.x，但 App 每 7 天需續簽、最多 3 個；TrollStore 只支援舊 iOS；付費簽名服務不建議。任何側載都需要先在 macOS 產生 .ipa。

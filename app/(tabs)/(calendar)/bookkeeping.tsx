@@ -111,7 +111,7 @@ export default function BookkeepingScreen() {
     }
     setEditTx(null);
     bumpRefresh();
-    await loadAll(viewMode).catch(() => undefined);
+    await loadAll(viewMode, true).catch(() => undefined);
   }
 
   // Add modal
@@ -133,6 +133,9 @@ export default function BookkeepingScreen() {
 
   const currentMonth = toMonthStr(year, month);
 
+  // Only the first load may show the spinner. Swapping the list for a spinner later remounts it at
+  // the top while the shared calendar header stays collapsed at the old scroll offset, leaving a
+  // blank band where the calendar should be (seen after editing a record's date).
   async function loadAll(mode: ViewMode, silent = false) {
     if (!silent) setLoading(true);
     setLoadError(false);
@@ -251,7 +254,7 @@ export default function BookkeepingScreen() {
     }
     setModalVisible(false);
     bumpRefresh();
-    await loadAll(viewMode).catch(() => undefined);
+    await loadAll(viewMode, true).catch(() => undefined);
   }
 
   async function handleDelete(id: string, closeEdit = false) {
@@ -269,7 +272,7 @@ export default function BookkeepingScreen() {
             return;
           }
           bumpRefresh();
-          await loadAll(viewMode).catch(() => undefined);
+          await loadAll(viewMode, true).catch(() => undefined);
         },
       },
     ]);
@@ -293,7 +296,7 @@ export default function BookkeepingScreen() {
               return;
             }
             bumpRefresh();
-            await loadAll(viewMode).catch(() => undefined);
+            await loadAll(viewMode, true).catch(() => undefined);
           },
         },
       ]
@@ -341,7 +344,7 @@ export default function BookkeepingScreen() {
       {loadError && (
         <View style={styles.loadErrorBanner}>
           <Text style={styles.loadErrorText}>資料可能不是最新，讀取失敗。</Text>
-          <TouchableOpacity onPress={() => void loadAll(viewMode)}>
+          <TouchableOpacity onPress={() => void loadAll(viewMode, true)}>
             <Text style={styles.loadErrorRetry}>重試</Text>
           </TouchableOpacity>
         </View>

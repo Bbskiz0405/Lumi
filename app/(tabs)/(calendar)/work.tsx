@@ -99,6 +99,8 @@ export default function WorkScreen() {
   const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
   const today = toLocalDateString();
 
+  // Reloads after a change stay silent: replacing the list with a spinner remounts it at the top
+  // while the shared calendar header keeps its collapsed offset (blank band above the content).
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     setLoadError(false);
@@ -227,7 +229,7 @@ export default function WorkScreen() {
       const started = await clockIn();
       if (started.work_date !== selectedDate) setSelectedDate(started.work_date);
       bumpRefresh();
-      await load();
+      await load(true);
     } catch (error) {
       Alert.alert('打卡失敗', error instanceof Error ? error.message : '請稍後再試。');
     } finally {
@@ -247,7 +249,7 @@ export default function WorkScreen() {
             .then(async ended => {
               setSelectedDate(ended.work_date);
               bumpRefresh();
-              await load();
+              await load(true);
             })
             .catch(error => {
               Alert.alert('打卡失敗', error instanceof Error ? error.message : '請稍後再試。');
@@ -309,7 +311,7 @@ export default function WorkScreen() {
       }, record?.id);
       setModalVisible(false);
       bumpRefresh();
-      await load();
+      await load(true);
     } catch (error) {
       setFormError(error instanceof Error ? error.message : '儲存失敗，請稍後再試');
     } finally {
@@ -330,7 +332,7 @@ export default function WorkScreen() {
             .then(async () => {
               setModalVisible(false);
               bumpRefresh();
-              await load();
+              await load(true);
             })
             .catch(() => Alert.alert('刪除失敗', '工時紀錄仍保留，請再試一次。'))
             .finally(() => setBusy(false));
@@ -430,7 +432,7 @@ export default function WorkScreen() {
       {loadError ? (
         <View style={styles.emptyCard}>
           <Text style={styles.emptyTitle}>無法讀取工時</Text>
-          <TouchableOpacity onPress={() => void load()}>
+          <TouchableOpacity onPress={() => void load(true)}>
             <Text style={styles.retryText}>重試</Text>
           </TouchableOpacity>
         </View>
